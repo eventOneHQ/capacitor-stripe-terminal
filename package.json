@@ -1,0 +1,49 @@
+{
+  "name": "capacitor-stripe-terminal",
+  "version": "0.0.1",
+  "description": "Capacitor plugin for Stripe Terminal (credit card readers).",
+  "main": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "scripts": {
+    "build": "npm run clean && tsc",
+    "clean": "rm -rf ./dist",
+    "watch": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "author": "eventOne Labs <opensource@event1,io>",
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/core": "latest"
+  },
+  "devDependencies": {
+    "typescript": "^3.2.4",
+    "@capacitor/ios": "latest",
+    "@capacitor/android": "latest"
+  },
+  "files": [
+    "dist/",
+    "ios/",
+    "android/",
+    "CapacitorStripeTerminal.podspec"
+  ],
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eventOneHQ/capacitor-stripe-terminal"
+  },
+  "bugs": {
+    "url": "https://github.com/eventOneHQ/capacitor-stripe-terminal/issues"
+  }
+}
