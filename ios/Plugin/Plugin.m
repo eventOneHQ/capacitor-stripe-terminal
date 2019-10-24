@@ -7,4 +7,5 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(initialize, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(setConnectionToken, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(discoverReaders, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(connectReader, CAPPluginReturnPromise);
 )

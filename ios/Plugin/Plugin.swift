@@ -78,6 +78,30 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         })
     }
     
+    @objc func connectReader(_ call: CAPPluginCall) {
+        guard let serialNumber = call.getString("serialNumber") as? String else {
+            call.reject("Must provide a serial number")
+            return
+        }
+        
+        guard let selectedReader = self.readers?.first(where: { $0.serialNumber == serialNumber }) as? Reader else {
+            call.reject("No reader found")
+            return
+        }
+        
+        Terminal.shared.connectReader(selectedReader, completion: { reader, error in
+            if let reader = reader {
+                print("Successfully connected to reader: \(reader)")
+                call.resolve(["reader":self.serializeReader(reader: reader)])
+            }
+            else if let error = error {
+                print("connectReader failed: \(error)")
+                call.reject(error.localizedDescription)
+            }
+        })
+        
+    }
+    
     // MARK: DiscoveryDelegate
     
     public func terminal(_ terminal: Terminal, didUpdateDiscoveredReaders readers: [Reader]) {
@@ -96,6 +120,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     
     public func terminal(_ terminal: Terminal, didReportUnexpectedReaderDisconnect reader: Reader) {
         print("didReportUnexpectedReaderDisconnect \(reader)")
+        self.notifyListeners("didReportUnexpectedReaderDisconnect", data: ["reader": serializeReader(reader: reader)])
     }
     
     func serializeReader(reader: Reader) ->  [String: Any]  {
@@ -106,7 +131,6 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             "serialNumber": reader.serialNumber,
             "simulated": reader.simulated
         ]
-        
         
         return jsonObject;
     }

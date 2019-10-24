@@ -10,6 +10,10 @@ export interface StripeTerminalDiscoveryConfiguration {
   simulated: boolean
 }
 
+export interface StripeTerminalReader {
+    serialNumber: string
+}
+
 export class StripeTerminalPlugin {
   _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
@@ -47,6 +51,10 @@ export class StripeTerminalPlugin {
 
   async discoverReaders(options: StripeTerminalDiscoveryConfiguration) {
     return StripeTerminal.discoverReaders(options)
+  }
+
+  async connectReader(reader: StripeTerminalReader) {
+    return StripeTerminal.connectReader(reader)
   }
 
   addListener(...opts: any[]) {
