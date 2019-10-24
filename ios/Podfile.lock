@@ -2,10 +2,19 @@ PODS:
   - Capacitor (1.2.1):
     - CapacitorCordova (= 1.2.1)
   - CapacitorCordova (1.2.1)
+  - StripeTerminal (1.0.2)
+  - SwiftyJSON (4.3.0)
 
 DEPENDENCIES:
   - "Capacitor (from `../node_modules/@capacitor/ios`)"
   - "CapacitorCordova (from `../node_modules/@capacitor/ios`)"
+  - StripeTerminal (= 1.0.2)
+  - SwiftyJSON (~> 4.0)
+
+SPEC REPOS:
+  trunk:
+    - StripeTerminal
+    - SwiftyJSON
 
 EXTERNAL SOURCES:
   Capacitor:
@@ -16,7 +25,9 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Capacitor: e89d041bf912bccbbccab2e07d0f32aa4ca0f11a
   CapacitorCordova: 806e405d02de22c10a9b20a2ee4fb3f097cfb8a5
+  StripeTerminal: abeca8c3f57be96f6ba35ac79513bb91cc3db96e
+  SwiftyJSON: 6faa0040f8b59dead0ee07436cbf76b73c08fd08
 
-PODFILE CHECKSUM: 18edf3816e869cc37578950affc00fdd78ee0dcb
+PODFILE CHECKSUM: 039fd4c38de199745c082036887e4a24135cdff6
 
 COCOAPODS: 1.8.4

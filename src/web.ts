@@ -1,23 +1,19 @@
-import { WebPlugin } from '@capacitor/core';
-import { StripeTerminalPlugin } from './definitions';
+import { WebPlugin } from '@capacitor/core'
+import { StripeTerminalInterface } from './definitions'
 
-export class StripeTerminalWeb extends WebPlugin implements StripeTerminalPlugin {
+export class StripeTerminalWeb extends WebPlugin
+  implements StripeTerminalInterface {
   constructor() {
     super({
       name: 'StripeTerminal',
       platforms: ['web']
-    });
-  }
-
-  async echo(options: { value: string }): Promise<{value: string}> {
-    console.log('ECHO', options);
-    return options;
+    })
   }
 }
 
-const StripeTerminal = new StripeTerminalWeb();
+const StripeTerminal = new StripeTerminalWeb()
 
-export { StripeTerminal };
+export { StripeTerminal }
 
-import { registerWebPlugin } from '@capacitor/core';
-registerWebPlugin(StripeTerminal);
+import { registerWebPlugin } from '@capacitor/core'
+registerWebPlugin(StripeTerminal)

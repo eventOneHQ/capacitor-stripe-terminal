@@ -1,9 +1,16 @@
-declare module "@capacitor/core" {
+declare module '@capacitor/core' {
   interface PluginRegistry {
-    StripeTerminal: StripeTerminalPlugin;
+    StripeTerminal: StripeTerminalInterface
   }
 }
 
-export interface StripeTerminalPlugin {
-  echo(options: { value: string }): Promise<{value: string}>;
+export interface StripeTerminalInterface {
+  // setTokenProvider(options: { tokenProvider: () => string }): Promise<void>
+
+  setConnectionToken(options: {
+    token?: string
+    errorMessage?: string
+  }): Promise<void>
+
+  initialize(): Promise<void>
 }

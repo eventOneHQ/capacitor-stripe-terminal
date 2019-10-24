@@ -5,6 +5,8 @@ def capacitor_pods
   use_frameworks!
   pod 'Capacitor', :path => '../node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../node_modules/@capacitor/ios'
+  pod 'StripeTerminal', '1.0.2'
+  pod 'SwiftyJSON', '~> 4.0'
 end
 
 target 'Plugin' do
