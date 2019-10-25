@@ -20,6 +20,7 @@
   "devDependencies": {
     "@capacitor/android": "latest",
     "@capacitor/ios": "latest",
+    "semantic-release": "^15.13.27",
     "typedoc": "^0.15.0",
     "typescript": "^3.2.4"
   },
@@ -50,5 +51,9 @@
   },
   "bugs": {
     "url": "https://github.com/eventOneHQ/capacitor-stripe-terminal/issues"
+  },
+  "release": {
+    "branch": "next",
+    "dryRun": true
   }
 }
