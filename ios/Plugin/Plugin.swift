@@ -15,20 +15,27 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     
     private var readers: [Reader]?
     
+    func logMsg (items: Any...) {
+        print("SWIFT \(items)")
+    }
+    
     @objc func initialize(_ call: CAPPluginCall) {
-        print("swift init StripeTerminal")
+        self.logMsg(items: "init StripeTerminal")
         
         Terminal.setTokenProvider(self)
         Terminal.shared.delegate = self
         
-        call.success()
+        self.abortDiscoverReaders()
+        
+        call.resolve()
     }
     
     @objc func setConnectionToken(_ call: CAPPluginCall){
-        print("swift setConnectionToken")
         
         let token = call.getString("token") ?? ""
         let errorMessage = call.getString("errorMessage") ?? ""
+        
+        self.logMsg(items: "setConnectionToken \(token)")
         
         if let completion = pendingConnectionTokenCompletionBlock {
             if !errorMessage.isEmpty {
@@ -41,19 +48,20 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             }
             
             pendingConnectionTokenCompletionBlock = nil;
-            call.success()
+            call.resolve()
         }
     }
     
     public func fetchConnectionToken(_ completion: @escaping ConnectionTokenCompletionBlock) {
-        print("swift fetchConnectionToken")
+        self.logMsg(items: "fetchConnectionToken")
         pendingConnectionTokenCompletionBlock = completion
         self.notifyListeners("requestConnectionToken", data: [:])
     }
     
     @objc func discoverReaders(_ call: CAPPluginCall) {
+        self.logMsg(items: "discoverReaders")
         // Attempt to abort any pending discoverReader calls first.
-        // self.abortDiscoverReaders()
+        self.abortDiscoverReaders()
         
         let simulated = call.getBool("simulated") ?? true
         
@@ -64,18 +72,29 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
                                             simulated: simulated)
         self.pendingDiscoverReaders = Terminal.shared.discoverReaders(config, delegate: self, completion: { error in
             if let error = error {
-                print("discoverReaders failed: \(error)")
-                
-                //                self.notifyListeners("readerDiscoveryCompletion", data: ["error": error.localizedDescription])
-                call.error(error.localizedDescription)
+                self.logMsg(items: "discoverReaders failed: \(error)")
+                call.reject(error.localizedDescription, error)
             }
             else {
-                print("discoverReaders succeeded")
-                //                self.notifyListeners("readerDiscoveryCompletion", data: [:])
-                
-                call.success()
+                self.logMsg(items: "discoverReaders succeeded")
+                call.resolve()
             }
         })
+    }
+    
+    @objc func abortDiscoverReaders(_ call: CAPPluginCall? = nil) {
+        self.logMsg(items: "abortDiscoverReaders")
+        if let pendingDiscoverReaders = pendingDiscoverReaders {
+            pendingDiscoverReaders.cancel({ error in
+                if let error = error {
+                    call?.reject(error.localizedDescription, error)
+                } else {
+                    call?.resolve()
+                }
+            })
+        }
+        
+        call?.resolve()
     }
     
     @objc func connectReader(_ call: CAPPluginCall) {
@@ -83,6 +102,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             call.reject("Must provide a serial number")
             return
         }
+        self.logMsg(items: "connectReader \(serialNumber)")
         
         guard let selectedReader = self.readers?.first(where: { $0.serialNumber == serialNumber }) as? Reader else {
             call.reject("No reader found")
@@ -91,21 +111,38 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         
         Terminal.shared.connectReader(selectedReader, completion: { reader, error in
             if let reader = reader {
-                print("Successfully connected to reader: \(reader)")
-                call.resolve(["reader":self.serializeReader(reader: reader)])
+                self.logMsg(items: "Successfully connected to reader: \(reader.serialNumber)")
+                call.resolve([
+                    "reader": self.serializeReader(reader: reader)
+                ])
             }
             else if let error = error {
-                print("connectReader failed: \(error)")
-                call.reject(error.localizedDescription)
+                self.logMsg(items: "connectReader failed: \(error)")
+                call.reject(error.localizedDescription, error)
             }
         })
         
     }
     
+    @objc func getConnectionStatus(_ call: CAPPluginCall){
+        self.logMsg(items: "getConnectionStatus \(Terminal.shared.connectionStatus.rawValue)")
+        call.resolve(["status": Terminal.shared.connectionStatus.rawValue])
+    }
+    
+    @objc func getConnectedReader(_ call: CAPPluginCall){
+
+        var reader: Any = [:]
+        if Terminal.shared.connectedReader != nil {
+            reader = self.serializeReader(reader: Terminal.shared.connectedReader!)
+        }
+        
+        call.resolve(["reader": reader])
+    }
+    
     // MARK: DiscoveryDelegate
     
     public func terminal(_ terminal: Terminal, didUpdateDiscoveredReaders readers: [Reader]) {
-        print("swift didUpdateDiscoveredReaders")
+        self.logMsg(items: "didUpdateDiscoveredReaders")
         self.readers = readers
         
         let readersJSON = readers.map({
@@ -119,9 +156,17 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     // MARK: TerminalDelegate
     
     public func terminal(_ terminal: Terminal, didReportUnexpectedReaderDisconnect reader: Reader) {
-        print("didReportUnexpectedReaderDisconnect \(reader)")
+        self.logMsg(items: "didReportUnexpectedReaderDisconnect \(reader)")
         self.notifyListeners("didReportUnexpectedReaderDisconnect", data: ["reader": serializeReader(reader: reader)])
     }
+    
+    public func terminal(_ terminal: Terminal, didChangeConnectionStatus status: ConnectionStatus) {
+        self.logMsg(items: "didChangeConnectionStatus \(status) \(status.rawValue)")
+        self.notifyListeners("didChangeConnectionStatus", data: ["status": status.rawValue])
+    }
+    
+    
+    // MARK: Serializers
     
     func serializeReader(reader: Reader) ->  [String: Any]  {
         let jsonObject: [String: Any]  =   [

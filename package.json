@@ -13,7 +13,8 @@
   "author": "eventOne Labs <opensource@event1,io>",
   "license": "MIT",
   "dependencies": {
-    "@capacitor/core": "latest"
+    "@capacitor/core": "latest",
+    "rxjs": "^6.5.3"
   },
   "devDependencies": {
     "typescript": "^3.2.4",

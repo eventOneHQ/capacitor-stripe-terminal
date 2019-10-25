@@ -1,21 +1,17 @@
 import { Plugins } from '@capacitor/core'
+import { Observable } from 'rxjs'
+
+import {
+  StripeTerminalConfig,
+  DiscoveryConfiguration,
+  Reader,
+  ConnectionStatus
+} from './definitions'
 
 const { StripeTerminal } = Plugins
 
-export interface StripeTerminalConfig {
-  fetchConnectionToken: () => Promise<string>
-}
-
-export interface StripeTerminalDiscoveryConfiguration {
-  simulated: boolean
-}
-
-export interface StripeTerminalReader {
-    serialNumber: string
-}
-
 export class StripeTerminalPlugin {
-  _fetchConnectionToken: () => Promise<string> = () =>
+  private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
 
   listeners: any = {}
@@ -27,11 +23,10 @@ export class StripeTerminalPlugin {
       this.listeners['connectionTokenListener'] = StripeTerminal.addListener(
         'requestConnectionToken',
         () => {
-          console.log('requestConnectionToken was fired')
           this._fetchConnectionToken()
             .then(token => {
               if (token) {
-                StripeTerminal.setConnectionToken(token, null)
+                StripeTerminal.setConnectionToken({ token }, null)
               } else {
                 throw new Error(
                   'User-supplied `fetchConnectionToken` resolved successfully, but no token was returned.'
@@ -49,19 +44,79 @@ export class StripeTerminalPlugin {
     })
   }
 
-  async discoverReaders(options: StripeTerminalDiscoveryConfiguration) {
-    return StripeTerminal.discoverReaders(options)
+  public discoverReaders(
+    options: DiscoveryConfiguration
+  ): Observable<Reader[]> {
+    return new Observable(subscriber => {
+      // start discovery
+      StripeTerminal.discoverReaders(options)
+        .then(() => {
+          subscriber.complete()
+        })
+        .catch((err: any) => {
+          subscriber.error(err)
+        })
+
+      StripeTerminal.addListener('readersDiscovered', (readers: any) => {
+        subscriber.next(readers.readers)
+      })
+
+      return {
+        unsubscribe: () => {
+          StripeTerminal.abortDiscoverReaders()
+          StripeTerminal.removeListener('readersDiscovered')
+        }
+      }
+    })
   }
 
-  async connectReader(reader: StripeTerminalReader) {
+  public async connectReader(reader: Reader) {
     return StripeTerminal.connectReader(reader)
   }
 
-  addListener(...opts: any[]) {
+  public async getConnectedReader() {
+    return StripeTerminal.getConnectedReader()
+  }
+
+  public async getConnectionStatus() {
+    return StripeTerminal.getConnectionStatus()
+  }
+
+  public connectionStatus(): Observable<ConnectionStatus> {
+    return new Observable(subscriber => {
+      let hasSentEvent = false
+
+      // get current value
+      StripeTerminal.getConnectionStatus()
+        .then((status: any) => {
+          // only send the inital value if the event listner hasn't already
+          if (!hasSentEvent) {
+            subscriber.next(status.status)
+          }
+        })
+        .catch((err: any) => {
+          subscriber.error(err)
+        })
+
+      // then listen for changes
+      StripeTerminal.addListener('didChangeConnectionStatus', (status: any) => {
+        hasSentEvent = true
+        subscriber.next(status.status)
+      })
+
+      return {
+        unsubscribe: () => {
+          StripeTerminal.removeListener('didChangeConnectionStatus')
+        }
+      }
+    })
+  }
+
+  public addListener(...opts: any[]) {
     return StripeTerminal.addListener(...opts)
   }
 
-  removeListener(...opts: any[]) {
+  public removeListener(...opts: any[]) {
     return StripeTerminal.removeListener(...opts)
   }
 }
