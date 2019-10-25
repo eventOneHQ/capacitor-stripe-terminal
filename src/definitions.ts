@@ -68,6 +68,18 @@ export interface Reader {
   simulated: boolean
 }
 
+export interface ReaderSoftwareUpdate {
+  /**
+   * The estimated amount of time for the update.
+   */
+  estimatedUpdateTime: string
+
+  /**
+   * The target version for the update.
+   */
+  deviceSoftwareVersion: string
+}
+
 export interface StripeTerminalInterface {
   setConnectionToken(options: {
     token?: string

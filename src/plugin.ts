@@ -5,7 +5,8 @@ import {
   StripeTerminalConfig,
   DiscoveryConfiguration,
   Reader,
-  ConnectionStatus
+  ConnectionStatus,
+  ReaderSoftwareUpdate
 } from './definitions'
 
 const { StripeTerminal } = Plugins
@@ -104,6 +105,16 @@ export class StripeTerminalPlugin {
     return StripeTerminal.disconnectReader()
   }
 
+  public async checkForUpdate(): Promise<ReaderSoftwareUpdate> {
+    try {
+      const data = await StripeTerminal.checkForUpdate()
+
+      return data && data.update
+    } catch (err) {
+      throw err
+    }
+  }
+
   public connectionStatus(): Observable<ConnectionStatus> {
     return new Observable(subscriber => {
       let hasSentEvent = false
@@ -129,6 +140,34 @@ export class StripeTerminalPlugin {
       return {
         unsubscribe: () => {
           StripeTerminal.removeListener('didChangeConnectionStatus')
+        }
+      }
+    })
+  }
+
+  public installUpdate(): Observable<number> {
+    return new Observable(subscriber => {
+      // initiate the installation
+      StripeTerminal.installUpdate()
+        .then(() => {
+          subscriber.complete()
+        })
+        .catch((err: any) => {
+          subscriber.error(err)
+        })
+
+      // then listen for progress
+      StripeTerminal.addListener(
+        'didReportReaderSoftwareUpdateProgress',
+        (data: any) => {
+          subscriber.next(data.progress)
+        }
+      )
+
+      return {
+        unsubscribe: () => {
+          StripeTerminal.abortInstallUpdate()
+          StripeTerminal.removeListener('didReportReaderSoftwareUpdateProgress')
         }
       }
     })

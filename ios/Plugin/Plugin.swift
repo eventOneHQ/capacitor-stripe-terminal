@@ -7,9 +7,11 @@ import StripeTerminal
  * here: https://capacitor.ionicframework.com/docs/plugins/ios
  */
 @objc(StripeTerminal)
-public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate {
+public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, ReaderSoftwareUpdateDelegate {
     private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
     private var pendingDiscoverReaders: Cancelable?
+    private var pendingInstallUpdate: Cancelable?
+    private var currentUpdate: ReaderSoftwareUpdate?
     
     private var readers: [Reader]?
     
@@ -32,6 +34,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             // Terminal.shared.logLevel = LogLevel.verbose;
             
             self.abortDiscoverReaders()
+            self.abortInstallUpdate()
             
             call.resolve()
         }
@@ -85,7 +88,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     
     @objc func abortDiscoverReaders(_ call: CAPPluginCall? = nil) {
         if pendingDiscoverReaders != nil {
-            self.pendingDiscoverReaders?.cancel { error in
+            pendingDiscoverReaders?.cancel { error in
                 if let error = error {
                     call?.reject(error.localizedDescription, error)
                 } else {
@@ -130,15 +133,58 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         }
         
         DispatchQueue.main.async {
-            Terminal.shared.disconnectReader({ error in
+            Terminal.shared.disconnectReader { error in
                 if let error = error {
                     call.reject(error.localizedDescription, error)
                 } else {
                     call.resolve()
                 }
+            }
+        }
+    }
+    
+    @objc func checkForUpdate(_ call: CAPPluginCall) {
+        Terminal.shared.checkForUpdate { _update, error in
+            self.currentUpdate = _update
+            if let error = error {
+                call.reject(error.localizedDescription, error)
+            } else if let update = _update {
+                call.resolve(["update": self.serializeUpdate(update: update)])
+            } else {
+                call.resolve()
+            }
+        }
+    }
+    
+    @objc func installUpdate(_ call: CAPPluginCall) {
+        if let update = currentUpdate {
+            pendingInstallUpdate = Terminal.shared.installUpdate(update, delegate: self, completion: { error in
+                if let error = error {
+                    call.reject(error.localizedDescription, error)
+                } else {
+                    self.pendingInstallUpdate = nil
+                    self.currentUpdate = nil
+                    call.resolve()
+                }
             })
         }
+    }
+    
+    @objc func abortInstallUpdate(_ call: CAPPluginCall? = nil) {
+        if pendingInstallUpdate != nil {
+            pendingInstallUpdate?.cancel { error in
+                if let error = error {
+                    call?.reject(error.localizedDescription, error)
+                } else {
+                    self.pendingInstallUpdate = nil
+                    call?.resolve()
+                }
+            }
+            
+            return
+        }
         
+        call?.resolve()
     }
     
     @objc func getConnectionStatus(_ call: CAPPluginCall) {
@@ -178,6 +224,12 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         notifyListeners("didChangeConnectionStatus", data: ["status": status.rawValue])
     }
     
+    // MARK: ReaderSoftwareUpdateDelegate
+    
+    public func terminal(_: Terminal, didReportReaderSoftwareUpdateProgress progress: Float) {
+        notifyListeners("didReportReaderSoftwareUpdateProgress", data: ["progress": progress])
+    }
+    
     // MARK: Serializers
     
     func serializeReader(reader: Reader) -> [String: Any] {
@@ -187,6 +239,15 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             "deviceType": reader.deviceType.rawValue,
             "serialNumber": reader.serialNumber,
             "simulated": reader.simulated,
+        ]
+        
+        return jsonObject
+    }
+    
+    func serializeUpdate(update: ReaderSoftwareUpdate) -> [String: Any] {
+        let jsonObject: [String: Any] = [
+            "estimatedUpdateTime": ReaderSoftwareUpdate.string(from: update.estimatedUpdateTime),
+            "deviceSoftwareVersion": update.deviceSoftwareVersion,
         ]
         
         return jsonObject

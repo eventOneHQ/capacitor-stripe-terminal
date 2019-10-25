@@ -12,5 +12,8 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(getConnectedReader, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(abortDiscoverReaders, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(disconnectReader, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(checkForUpdate, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(installUpdate, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(abortInstallUpdate, CAPPluginReturnPromise);
 )
 
