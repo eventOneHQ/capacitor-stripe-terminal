@@ -8,7 +8,8 @@
     "build": "npm run clean && tsc",
     "clean": "rm -rf ./dist",
     "watch": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "docs": "typedoc --mode file --excludeExternals --excludeNotExported --out docs src"
   },
   "author": "eventOne Labs <opensource@event1,io>",
   "license": "MIT",
@@ -17,9 +18,10 @@
     "rxjs": "^6.5.3"
   },
   "devDependencies": {
-    "typescript": "^3.2.4",
+    "@capacitor/android": "latest",
     "@capacitor/ios": "latest",
-    "@capacitor/android": "latest"
+    "typedoc": "^0.15.0",
+    "typescript": "^3.2.4"
   },
   "files": [
     "dist/",
