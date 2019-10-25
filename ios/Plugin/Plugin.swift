@@ -84,8 +84,8 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     }
     
     @objc func abortDiscoverReaders(_ call: CAPPluginCall? = nil) {
-        if let pendingDiscoverReaders = pendingDiscoverReaders {
-            pendingDiscoverReaders.cancel { error in
+        if pendingDiscoverReaders != nil {
+            self.pendingDiscoverReaders?.cancel { error in
                 if let error = error {
                     call?.reject(error.localizedDescription, error)
                 } else {
