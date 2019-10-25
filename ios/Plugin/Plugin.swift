@@ -123,6 +123,24 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         }
     }
     
+    @objc func disconnectReader(_ call: CAPPluginCall) {
+        if Terminal.shared.connectedReader == nil {
+            call.resolve()
+            return
+        }
+        
+        DispatchQueue.main.async {
+            Terminal.shared.disconnectReader({ error in
+                if let error = error {
+                    call.reject(error.localizedDescription, error)
+                } else {
+                    call.resolve()
+                }
+            })
+        }
+        
+    }
+    
     @objc func getConnectionStatus(_ call: CAPPluginCall) {
         call.resolve(["status": Terminal.shared.connectionStatus.rawValue])
     }

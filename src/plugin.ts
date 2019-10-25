@@ -14,7 +14,7 @@ export class StripeTerminalPlugin {
   private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
 
-  listeners: any = {}
+  private listeners: any = {}
 
   constructor(options: StripeTerminalConfig) {
     this._fetchConnectionToken = options.fetchConnectionToken
@@ -70,16 +70,38 @@ export class StripeTerminalPlugin {
     })
   }
 
-  public async connectReader(reader: Reader) {
-    return StripeTerminal.connectReader(reader)
+  public async connectReader(reader: Reader): Promise<Reader> {
+    try {
+      const data = await StripeTerminal.connectReader(reader)
+
+      return data.reader
+    } catch (err) {
+      throw err
+    }
   }
 
-  public async getConnectedReader() {
-    return StripeTerminal.getConnectedReader()
+  public async getConnectedReader(): Promise<Reader> {
+    try {
+      const data = await StripeTerminal.getConnectedReader()
+
+      return data.reader
+    } catch (err) {
+      throw err
+    }
   }
 
-  public async getConnectionStatus() {
-    return StripeTerminal.getConnectionStatus()
+  public async getConnectionStatus(): Promise<ConnectionStatus> {
+    try {
+      const data = await StripeTerminal.getConnectionStatus()
+
+      return data.status
+    } catch (err) {
+      throw err
+    }
+  }
+
+  public async disconnectReader(): Promise<void> {
+    return StripeTerminal.disconnectReader()
   }
 
   public connectionStatus(): Observable<ConnectionStatus> {
