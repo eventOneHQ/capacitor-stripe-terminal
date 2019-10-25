@@ -5,7 +5,7 @@
     s.summary = 'Capacitor plugin for Stripe Terminal (credit card readers).'
     s.license = 'MIT'
     s.homepage = 'https://github.com/eventOneHQ/capacitor-stripe-terminal'
-    s.author = 'eventOne Labs <opensource@event1,io>'
+    s.author = 'eventOne Labs <opensource@event1.io>'
     s.source = { :git => 'https://github.com/eventOneHQ/capacitor-stripe-terminal', :tag => s.version.to_s }
     s.source_files = 'ios/Plugin/**/*.{swift,h,m,c,cc,mm,cpp}'
     s.ios.deployment_target  = '11.0'
