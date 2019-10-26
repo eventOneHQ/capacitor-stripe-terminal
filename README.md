@@ -15,18 +15,34 @@
 <p align="center">Capacitor plugin for <a href="https://stripe.com/terminal">Stripe Terminal</a>
 </p>
 
-## WIP - [Help Wanted](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/1)
+**_[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)_**
 
 ## 📝 Table of Contents
 
+- [Current Project Status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)
 - [Getting Started](#getting_started)
+  - [iOS Setup](#ios_setup)
 - [Usage](#usage) <!-- - [Contributing](CONTRIBUTING.md) -->
 - [Authors](#authors)
 - [Acknowledgments](#acknowledgement)
 
 ## 🏁 Getting Started <a name = "getting_started"></a>
 
-(coming soon)
+### iOS Setup
+
+First, follow all Stripe instructions under ["Configure your app"](https://stripe.com/docs/terminal/sdk/ios#configure). Then run the following in your Capacitor project:
+
+```bash
+# install the bridge
+npm install eventOneHQ/capacitor-stripe-terminal#master
+
+# sync the iOS project
+npx cap sync ios
+```
+
+### Android Setup
+
+(not supported yet)
 
 ## 🎈 Usage <a name="usage"></a>
 
