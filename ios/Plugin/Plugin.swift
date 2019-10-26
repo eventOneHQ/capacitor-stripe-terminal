@@ -7,11 +7,13 @@ import StripeTerminal
  * here: https://capacitor.ionicframework.com/docs/plugins/ios
  */
 @objc(StripeTerminal)
-public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, ReaderSoftwareUpdateDelegate {
+public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, ReaderSoftwareUpdateDelegate, ReaderDisplayDelegate {
     private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
     private var pendingDiscoverReaders: Cancelable?
     private var pendingInstallUpdate: Cancelable?
+    private var pendingCollectPaymentMethod: Cancelable?
     private var currentUpdate: ReaderSoftwareUpdate?
+    private var currentPaymentIntent: PaymentIntent?
     
     private var readers: [Reader]?
     
@@ -200,6 +202,107 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         call.resolve(["reader": reader])
     }
     
+    @objc func retrievePaymentIntent(_ call: CAPPluginCall) {
+        guard let clientSecret = call.getString("clientSecret") else {
+            call.reject("Must provide a clientSecret")
+            return
+        }
+        
+        Terminal.shared.retrievePaymentIntent(clientSecret: clientSecret) { retrieveResult, retrieveError in
+            self.currentPaymentIntent = retrieveResult
+            
+            if let error = retrieveError {
+                call.reject(error.localizedDescription, error)
+            } else if let paymentIntent = retrieveResult {
+                call.resolve(["intent": self.serializePaymentIntent(intent: paymentIntent)])
+            }
+        }
+    }
+    
+    @objc func abortCollectPaymentMethod(_ call: CAPPluginCall? = nil) {
+        if pendingCollectPaymentMethod != nil {
+            pendingCollectPaymentMethod?.cancel { error in
+                if let error = error {
+                    call?.reject(error.localizedDescription, error)
+                } else {
+                    self.pendingCollectPaymentMethod = nil
+                    call?.resolve()
+                }
+            }
+            
+            return
+        }
+        
+        call?.resolve()
+    }
+    
+    @objc func collectPaymentMethod(_ call: CAPPluginCall) {
+        if let intent = currentPaymentIntent {
+            pendingCollectPaymentMethod = Terminal.shared.collectPaymentMethod(intent, delegate: self) { collectResult, collectError in
+                self.pendingCollectPaymentMethod = nil
+                
+                if let error = collectError {
+                    call.reject(error.localizedDescription, error)
+                } else if let paymentIntent = collectResult {
+                    self.currentPaymentIntent = collectResult
+                    call.resolve(["intent": self.serializePaymentIntent(intent: paymentIntent)])
+                }
+            }
+        } else {
+            call.reject("There is no active payment intent. Make sure you called retrievePaymentIntent first")
+        }
+    }
+    
+    @objc func processPayment(_ call: CAPPluginCall) {
+        if let intent = currentPaymentIntent {
+            Terminal.shared.processPayment(intent) { paymentIntent, error in
+                if let error = error {
+                    call.reject(error.localizedDescription, error)
+                } else if let paymentIntent = paymentIntent {
+                    self.currentPaymentIntent = paymentIntent
+                    call.resolve(["intent": self.serializePaymentIntent(intent: paymentIntent)])
+                }
+            }
+        } else {
+            call.reject("There is no active payment intent. Make sure you called retrievePaymentIntent first")
+        }
+    }
+    
+    // helper method to collect a payment intent
+    //    @objc func collectPaymentIntent(_ call: CAPPluginCall) {
+    //        guard let clientSecret = call.getString("clientSecret") else {
+    //            call.reject("Must provide a clientSecret")
+    //            return
+    //        }
+    //
+    //        // get the payment intent
+    //        Terminal.shared.retrievePaymentIntent(clientSecret: clientSecret, completion: { paymentIntent, error in
+    //            if let paymentIntent = paymentIntent {
+    //                self.currentPaymentIntent = paymentIntent
+    //
+    //                // collect a payment method
+    //                self.pendingCollectPaymentMethod = Terminal.shared.collectPaymentMethod(paymentIntent, delegate: self, completion: { paymentIntent, error in
+    //                    if let paymentIntent = paymentIntent {
+    //
+    //                        // process the payment
+    //                        Terminal.shared.processPayment(paymentIntent) { paymentIntent, error in
+    //                            if let paymentIntent = paymentIntent {
+    //
+    //                                call.resolve(["intent": self.serializePaymentIntent(intent: paymentIntent)])
+    //                            } else if let error = error {
+    //                                call.reject(error.localizedDescription, error)
+    //                            }
+    //                        }
+    //                    } else if let error = error {
+    //                        call.reject(error.localizedDescription, error)
+    //                    }
+    //                })
+    //            } else if let error = error {
+    //                call.reject(error.localizedDescription, error)
+    //            }
+    //        })
+    //    }
+    
     // MARK: DiscoveryDelegate
     
     public func terminal(_: Terminal, didUpdateDiscoveredReaders readers: [Reader]) {
@@ -230,6 +333,16 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         notifyListeners("didReportReaderSoftwareUpdateProgress", data: ["progress": progress])
     }
     
+    // MARK: ReaderDisplayDelegate
+    
+    public func terminal(_: Terminal, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
+        notifyListeners("didRequestReaderInput", data: ["text": Terminal.stringFromReaderInputOptions(inputOptions)])
+    }
+    
+    public func terminal(_: Terminal, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
+        notifyListeners("didRequestReaderDisplayMessage", data: ["text": Terminal.stringFromReaderDisplayMessage(displayMessage)])
+    }
+    
     // MARK: Serializers
     
     func serializeReader(reader: Reader) -> [String: Any] {
@@ -248,6 +361,19 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         let jsonObject: [String: Any] = [
             "estimatedUpdateTime": ReaderSoftwareUpdate.string(from: update.estimatedUpdateTime),
             "deviceSoftwareVersion": update.deviceSoftwareVersion,
+        ]
+        
+        return jsonObject
+    }
+    
+    func serializePaymentIntent(intent: PaymentIntent) -> [String: Any] {
+        let jsonObject: [String: Any] = [
+            "stripeId": intent.stripeId,
+            "created": intent.created.timeIntervalSince1970,
+            "status": intent.status.rawValue,
+            "amount": intent.amount,
+            "currency": intent.currency,
+            //            "metadata": intent.metadata as [String: Any],
         ]
         
         return jsonObject

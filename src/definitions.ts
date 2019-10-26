@@ -80,6 +80,28 @@ export interface ReaderSoftwareUpdate {
   deviceSoftwareVersion: string
 }
 
+/**
+ * The display messages that a reader may request be displayed by your app.
+ */
+export interface ReaderDisplayMessage {
+  text: string
+}
+
+/**
+ * This represents all of the input methods available to your user when the reader begins waiting for input.
+ */
+export interface ReaderInputOptions {
+  text: string
+}
+
+export interface PaymentIntent {
+  stripeId: string
+  created: number
+  status: string
+  amount: number
+  currency: string
+}
+
 export interface StripeTerminalInterface {
   setConnectionToken(options: {
     token?: string

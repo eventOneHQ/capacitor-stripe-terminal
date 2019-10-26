@@ -6,7 +6,10 @@ import {
   DiscoveryConfiguration,
   Reader,
   ConnectionStatus,
-  ReaderSoftwareUpdate
+  ReaderSoftwareUpdate,
+  ReaderDisplayMessage,
+  ReaderInputOptions,
+  PaymentIntent
 } from './definitions'
 
 const { StripeTerminal } = Plugins
@@ -42,6 +45,20 @@ export class StripeTerminalPlugin {
             )
         }
       )
+    })
+  }
+
+  private _listenerToObservable(name: string): Observable<any> {
+    return new Observable(subscriber => {
+      const listener = StripeTerminal.addListener(name, (data: any) => {
+        subscriber.next(data)
+      })
+
+      return {
+        unsubscribe: () => {
+          listener.remove()
+        }
+      }
     })
   }
 
@@ -171,6 +188,50 @@ export class StripeTerminalPlugin {
         }
       }
     })
+  }
+
+  public readerInput(): Observable<ReaderInputOptions> {
+    return this._listenerToObservable('didRequestReaderInput')
+  }
+
+  public readerDisplayMessage(): Observable<ReaderDisplayMessage> {
+    return this._listenerToObservable('didRequestReaderDisplayMessage')
+  }
+
+  public async retrievePaymentIntent(
+    clientSecret: string
+  ): Promise<PaymentIntent> {
+    try {
+      const data = await StripeTerminal.retrievePaymentIntent({ clientSecret })
+
+      return data && data.intent
+    } catch (err) {
+      throw err
+    }
+  }
+
+  public async collectPaymentMethod(): Promise<PaymentIntent> {
+    try {
+      const data = await StripeTerminal.collectPaymentMethod()
+
+      return data && data.intent
+    } catch (err) {
+      throw err
+    }
+  }
+
+  public async abortCollectPaymentMethod(): Promise<void> {
+    return StripeTerminal.abortCollectPaymentMethod()
+  }
+
+  public async processPayment(): Promise<PaymentIntent> {
+    try {
+      const data = await StripeTerminal.processPayment()
+
+      return data && data.intent
+    } catch (err) {
+      throw err
+    }
   }
 
   public addListener(...opts: any[]) {
