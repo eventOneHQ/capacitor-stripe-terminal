@@ -4,6 +4,9 @@ declare module '@capacitor/core' {
   }
 }
 
+/**
+ * @category Terminal
+ */
 export enum ConnectionStatus {
   /**
    * The SDK is not connected to a reader.
@@ -25,6 +28,9 @@ export enum ConnectionStatus {
  * @see https://stripe.com/docs/terminal/readers
  */
 
+/**
+ * @category Reader
+ */
 export enum DeviceType {
   /**
    * Chipper 2X
@@ -34,14 +40,57 @@ export enum DeviceType {
   Chipper2X
 }
 
+/**
+ * The possible methods for discovering a reader.
+ *
+ * @category Reader
+ * @see https://stripe.com/docs/terminal/readers/connecting
+ */
+export enum DiscoveryMethod {
+  /**
+   * Bluetooth Scan
+   *
+   * When discovering a reader using this method, the `discoverReaders` Observable will be called multiple times as the Bluetooth scan proceeds.
+   */
+  BluetoothScan,
+
+  /**
+   * Bluetooth Proximity
+   *
+   * If your app will be used in a busy environment with multiple iOS devices pairing to multiple available readers at the same time, we recommend using this discovery method.
+   *
+   * After a reader has been discovered using this method, the LEDs located above the reader's power button will start flashing multiple colors. After discovering the reader, your app should prompt the user to confirm that the reader is flashing, and require a user action (e.g. tapping a button) to connect to the reader.
+   *
+   * When discovering a reader using this method, the `discoverReaders` Observable will be called twice. It will be called for the first time when the reader is initially discovered. The reader's LEDs will begin flashing. After a short delay, `discoverReaders` will be called a second time with an updated reader object, populated with additional info about the device, like its battery level.
+   */
+  BluetoothProximity
+}
+
 export interface StripeTerminalConfig {
   fetchConnectionToken: () => Promise<string>
 }
 
+/**
+ * @category Reader
+ */
 export interface DiscoveryConfiguration {
-  simulated: boolean
+  /**
+   * @default true
+   */
+  simulated?: boolean
+  /**
+   * @default DiscoveryMethod.BluetoothScan
+   */
+  discoveryMethod?: DiscoveryMethod
+  /**
+   * @default DeviceType.Chipper2X
+   */
+  deviceType?: DeviceType
 }
 
+/**
+ * @category Reader
+ */
 export interface Reader {
   /**
    * The reader's serial number.
@@ -68,6 +117,9 @@ export interface Reader {
   simulated: boolean
 }
 
+/**
+ * @category Reader Updates
+ */
 export interface ReaderSoftwareUpdate {
   /**
    * The estimated amount of time for the update.
