@@ -23,8 +23,9 @@
 
 - [Current Project Status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)
 - [Getting Started](#getting_started)
-  - [iOS Setup](#ios_setup)
-- [Usage](#usage) <!-- - [Contributing](CONTRIBUTING.md) -->
+  - [iOS Setup](#ios-setup)
+- [Usage](#usage) 
+- [Contributing](CONTRIBUTING.md)
 - [Authors](#authors)
 - [Acknowledgments](#acknowledgement)
 
@@ -36,7 +37,7 @@ First, follow all Stripe instructions under ["Configure your app"](https://strip
 
 ```bash
 # install the bridge
-npm install eventOneHQ/capacitor-stripe-terminal#master
+npm install capacitor-stripe-terminal
 
 # sync the iOS project
 npx cap sync ios
@@ -57,16 +58,20 @@ import {
 
 // First, initialize the SDK
 const terminal = new StripeTerminal({
-  fetchConnectionToken: () => {
-    return fetch('https://your-backend.dev/token', { method: 'POST' })
-      .then(resp => resp.json())
-      .then(data => data.secret)
+  fetchConnectionToken: async () => {
+    const resp = await fetch('https://your-backend.dev/token', {
+      method: 'POST'
+    })
+    const data = await resp.json()
+
+    return data.secret
   }
 })
 
 // Start scanning for readers
 // capacitor-stripe-terminal uses Observables for any data streams
 // To stop scanning, unsubscribe from the Observable.
+// You must connect to a reader while scanning
 terminal
   .discoverReaders({
     simulated: false,
@@ -85,7 +90,7 @@ terminal
 
 // Once the reader is connected, collect a payment intent!
 ;(async () => {
-  // subscribe to user instructions
+  // subscribe to user instructions - these should be displayed to the user
   const waitingSubscription = terminal
     .readerDisplayMessage()
     .subscribe(message => {
@@ -101,10 +106,10 @@ terminal
   )
 
   // collect the payment method
-  await this.terminal.collectPaymentMethod()
+  await terminal.collectPaymentMethod()
 
   // and finally, process the payment
-  await this.terminal.processPayment()
+  await terminal.processPayment()
 
   // once you are done, make sure to unsubscribe (e.g. in ngOnDestroy)
   waitingSubscription.unsubscribe()
