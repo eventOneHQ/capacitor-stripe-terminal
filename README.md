@@ -12,10 +12,12 @@
 
 ---
 
-<p align="center">Capacitor plugin for <a href="https://stripe.com/terminal">Stripe Terminal</a>
+<p align="center">Capacitor plugin for <a href="https://stripe.com/terminal">Stripe Terminal</a> (unofficial)
 </p>
 
-**_[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)_**
+**[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)**
+
+**WARNING:** Until this project reaches 1.0, the API is subject to breaking changes.
 
 ## 📝 Table of Contents
 
@@ -45,6 +47,70 @@ npx cap sync ios
 (not supported yet)
 
 ## 🎈 Usage <a name="usage"></a>
+
+```javascript
+import {
+  StripeTerminalPlugin,
+  DeviceType,
+  DiscoveryMethod
+} from 'capacitor-stripe-terminal'
+
+// First, initialize the SDK
+const terminal = new StripeTerminal({
+  fetchConnectionToken: () => {
+    return fetch('https://your-backend.dev/token', { method: 'POST' })
+      .then(resp => resp.json())
+      .then(data => data.secret)
+  }
+})
+
+// Start scanning for readers
+// capacitor-stripe-terminal uses Observables for any data streams
+// To stop scanning, unsubscribe from the Observable.
+terminal
+  .discoverReaders({
+    simulated: false,
+    deviceType: DeviceType.Chipper2X,
+    discoveryMethod: DiscoveryMethod.BluetoothProximity
+  })
+  .subscribe(readers => {
+    if (readers.length) {
+      terminal
+        .connectReader({ serialNumber: readers[0].serialNumber })
+        .then(connectedReader => {
+          // the reader is now connected and usable
+        })
+    }
+  })
+
+// Once the reader is connected, collect a payment intent!
+;(async () => {
+  // subscribe to user instructions
+  const waitingSubscription = terminal
+    .readerDisplayMessage()
+    .subscribe(message => {
+      console.log('readerDisplayMessage', message.text)
+    })
+  const inputSubscription = terminal.readerInput().subscribe(message => {
+    console.log('readerInput', message.text)
+  })
+
+  // retrieve the payment intent
+  const pi = await terminal.retrievePaymentIntent(
+    'your client secret created server side'
+  )
+
+  // collect the payment method
+  await this.terminal.collectPaymentMethod()
+
+  // and finally, process the payment
+  await this.terminal.processPayment()
+
+  // once you are done, make sure to unsubscribe (e.g. in ngOnDestroy)
+  waitingSubscription.unsubscribe()
+  inputSubscription.unsubscribe()
+})()
+```
 
 See the full docs [here](https://oss.eventone.page/capacitor-stripe-terminal).
 
