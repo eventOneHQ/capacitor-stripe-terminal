@@ -75,14 +75,17 @@ export class StripeTerminalPlugin {
           subscriber.error(err)
         })
 
-      StripeTerminal.addListener('readersDiscovered', (readers: any) => {
-        subscriber.next(readers.readers)
-      })
+      const listener = StripeTerminal.addListener(
+        'readersDiscovered',
+        (readers: any) => {
+          subscriber.next(readers.readers)
+        }
+      )
 
       return {
         unsubscribe: () => {
           StripeTerminal.abortDiscoverReaders()
-          StripeTerminal.removeListener('readersDiscovered')
+          listener.remove()
         }
       }
     })
@@ -149,14 +152,17 @@ export class StripeTerminalPlugin {
         })
 
       // then listen for changes
-      StripeTerminal.addListener('didChangeConnectionStatus', (status: any) => {
-        hasSentEvent = true
-        subscriber.next(status.status)
-      })
+      const listener = StripeTerminal.addListener(
+        'didChangeConnectionStatus',
+        (status: any) => {
+          hasSentEvent = true
+          subscriber.next(status.status)
+        }
+      )
 
       return {
         unsubscribe: () => {
-          StripeTerminal.removeListener('didChangeConnectionStatus')
+          listener.remove()
         }
       }
     })
@@ -174,7 +180,7 @@ export class StripeTerminalPlugin {
         })
 
       // then listen for progress
-      StripeTerminal.addListener(
+      const listener = StripeTerminal.addListener(
         'didReportReaderSoftwareUpdateProgress',
         (data: any) => {
           subscriber.next(data.progress)
@@ -184,7 +190,7 @@ export class StripeTerminalPlugin {
       return {
         unsubscribe: () => {
           StripeTerminal.abortInstallUpdate()
-          StripeTerminal.removeListener('didReportReaderSoftwareUpdateProgress')
+          listener.remove()
         }
       }
     })
@@ -236,9 +242,5 @@ export class StripeTerminalPlugin {
 
   public addListener(...opts: any[]) {
     return StripeTerminal.addListener(...opts)
-  }
-
-  public removeListener(...opts: any[]) {
-    return StripeTerminal.removeListener(...opts)
   }
 }
