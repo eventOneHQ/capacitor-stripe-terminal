@@ -73,6 +73,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         let simulated = call.getBool("simulated") ?? true
         let method = UInt(call.getInt("discoveryMethod") ?? 0)
         let device = UInt(call.getInt("deviceType") ?? 0)
+        let locationId = call.getString("locationId") ?? nil
         
         let deviceType = DeviceType(rawValue: device) ?? DeviceType.chipper2X
         let discoveryMethod = DiscoveryMethod(rawValue: method) ?? DiscoveryMethod.bluetoothProximity
@@ -81,6 +82,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         
         let config = DiscoveryConfiguration(deviceType: deviceType,
                                             discoveryMethod: discoveryMethod,
+                                            locationId: locationId,
                                             simulated: simulated)
         pendingDiscoverReaders = Terminal.shared.discoverReaders(config, delegate: self, completion: { error in
             self.pendingDiscoverReaders = nil
@@ -356,6 +358,11 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             "deviceSoftwareVersion": reader.deviceSoftwareVersion,
             "deviceType": reader.deviceType.rawValue,
             "serialNumber": reader.serialNumber,
+            "locationId": reader.locationId,
+            "stripeId": reader.stripeId,
+            "ipAddress": reader.ipAddress,
+            "status": reader.status.rawValue,
+            "label": reader.label,
             "simulated": reader.simulated,
         ]
         
