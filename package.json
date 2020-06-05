@@ -14,12 +14,12 @@
   "author": "eventOne Labs <opensource@event1.io>",
   "license": "MIT",
   "dependencies": {
-    "@capacitor/core": "latest",
+    "@capacitor/core": "^2.1.2",
     "rxjs": "^6.5.3"
   },
   "devDependencies": {
-    "@capacitor/android": "latest",
-    "@capacitor/ios": "latest",
+    "@capacitor/android": "^2.1.2",
+    "@capacitor/ios": "^2.1.2",
     "semantic-release": "^16.0.0-beta.26",
     "typedoc": "^0.15.0",
     "typescript": "^3.2.4"
