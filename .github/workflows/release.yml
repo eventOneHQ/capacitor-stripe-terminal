@@ -25,5 +25,4 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           git tag --merged
-          git branch
-          npx semantic-release -d
+          npx semantic-release -d --debug
