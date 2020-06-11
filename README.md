@@ -57,7 +57,7 @@ import {
 } from 'capacitor-stripe-terminal'
 
 // First, initialize the SDK
-const terminal = new StripeTerminal({
+const terminal = new StripeTerminalPlugin({
   fetchConnectionToken: async () => {
     const resp = await fetch('https://your-backend.dev/token', {
       method: 'POST'
