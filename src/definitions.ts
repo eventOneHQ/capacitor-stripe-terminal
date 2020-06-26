@@ -329,4 +329,6 @@ export interface StripeTerminalInterface extends Plugin {
   abortCollectPaymentMethod(): Promise<void>
 
   processPayment(): Promise<{ intent: PaymentIntent }>
+
+  clearCachedCredentials(): Promise<void>
 }

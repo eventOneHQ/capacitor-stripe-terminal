@@ -275,6 +275,11 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         }
     }
     
+    @objc func clearCachedCredentials(_ call: CAPPluginCall) {
+        Terminal.shared.clearCachedCredentials()
+        call.resolve()
+    }
+    
     // helper method to collect a payment intent
     //    @objc func collectPaymentIntent(_ call: CAPPluginCall) {
     //        guard let clientSecret = call.getString("clientSecret") else {

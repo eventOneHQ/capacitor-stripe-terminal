@@ -20,6 +20,7 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(retrievePaymentIntent, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(collectPaymentMethod, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(processPayment, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(clearCachedCredentials, CAPPluginReturnPromise);
 
 )
 

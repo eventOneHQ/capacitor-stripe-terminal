@@ -254,6 +254,10 @@ export class StripeTerminalPlugin {
     }
   }
 
+  public async clearCachedCredentials(): Promise<void> {
+    return StripeTerminal.clearCachedCredentials()
+  }
+
   public addListener(eventName: string, listenerFunc: Function) {
     return StripeTerminal.addListener(eventName, listenerFunc)
   }
