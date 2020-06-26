@@ -1,3 +1,5 @@
+import { Plugin } from '@capacitor/core/dist/esm/definitions'
+
 declare module '@capacitor/core' {
   interface PluginRegistry {
     StripeTerminal: StripeTerminalInterface
@@ -228,13 +230,41 @@ export interface PaymentIntent {
   currency: string
 }
 
-export interface StripeTerminalInterface {
-  setConnectionToken(options: {
-    token?: string
+export interface StripeTerminalInterface extends Plugin {
+  setConnectionToken(
+    options: {
+      token?: string
+    },
     errorMessage?: string
-  }): Promise<void>
+  ): Promise<void>
 
   initialize(): Promise<void>
 
-  getConnectionStatus(): Promise<ConnectionStatus>
+  discoverReaders(options: DiscoveryConfiguration): Promise<void>
+
+  abortDiscoverReaders(): Promise<void>
+
+  connectReader(reader: Reader): Promise<{ reader: Reader }>
+
+  getConnectedReader(): Promise<{ reader: Reader }>
+
+  getConnectionStatus(): Promise<{ status: ConnectionStatus }>
+
+  disconnectReader(): Promise<void>
+
+  checkForUpdate(): Promise<{ update: ReaderSoftwareUpdate }>
+
+  installUpdate(): Promise<void>
+
+  abortInstallUpdate(): Promise<void>
+
+  retrievePaymentIntent(options: {
+    clientSecret: string
+  }): Promise<{ intent: PaymentIntent }>
+
+  collectPaymentMethod(): Promise<{ intent: PaymentIntent }>
+
+  abortCollectPaymentMethod(): Promise<void>
+
+  processPayment(): Promise<{ intent: PaymentIntent }>
 }

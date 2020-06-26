@@ -240,7 +240,7 @@ export class StripeTerminalPlugin {
     }
   }
 
-  public addListener(...opts: any[]) {
-    return StripeTerminal.addListener(...opts)
+  public addListener(eventName: string, listenerFunc: Function) {
+    return StripeTerminal.addListener(eventName, listenerFunc)
   }
 }
