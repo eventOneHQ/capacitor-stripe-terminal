@@ -24,7 +24,7 @@
 - [Current Project Status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)
 - [Getting Started](#getting_started)
   - [iOS Setup](#ios-setup)
-- [Usage](#usage) 
+- [Usage](#usage)
 - [Contributing](CONTRIBUTING.md)
 - [Authors](#authors)
 - [Acknowledgments](#acknowledgement)
@@ -91,19 +91,17 @@ terminal
 // Once the reader is connected, collect a payment intent!
 ;(async () => {
   // subscribe to user instructions - these should be displayed to the user
-  const waitingSubscription = terminal
+  const displaySubscription = terminal
     .readerDisplayMessage()
-    .subscribe(message => {
-      console.log('readerDisplayMessage', message.text)
+    .subscribe(displayMessage => {
+      console.log('displayMessage', displayMessage)
     })
-  const inputSubscription = terminal.readerInput().subscribe(message => {
-    console.log('readerInput', message.text)
+  const inputSubscription = terminal.readerInput().subscribe(inputOptions => {
+    console.log('inputOptions', inputOptions)
   })
 
   // retrieve the payment intent
-  const pi = await terminal.retrievePaymentIntent(
-    'your client secret created server side'
-  )
+  await terminal.retrievePaymentIntent('your client secret created server side')
 
   // collect the payment method
   await terminal.collectPaymentMethod()
@@ -112,7 +110,7 @@ terminal
   await terminal.processPayment()
 
   // once you are done, make sure to unsubscribe (e.g. in ngOnDestroy)
-  waitingSubscription.unsubscribe()
+  displaySubscription.unsubscribe()
   inputSubscription.unsubscribe()
 })()
 ```

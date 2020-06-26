@@ -1,3 +1,5 @@
+import { Plugin } from '@capacitor/core/dist/esm/definitions'
+
 declare module '@capacitor/core' {
   interface PluginRegistry {
     StripeTerminal: StripeTerminalInterface
@@ -208,16 +210,78 @@ export interface ReaderSoftwareUpdate {
 
 /**
  * The display messages that a reader may request be displayed by your app.
+ *
+ * @category Reader
+ * @see https://stripe.dev/stripe-terminal-ios/docs/Enums/SCPReaderDisplayMessage
  */
-export interface ReaderDisplayMessage {
-  text: string
+export enum ReaderDisplayMessage {
+  /**
+   * Retry the presented card.
+   */
+  RetryCard,
+
+  /**
+   * Insert the presented card.
+   */
+  InsertCard,
+
+  /**
+   * Insert or swipe the presented card.
+   */
+  InsertOrSwipeCard,
+
+  /**
+   * Swipe the presented card.
+   */
+  SwipeCard,
+
+  /**
+   * Remove the presented card.
+   */
+  RemoveCard,
+
+  /**
+   * The reader detected multiple contactless cards. Make sure only one contactless card or NFC device is near the reader.
+   */
+  MultipleContactlessCardsDetected,
+
+  /**
+   * The card could not be read. Try another read method on the same card, or use a different card.
+   */
+  TryAnotherReadMethod,
+
+  /**
+   * The card is invalid. Try another card.
+   */
+  TryAnotherCard
 }
 
 /**
  * This represents all of the input methods available to your user when the reader begins waiting for input.
+ *
+ * @category Reader
+ * @see https://stripe.dev/stripe-terminal-ios/docs/Enums/SCPReaderInputOptions
  */
-export interface ReaderInputOptions {
-  text: string
+export enum ReaderInputOptions {
+  /**
+   * No input options are available on the reader.
+   */
+  None = 0,
+
+  /**
+   * Swipe a magstripe card.
+   */
+  SwipeCard = 1 << 0,
+
+  /**
+   * Insert a chip card.
+   */
+  InsertCard = 1 << 1,
+
+  /**
+   * Tap a contactless card.
+   */
+  TapCard = 1 << 2
 }
 
 export interface PaymentIntent {
@@ -228,13 +292,43 @@ export interface PaymentIntent {
   currency: string
 }
 
-export interface StripeTerminalInterface {
-  setConnectionToken(options: {
-    token?: string
+export interface StripeTerminalInterface extends Plugin {
+  setConnectionToken(
+    options: {
+      token?: string
+    },
     errorMessage?: string
-  }): Promise<void>
+  ): Promise<void>
 
   initialize(): Promise<void>
 
-  getConnectionStatus(): Promise<ConnectionStatus>
+  discoverReaders(options: DiscoveryConfiguration): Promise<void>
+
+  abortDiscoverReaders(): Promise<void>
+
+  connectReader(reader: Reader): Promise<{ reader: Reader }>
+
+  getConnectedReader(): Promise<{ reader: Reader }>
+
+  getConnectionStatus(): Promise<{ status: ConnectionStatus }>
+
+  disconnectReader(): Promise<void>
+
+  checkForUpdate(): Promise<{ update: ReaderSoftwareUpdate }>
+
+  installUpdate(): Promise<void>
+
+  abortInstallUpdate(): Promise<void>
+
+  retrievePaymentIntent(options: {
+    clientSecret: string
+  }): Promise<{ intent: PaymentIntent }>
+
+  collectPaymentMethod(): Promise<{ intent: PaymentIntent }>
+
+  abortCollectPaymentMethod(): Promise<void>
+
+  processPayment(): Promise<{ intent: PaymentIntent }>
+
+  clearCachedCredentials(): Promise<void>
 }

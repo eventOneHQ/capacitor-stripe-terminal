@@ -48,10 +48,17 @@ export class StripeTerminalPlugin {
     })
   }
 
-  private _listenerToObservable(name: string): Observable<any> {
+  private _listenerToObservable(
+    name: string,
+    transformFunc?: (data: any) => any
+  ): Observable<any> {
     return new Observable(subscriber => {
       const listener = StripeTerminal.addListener(name, (data: any) => {
-        subscriber.next(data)
+        if (transformFunc) {
+          return subscriber.next(transformFunc(data))
+        }
+
+        return subscriber.next(data)
       })
 
       return {
@@ -197,11 +204,18 @@ export class StripeTerminalPlugin {
   }
 
   public readerInput(): Observable<ReaderInputOptions> {
-    return this._listenerToObservable('didRequestReaderInput')
+    return this._listenerToObservable('didRequestReaderInput', (data: any) => {
+      return parseFloat(data.value)
+    })
   }
 
   public readerDisplayMessage(): Observable<ReaderDisplayMessage> {
-    return this._listenerToObservable('didRequestReaderDisplayMessage')
+    return this._listenerToObservable(
+      'didRequestReaderDisplayMessage',
+      (data: any) => {
+        return parseFloat(data.value)
+      }
+    )
   }
 
   public async retrievePaymentIntent(
@@ -240,7 +254,11 @@ export class StripeTerminalPlugin {
     }
   }
 
-  public addListener(...opts: any[]) {
-    return StripeTerminal.addListener(...opts)
+  public async clearCachedCredentials(): Promise<void> {
+    return StripeTerminal.clearCachedCredentials()
+  }
+
+  public addListener(eventName: string, listenerFunc: Function) {
+    return StripeTerminal.addListener(eventName, listenerFunc)
   }
 }
