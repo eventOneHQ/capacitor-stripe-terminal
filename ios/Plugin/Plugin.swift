@@ -343,11 +343,11 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     // MARK: ReaderDisplayDelegate
     
     public func terminal(_: Terminal, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
-        notifyListeners("didRequestReaderInput", data: ["text": Terminal.stringFromReaderInputOptions(inputOptions)])
+        notifyListeners("didRequestReaderInput", data: ["value": inputOptions.rawValue])
     }
     
     public func terminal(_: Terminal, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
-        notifyListeners("didRequestReaderDisplayMessage", data: ["text": Terminal.stringFromReaderDisplayMessage(displayMessage)])
+        notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
     }
     
     // MARK: Serializers
