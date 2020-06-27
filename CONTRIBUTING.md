@@ -14,5 +14,4 @@ First fork this project.
 
 Lastly, open a pull request on Github.
 
-
 _Want to improve these docs? Feel free to open a PR!_
