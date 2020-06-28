@@ -280,41 +280,6 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         call.resolve()
     }
     
-    // helper method to collect a payment intent
-    //    @objc func collectPaymentIntent(_ call: CAPPluginCall) {
-    //        guard let clientSecret = call.getString("clientSecret") else {
-    //            call.reject("Must provide a clientSecret")
-    //            return
-    //        }
-    //
-    //        // get the payment intent
-    //        Terminal.shared.retrievePaymentIntent(clientSecret: clientSecret, completion: { paymentIntent, error in
-    //            if let paymentIntent = paymentIntent {
-    //                self.currentPaymentIntent = paymentIntent
-    //
-    //                // collect a payment method
-    //                self.pendingCollectPaymentMethod = Terminal.shared.collectPaymentMethod(paymentIntent, delegate: self, completion: { paymentIntent, error in
-    //                    if let paymentIntent = paymentIntent {
-    //
-    //                        // process the payment
-    //                        Terminal.shared.processPayment(paymentIntent) { paymentIntent, error in
-    //                            if let paymentIntent = paymentIntent {
-    //
-    //                                call.resolve(["intent": self.serializePaymentIntent(intent: paymentIntent)])
-    //                            } else if let error = error {
-    //                                call.reject(error.localizedDescription, error)
-    //                            }
-    //                        }
-    //                    } else if let error = error {
-    //                        call.reject(error.localizedDescription, error)
-    //                    }
-    //                })
-    //            } else if let error = error {
-    //                call.reject(error.localizedDescription, error)
-    //            }
-    //        })
-    //    }
-    
     // MARK: DiscoveryDelegate
     
     public func terminal(_: Terminal, didUpdateDiscoveredReaders readers: [Reader]) {
