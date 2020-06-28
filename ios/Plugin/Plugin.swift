@@ -126,7 +126,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             Terminal.shared.connectReader(selectedReader, completion: { reader, error in
                 if let reader = reader {
                     call.resolve([
-                        "reader": self.serializeReader(reader: reader),
+                        "reader": StripeTerminalUtils.serializeReader(reader: reader),
                     ])
                 } else if let error = error {
                     call.error(error.localizedDescription, error)
@@ -158,7 +158,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             if let error = error {
                 call.error(error.localizedDescription, error)
             } else if let update = _update {
-                call.resolve(["update": self.serializeUpdate(update: update)])
+                call.resolve(["update": StripeTerminalUtils.serializeUpdate(update: update)])
             } else {
                 call.resolve()
             }
@@ -203,7 +203,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     @objc func getConnectedReader(_ call: CAPPluginCall) {
         var reader: Any = [:]
         if Terminal.shared.connectedReader != nil {
-            reader = serializeReader(reader: Terminal.shared.connectedReader!)
+            reader = StripeTerminalUtils.serializeReader(reader: Terminal.shared.connectedReader!)
         }
         
         call.resolve(["reader": reader])
@@ -221,7 +221,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             if let error = retrieveError {
                 call.error(error.localizedDescription, error)
             } else if let paymentIntent = retrieveResult {
-                call.resolve(["intent": self.serializePaymentIntent(intent: paymentIntent)])
+                call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
             }
         }
     }
@@ -252,7 +252,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
                     call.error(error.localizedDescription, error)
                 } else if let paymentIntent = collectResult {
                     self.currentPaymentIntent = collectResult
-                    call.resolve(["intent": self.serializePaymentIntent(intent: paymentIntent)])
+                    call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
                 }
             }
         } else {
@@ -267,7 +267,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
                     call.error(error.localizedDescription, error)
                 } else if let paymentIntent = paymentIntent {
                     self.currentPaymentIntent = paymentIntent
-                    call.resolve(["intent": self.serializePaymentIntent(intent: paymentIntent)])
+                    call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
                 }
             }
         } else {
@@ -287,7 +287,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         
         let readersJSON = readers.map {
             (reader: Reader) -> [String: Any] in
-            serializeReader(reader: reader)
+            StripeTerminalUtils.serializeReader(reader: reader)
         }
         
         notifyListeners("readersDiscovered", data: ["readers": readersJSON])
@@ -297,7 +297,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     
     public func terminal(_: Terminal, didReportUnexpectedReaderDisconnect reader: Reader) {
         logMsg(items: "didReportUnexpectedReaderDisconnect \(reader)")
-        notifyListeners("didReportUnexpectedReaderDisconnect", data: ["reader": serializeReader(reader: reader)])
+        notifyListeners("didReportUnexpectedReaderDisconnect", data: ["reader": StripeTerminalUtils.serializeReader(reader: reader)])
     }
     
     public func terminal(_: Terminal, didChangeConnectionStatus status: ConnectionStatus) {
@@ -318,46 +318,5 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     
     public func terminal(_: Terminal, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
         notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
-    }
-    
-    // MARK: Serializers
-    
-    func serializeReader(reader: Reader) -> [String: Any] {
-        let jsonObject: [String: Any] = [
-            "batteryLevel": reader.batteryLevel?.decimalValue,
-            "deviceSoftwareVersion": reader.deviceSoftwareVersion,
-            "deviceType": reader.deviceType.rawValue,
-            "serialNumber": reader.serialNumber,
-            "locationId": reader.locationId,
-            "stripeId": reader.stripeId,
-            "ipAddress": reader.ipAddress,
-            "status": reader.status.rawValue,
-            "label": reader.label,
-            "simulated": reader.simulated,
-        ]
-        
-        return jsonObject
-    }
-    
-    func serializeUpdate(update: ReaderSoftwareUpdate) -> [String: Any] {
-        let jsonObject: [String: Any] = [
-            "estimatedUpdateTime": ReaderSoftwareUpdate.string(from: update.estimatedUpdateTime),
-            "deviceSoftwareVersion": update.deviceSoftwareVersion,
-        ]
-        
-        return jsonObject
-    }
-    
-    func serializePaymentIntent(intent: PaymentIntent) -> [String: Any] {
-        let jsonObject: [String: Any] = [
-            "stripeId": intent.stripeId,
-            "created": intent.created.timeIntervalSince1970,
-            "status": intent.status.rawValue,
-            "amount": intent.amount,
-            "currency": intent.currency,
-            //            "metadata": intent.metadata as [String: Any],
-        ]
-        
-        return jsonObject
     }
 }
