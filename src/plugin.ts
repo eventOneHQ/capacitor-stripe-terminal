@@ -12,6 +12,8 @@ import {
   PaymentIntent
 } from './definitions'
 
+import './web'
+
 const { StripeTerminal } = Plugins
 
 export class StripeTerminalPlugin {
