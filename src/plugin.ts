@@ -226,6 +226,10 @@ export class StripeTerminalPlugin {
 
   public readerInput(): Observable<ReaderInputOptions> {
     return this._listenerToObservable('didRequestReaderInput', (data: any) => {
+      if (data.isAndroid) {
+        return data.value
+      }
+
       return parseFloat(data.value)
     })
   }

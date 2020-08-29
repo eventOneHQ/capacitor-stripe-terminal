@@ -39,9 +39,17 @@ import org.jetbrains.annotations.NotNull;
 @NativePlugin
 public class StripeTerminal
   extends Plugin
-  implements ConnectionTokenProvider, TerminalListener, DiscoveryListener {
+  implements
+    ConnectionTokenProvider,
+    TerminalListener,
+    DiscoveryListener,
+    ReaderDisplayListener {
   Cancelable pendingDiscoverReaders = null;
+  Cancelable pendingCollectPaymentMethod = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
+  String lastCurrency = null;
+
+  PaymentIntent currentPaymentIntent = null;
   ReaderEvent lastReaderEvent = ReaderEvent.CARD_REMOVED;
   List<? extends Reader> discoveredReadersList = null;
 
@@ -280,6 +288,149 @@ public class StripeTerminal
     call.resolve(ret);
   }
 
+  @PluginMethod
+  public void retrievePaymentIntent(final PluginCall call) {
+    String clientSecret = call.getString("clientSecret");
+
+    if (clientSecret != null) {
+      Terminal
+        .getInstance()
+        .retrievePaymentIntent(
+          clientSecret,
+          new PaymentIntentCallback() {
+
+            @Override
+            public void onSuccess(@Nonnull PaymentIntent paymentIntent) {
+              currentPaymentIntent = paymentIntent;
+              JSObject ret = new JSObject();
+              ret.put(
+                "intent",
+                TerminalUtils.serializePaymentIntent(paymentIntent, "")
+              );
+              call.resolve(ret);
+            }
+
+            @Override
+            public void onFailure(@Nonnull TerminalException e) {
+              currentPaymentIntent = null;
+              call.error(e.getErrorMessage(), e);
+            }
+          }
+        );
+    } else {
+      call.reject("Client secret cannot be null");
+    }
+  }
+
+  @PluginMethod
+  public void collectPaymentMethod(final PluginCall call) {
+    if (currentPaymentIntent != null) {
+      pendingCollectPaymentMethod =
+        Terminal
+          .getInstance()
+          .collectPaymentMethod(
+            currentPaymentIntent,
+            this,
+            new PaymentIntentCallback() {
+
+              @Override
+              public void onSuccess(@Nonnull PaymentIntent paymentIntent) {
+                pendingCollectPaymentMethod = null;
+                currentPaymentIntent = paymentIntent;
+
+                JSObject ret = new JSObject();
+                ret.put(
+                  "intent",
+                  TerminalUtils.serializePaymentIntent(
+                    paymentIntent,
+                    lastCurrency
+                  )
+                );
+
+                call.resolve(ret);
+              }
+
+              @Override
+              public void onFailure(@Nonnull TerminalException e) {
+                pendingCollectPaymentMethod = null;
+                call.error(e.getErrorMessage(), e.getErrorCode().toString(), e);
+              }
+            }
+          );
+    } else {
+      call.reject(
+        "There is no active payment intent. Make sure you called retrievePaymentIntent first"
+      );
+    }
+  }
+
+  @PluginMethod
+  public void abortCollectPaymentMethod(final PluginCall call) {
+    if (
+      pendingCollectPaymentMethod != null &&
+      !pendingCollectPaymentMethod.isCompleted()
+    ) {
+      pendingCollectPaymentMethod.cancel(
+        new Callback() {
+
+          @Override
+          public void onSuccess() {
+            pendingCollectPaymentMethod = null;
+            call.resolve();
+          }
+
+          @Override
+          public void onFailure(@Nonnull TerminalException e) {
+            call.error(e.getErrorMessage());
+          }
+        }
+      );
+    }
+  }
+
+  @PluginMethod
+  public void processPayment(final PluginCall call) {
+    if (currentPaymentIntent != null) {
+      Terminal
+        .getInstance()
+        .processPayment(
+          currentPaymentIntent,
+          new PaymentIntentCallback() {
+
+            @Override
+            public void onSuccess(@Nonnull PaymentIntent paymentIntent) {
+              currentPaymentIntent = paymentIntent;
+
+              JSObject ret = new JSObject();
+              ret.put(
+                "intent",
+                TerminalUtils.serializePaymentIntent(
+                  paymentIntent,
+                  lastCurrency
+                )
+              );
+              call.resolve(ret);
+            }
+
+            @Override
+            public void onFailure(@Nonnull TerminalException e) {
+              call.error(e.getErrorMessage(), e.getErrorCode().toString(), e);
+            }
+          }
+        );
+    } else {
+      call.reject(
+        "There is no active payment intent. Make sure you called retrievePaymentIntent first"
+      );
+    }
+  }
+
+  @PluginMethod
+  public void clearCachedCredentials(PluginCall call) {
+    Terminal.getInstance().clearCachedCredentials();
+    call.resolve();
+  }
+
   @Override
   public void fetchConnectionToken(
     @NotNull ConnectionTokenCallback connectionTokenCallback
@@ -343,5 +494,27 @@ public class StripeTerminal
     ret.put("readers", readersDiscoveredArr);
 
     notifyListeners("readersDiscovered", ret);
+  }
+
+  @Override
+  public void onRequestReaderDisplayMessage(
+    @NotNull ReaderDisplayMessage readerDisplayMessage
+  ) {
+    JSObject ret = new JSObject();
+    ret.put("value", readerDisplayMessage.ordinal());
+    ret.put("text", readerDisplayMessage.toString());
+
+    notifyListeners("didRequestReaderDisplayMessage", ret);
+  }
+
+  @Override
+  public void onRequestReaderInput(
+    @NotNull ReaderInputOptions readerInputOptions
+  ) {
+    JSObject ret = new JSObject();
+    ret.put("value", readerInputOptions.toString());
+    ret.put("isAndroid", true);
+
+    notifyListeners("didRequestReaderInput", ret);
   }
 }
