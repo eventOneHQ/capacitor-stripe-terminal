@@ -55,7 +55,20 @@ Follow all Stripe instructions under ["Configure your app"](https://stripe.com/d
 
 ### Android
 
-(not supported yet)
+Follow all Stripe instructions under ["Configure your app"](https://stripe.com/docs/terminal/sdk/android#configure).
+
+Add the plugin to your `MainActivity.java`.
+
+```java
+// import it at the top
+import io.event1.capacitorstripeterminal.StripeTerminal;
+
+this.init(savedInstanceState, new ArrayList<Class<? extends Plugin>>() {{
+  // Additional plugins you've installed go here
+  // Ex: add(TotallyAwesomePlugin.class);
+  add(StripeTerminal.class);
+}});
+```
 
 ## Usage
 
