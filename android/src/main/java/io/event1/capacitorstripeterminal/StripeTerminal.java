@@ -34,6 +34,7 @@ import com.stripe.stripeterminal.model.external.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.model.external.TerminalException;
 import java.util.List;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
 
 @NativePlugin
@@ -43,7 +44,8 @@ public class StripeTerminal
     ConnectionTokenProvider,
     TerminalListener,
     DiscoveryListener,
-    ReaderDisplayListener {
+    ReaderDisplayListener,
+    ReaderSoftwareUpdateListener {
   Cancelable pendingDiscoverReaders = null;
   Cancelable pendingCollectPaymentMethod = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
@@ -52,6 +54,8 @@ public class StripeTerminal
   PaymentIntent currentPaymentIntent = null;
   ReaderEvent lastReaderEvent = ReaderEvent.CARD_REMOVED;
   List<? extends Reader> discoveredReadersList = null;
+  ReaderSoftwareUpdate readerSoftwareUpdate;
+  Cancelable pendingInstallUpdate = null;
 
   @PluginMethod
   public void initialize(PluginCall call) {
@@ -68,8 +72,7 @@ public class StripeTerminal
 
     pendingConnectionTokenCallback = null;
     abortDiscoverReaders();
-    // abortCreatePayment();
-    // abortInstallUpdate();
+    abortInstallUpdate();
 
     LogLevel logLevel = LogLevel.VERBOSE;
     ConnectionTokenProvider tokenProvider = this;
@@ -431,6 +434,101 @@ public class StripeTerminal
     call.resolve();
   }
 
+  @PluginMethod
+  public void checkForUpdate(final PluginCall call) {
+    Terminal
+      .getInstance()
+      .checkForUpdate(
+        new ReaderSoftwareUpdateCallback() {
+
+          @Override
+          public void onSuccess(
+            @Nullable ReaderSoftwareUpdate readerSoftwareUpdate
+          ) {
+            StripeTerminal.this.readerSoftwareUpdate = readerSoftwareUpdate;
+
+            JSObject ret = new JSObject();
+            ret.put(
+              "update",
+              TerminalUtils.serializeUpdate(readerSoftwareUpdate)
+            );
+
+            call.resolve(ret);
+          }
+
+          @Override
+          public void onFailure(@Nonnull TerminalException e) {
+            call.error(e.getErrorMessage(), e);
+          }
+        }
+      );
+  }
+
+  @PluginMethod
+  public void installUpdate(final PluginCall call) {
+    pendingInstallUpdate =
+      Terminal
+        .getInstance()
+        .installUpdate(
+          readerSoftwareUpdate,
+          this,
+          new Callback() {
+
+            @Override
+            public void onSuccess() {
+              readerSoftwareUpdate = null;
+              pendingInstallUpdate = null;
+              call.resolve();
+            }
+
+            @Override
+            public void onFailure(@Nonnull TerminalException e) {
+              call.error(e.getErrorMessage(), e);
+            }
+          }
+        );
+  }
+
+  @PluginMethod
+  public void abortInstallUpdate(final PluginCall call) {
+    if (pendingInstallUpdate != null && !pendingInstallUpdate.isCompleted()) {
+      pendingInstallUpdate.cancel(
+        new Callback() {
+
+          @Override
+          public void onSuccess() {
+            pendingInstallUpdate = null;
+            call.resolve();
+          }
+
+          @Override
+          public void onFailure(@Nonnull TerminalException e) {
+            call.error(e.getErrorMessage(), e);
+          }
+        }
+      );
+    } else {
+      call.resolve();
+    }
+  }
+
+  public void abortInstallUpdate() {
+    if (pendingInstallUpdate != null && !pendingInstallUpdate.isCompleted()) {
+      pendingInstallUpdate.cancel(
+        new Callback() {
+
+          @Override
+          public void onSuccess() {
+            pendingInstallUpdate = null;
+          }
+
+          @Override
+          public void onFailure(@Nonnull TerminalException e) {}
+        }
+      );
+    }
+  }
+
   @Override
   public void fetchConnectionToken(
     @NotNull ConnectionTokenCallback connectionTokenCallback
@@ -516,5 +614,13 @@ public class StripeTerminal
     ret.put("isAndroid", true);
 
     notifyListeners("didRequestReaderInput", ret);
+  }
+
+  @Override
+  public void onReportReaderSoftwareUpdateProgress(float v) {
+    JSObject ret = new JSObject();
+    ret.put("progress", v);
+
+    notifyListeners("didReportReaderSoftwareUpdateProgress", ret);
   }
 }

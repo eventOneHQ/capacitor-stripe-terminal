@@ -3,6 +3,7 @@ package io.event1.capacitorstripeterminal;
 import com.getcapacitor.JSObject;
 import com.stripe.stripeterminal.model.external.PaymentIntent;
 import com.stripe.stripeterminal.model.external.Reader;
+import com.stripe.stripeterminal.model.external.ReaderSoftwareUpdate;
 
 public class TerminalUtils {
 
@@ -52,6 +53,21 @@ public class TerminalUtils {
       }
     }
     object.put("metadata", metaData);
+
+    return object;
+  }
+
+  public static JSObject serializeUpdate(
+    ReaderSoftwareUpdate readerSoftwareUpdate
+  ) {
+    JSObject object = new JSObject();
+
+    if (readerSoftwareUpdate != null) {
+      ReaderSoftwareUpdate.UpdateTimeEstimate updateTimeEstimate = readerSoftwareUpdate.getTimeEstimate();
+
+      object.put("estimatedUpdateTime", updateTimeEstimate.getDescription());
+      object.put("deviceSoftwareVersion", readerSoftwareUpdate.getVersion());
+    }
 
     return object;
   }
