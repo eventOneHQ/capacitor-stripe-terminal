@@ -301,16 +301,32 @@ public class StripeTerminal
   }
 
   @Override
-  public void onPaymentStatusChange(@NotNull PaymentStatus paymentStatus) {}
+  public void onPaymentStatusChange(@NotNull PaymentStatus paymentStatus) {
+    JSObject ret = new JSObject();
+    ret.put("status", paymentStatus.ordinal());
+
+    notifyListeners("didChangePaymentStatus", ret);
+  }
 
   @Override
-  public void onReportLowBatteryWarning() {}
+  public void onReportLowBatteryWarning() {
+    notifyListeners("didReportLowBatteryWarning", new JSObject());
+  }
 
   @Override
-  public void onReportReaderEvent(@NotNull ReaderEvent readerEvent) {}
+  public void onReportReaderEvent(@NotNull ReaderEvent readerEvent) {
+    lastReaderEvent = readerEvent;
+    JSObject ret = new JSObject();
+    ret.put("event", readerEvent.ordinal());
+    notifyListeners("didReportReaderEvent", ret);
+  }
 
   @Override
-  public void onUnexpectedReaderDisconnect(@NotNull Reader reader) {}
+  public void onUnexpectedReaderDisconnect(@NotNull Reader reader) {
+    JSObject ret = new JSObject();
+    ret.put("reader", TerminalUtils.serializeReader(reader));
+    notifyListeners("didReportUnexpectedReaderDisconnect", ret);
+  }
 
   @Override
   public void onUpdateDiscoveredReaders(@NotNull List<? extends Reader> list) {
