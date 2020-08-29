@@ -310,7 +310,10 @@ export interface StripeTerminalInterface extends Plugin {
 
   getConnectedReader(): Promise<{ reader: Reader }>
 
-  getConnectionStatus(): Promise<{ status: ConnectionStatus }>
+  getConnectionStatus(): Promise<{
+    status: ConnectionStatus
+    isAndroid?: boolean
+  }>
 
   disconnectReader(): Promise<void>
 

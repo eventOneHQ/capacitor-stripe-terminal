@@ -239,11 +239,44 @@ public class StripeTerminal
   }
 
   @PluginMethod
+  public void disconnectReader(final PluginCall call) {
+    if (Terminal.getInstance().getConnectedReader() == null) {
+      call.resolve();
+    } else {
+      Terminal
+        .getInstance()
+        .disconnectReader(
+          new Callback() {
+
+            @Override
+            public void onSuccess() {
+              call.resolve();
+            }
+
+            @Override
+            public void onFailure(@Nonnull TerminalException e) {
+              call.error(e.getErrorMessage(), e);
+            }
+          }
+        );
+    }
+  }
+
+  @PluginMethod
+  public void getConnectedReader(PluginCall call) {
+    Reader reader = Terminal.getInstance().getConnectedReader();
+    JSObject ret = new JSObject();
+    ret.put("reader", TerminalUtils.serializeReader(reader));
+    call.resolve(ret);
+  }
+
+  @PluginMethod
   public void getConnectionStatus(PluginCall call) {
     ConnectionStatus status = Terminal.getInstance().getConnectionStatus();
 
     JSObject ret = new JSObject();
     ret.put("status", status.ordinal());
+    ret.put("isAndroid", true);
     call.resolve(ret);
   }
 
@@ -260,7 +293,12 @@ public class StripeTerminal
   @Override
   public void onConnectionStatusChange(
     @NotNull ConnectionStatus connectionStatus
-  ) {}
+  ) {
+    JSObject ret = new JSObject();
+    ret.put("status", connectionStatus.ordinal());
+    ret.put("isAndroid", true);
+    notifyListeners("didChangeConnectionStatus", ret);
+  }
 
   @Override
   public void onPaymentStatusChange(@NotNull PaymentStatus paymentStatus) {}

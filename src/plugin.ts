@@ -14,6 +14,13 @@ import {
 
 const { StripeTerminal } = Plugins
 
+// The Android connection status enum is different from iOS, this maps Android to iOS
+const AndroidConnectionStatusMap = {
+  0: ConnectionStatus.NotConnected,
+  1: ConnectionStatus.Connecting,
+  2: ConnectionStatus.Connected
+}
+
 export class StripeTerminalPlugin {
   private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
@@ -46,6 +53,20 @@ export class StripeTerminalPlugin {
     )
 
     StripeTerminal.initialize()
+  }
+
+  private translateConnectionStatus(data: {
+    status: ConnectionStatus
+    isAndroid?: boolean
+  }): ConnectionStatus {
+    let status: ConnectionStatus = data.status
+
+    if (data.isAndroid) {
+      // the connection status on android is different than on iOS so we have to translate it
+      status = AndroidConnectionStatusMap[data.status]
+    }
+
+    return status
   }
 
   private _listenerToObservable(
@@ -122,7 +143,7 @@ export class StripeTerminalPlugin {
     try {
       const data = await StripeTerminal.getConnectionStatus()
 
-      return data.status
+      return this.translateConnectionStatus(data)
     } catch (err) {
       throw err
     }
@@ -149,9 +170,9 @@ export class StripeTerminalPlugin {
       // get current value
       StripeTerminal.getConnectionStatus()
         .then((status: any) => {
-          // only send the inital value if the event listner hasn't already
+          // only send the initial value if the event listener hasn't already
           if (!hasSentEvent) {
-            subscriber.next(status.status)
+            subscriber.next(this.translateConnectionStatus(status))
           }
         })
         .catch((err: any) => {
@@ -163,7 +184,7 @@ export class StripeTerminalPlugin {
         'didChangeConnectionStatus',
         (status: any) => {
           hasSentEvent = true
-          subscriber.next(status.status)
+          subscriber.next(this.translateConnectionStatus(status))
         }
       )
 
