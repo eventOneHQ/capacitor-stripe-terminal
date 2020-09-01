@@ -55,9 +55,7 @@ Follow all Stripe instructions under ["Configure your app"](https://stripe.com/d
 
 ### Android
 
-Follow all Stripe instructions under ["Configure your app"](https://stripe.com/docs/terminal/sdk/android#configure).
-
-Add the plugin to your `MainActivity.java`.
+Add the plugin to your `MainActivity.java`:
 
 ```java
 // import it at the top
@@ -69,6 +67,36 @@ this.init(savedInstanceState, new ArrayList<Class<? extends Plugin>>() {{
   add(StripeTerminal.class);
 }});
 ```
+
+Add the `ACCESS_FINE_LOCATION`, `BLUETOOTH`, and `BLUETOOTH_ADMIN` permissions to your app's manifest:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.stripe.example.app">
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+</manifest>
+```
+
+On Android, you must also make sure that Location permission has been granted by the user:
+
+```javascript
+const response = await StripeTerminalPlugin.getPermissions()
+
+if (!response.granted) {
+  throw new Error('Location permission is required.')
+}
+
+const terminal = new StripeTerminalPlugin()
+```
+
+If the user does not grant permission, `StripeTerminalPlugin` will throw an error when you try to initialize it so you will have to handle that.
+
+_Hint: If the user denies Location permission the first time you ask for it, Android will not display a prompt to the user on subsequent requests for permission and `response.granted` will always be `false`. You will have to ask the user to go into the app's settings to allow Location permission._
 
 ## Usage
 
