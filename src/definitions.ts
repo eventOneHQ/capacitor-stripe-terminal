@@ -334,4 +334,6 @@ export interface StripeTerminalInterface extends Plugin {
   processPayment(): Promise<{ intent: PaymentIntent }>
 
   clearCachedCredentials(): Promise<void>
+
+  getPermissions(): Promise<{ granted: boolean }>
 }

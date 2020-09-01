@@ -22,6 +22,8 @@ const AndroidConnectionStatusMap = {
 }
 
 export class StripeTerminalPlugin {
+  public isInitialized = false
+
   private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
 
@@ -30,6 +32,10 @@ export class StripeTerminalPlugin {
   constructor(options: StripeTerminalConfig) {
     this._fetchConnectionToken = options.fetchConnectionToken
 
+    this.init()
+  }
+
+  private async init() {
     this.listeners['connectionTokenListener'] = StripeTerminal.addListener(
       'requestConnectionToken',
       () => {
@@ -52,7 +58,9 @@ export class StripeTerminalPlugin {
       }
     )
 
-    StripeTerminal.initialize()
+    await StripeTerminal.initialize()
+
+    this.isInitialized = true
   }
 
   private translateConnectionStatus(data: {
@@ -90,9 +98,19 @@ export class StripeTerminalPlugin {
     })
   }
 
+  private ensureInitialized() {
+    if (!this.isInitialized) {
+      throw new Error(
+        'StripeTerminalPlugin must be initialized before you can use any methods.'
+      )
+    }
+  }
+
   public discoverReaders(
     options: DiscoveryConfiguration
   ): Observable<Reader[]> {
+    this.ensureInitialized()
+
     return new Observable(subscriber => {
       // start discovery
       StripeTerminal.discoverReaders(options)
@@ -120,50 +138,46 @@ export class StripeTerminalPlugin {
   }
 
   public async connectReader(reader: Reader): Promise<Reader> {
-    try {
-      const data = await StripeTerminal.connectReader(reader)
+    this.ensureInitialized()
 
-      return data.reader
-    } catch (err) {
-      throw err
-    }
+    const data = await StripeTerminal.connectReader(reader)
+
+    return data.reader
   }
 
   public async getConnectedReader(): Promise<Reader> {
-    try {
-      const data = await StripeTerminal.getConnectedReader()
+    this.ensureInitialized()
 
-      return data.reader
-    } catch (err) {
-      throw err
-    }
+    const data = await StripeTerminal.getConnectedReader()
+
+    return data.reader
   }
 
   public async getConnectionStatus(): Promise<ConnectionStatus> {
-    try {
-      const data = await StripeTerminal.getConnectionStatus()
+    this.ensureInitialized()
 
-      return this.translateConnectionStatus(data)
-    } catch (err) {
-      throw err
-    }
+    const data = await StripeTerminal.getConnectionStatus()
+
+    return this.translateConnectionStatus(data)
   }
 
   public async disconnectReader(): Promise<void> {
+    this.ensureInitialized()
+
     return StripeTerminal.disconnectReader()
   }
 
   public async checkForUpdate(): Promise<ReaderSoftwareUpdate> {
-    try {
-      const data = await StripeTerminal.checkForUpdate()
+    this.ensureInitialized()
 
-      return data && data.update
-    } catch (err) {
-      throw err
-    }
+    const data = await StripeTerminal.checkForUpdate()
+
+    return data && data.update
   }
 
   public connectionStatus(): Observable<ConnectionStatus> {
+    this.ensureInitialized()
+
     return new Observable(subscriber => {
       let hasSentEvent = false
 
@@ -197,6 +211,8 @@ export class StripeTerminalPlugin {
   }
 
   public installUpdate(): Observable<number> {
+    this.ensureInitialized()
+
     return new Observable(subscriber => {
       // initiate the installation
       StripeTerminal.installUpdate()
@@ -246,41 +262,43 @@ export class StripeTerminalPlugin {
   public async retrievePaymentIntent(
     clientSecret: string
   ): Promise<PaymentIntent> {
-    try {
-      const data = await StripeTerminal.retrievePaymentIntent({ clientSecret })
+    this.ensureInitialized()
 
-      return data && data.intent
-    } catch (err) {
-      throw err
-    }
+    const data = await StripeTerminal.retrievePaymentIntent({ clientSecret })
+
+    return data && data.intent
   }
 
   public async collectPaymentMethod(): Promise<PaymentIntent> {
-    try {
-      const data = await StripeTerminal.collectPaymentMethod()
+    this.ensureInitialized()
 
-      return data && data.intent
-    } catch (err) {
-      throw err
-    }
+    const data = await StripeTerminal.collectPaymentMethod()
+
+    return data && data.intent
   }
 
   public async abortCollectPaymentMethod(): Promise<void> {
+    this.ensureInitialized()
+
     return StripeTerminal.abortCollectPaymentMethod()
   }
 
   public async processPayment(): Promise<PaymentIntent> {
-    try {
-      const data = await StripeTerminal.processPayment()
+    this.ensureInitialized()
 
-      return data && data.intent
-    } catch (err) {
-      throw err
-    }
+    const data = await StripeTerminal.processPayment()
+
+    return data && data.intent
   }
 
   public async clearCachedCredentials(): Promise<void> {
+    this.ensureInitialized()
+
     return StripeTerminal.clearCachedCredentials()
+  }
+
+  public static async getPermissions(): Promise<{ granted: boolean }> {
+    return StripeTerminal.getPermissions()
   }
 
   public addListener(eventName: string, listenerFunc: Function) {

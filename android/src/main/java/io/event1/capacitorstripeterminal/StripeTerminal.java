@@ -1,5 +1,7 @@
 package io.event1.capacitorstripeterminal;
 
+import android.Manifest;
+import android.bluetooth.BluetoothAdapter;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.NativePlugin;
@@ -37,7 +39,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
 
-@NativePlugin
+@NativePlugin(
+  permissionRequestCode = StripeTerminal.REQUEST_CODE,
+  permissions = { Manifest.permission.ACCESS_FINE_LOCATION }
+)
 public class StripeTerminal
   extends Plugin
   implements
@@ -46,6 +51,7 @@ public class StripeTerminal
     DiscoveryListener,
     ReaderDisplayListener,
     ReaderSoftwareUpdateListener {
+  public static final int REQUEST_CODE = 0x6424; // Unique request code
   Cancelable pendingDiscoverReaders = null;
   Cancelable pendingCollectPaymentMethod = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
@@ -58,7 +64,52 @@ public class StripeTerminal
   Cancelable pendingInstallUpdate = null;
 
   @PluginMethod
+  public void getPermissions(PluginCall call) {
+    if (!hasRequiredPermissions()) {
+      requestPermissions(call);
+    } else {
+      JSObject result = new JSObject();
+      result.put("granted", true);
+      call.success(result);
+    }
+  }
+
+  @Override
+  protected void handleRequestPermissionsResult(
+    int requestCode,
+    String[] permissions,
+    int[] grantResults
+  ) {
+    super.handleRequestPermissionsResult(
+      requestCode,
+      permissions,
+      grantResults
+    );
+
+    PluginCall savedCall = getSavedCall();
+    JSObject result = new JSObject();
+
+    if (!hasRequiredPermissions()) {
+      result.put("granted", false);
+      savedCall.success(result);
+    } else {
+      result.put("granted", true);
+      savedCall.success(result);
+    }
+  }
+
+  @PluginMethod
   public void initialize(PluginCall call) {
+    if (!hasRequiredPermissions()) {
+      call.error("Location permission is required.");
+    }
+
+    // turn on bluetooth
+    BluetoothAdapter bluetooth = BluetoothAdapter.getDefaultAdapter();
+    if (bluetooth.isEnabled() == false) {
+      bluetooth.enable();
+    }
+
     try {
       // Check if stripe is initialized
       Terminal.getInstance();
