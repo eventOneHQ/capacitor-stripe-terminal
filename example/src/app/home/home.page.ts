@@ -7,7 +7,7 @@ import {
 } from 'capacitor-stripe-terminal'
 import { TerminalService } from '../services/terminal.service'
 import { Subscription } from 'rxjs'
-import { ModalController } from '@ionic/angular'
+import { ModalController, Platform } from '@ionic/angular'
 import { DiscoverPage } from '../discover/discover.page'
 
 @Component({
@@ -38,11 +38,14 @@ export class HomePage implements OnInit, OnDestroy {
   constructor(
     private stripe: TerminalService,
     private changeDetector: ChangeDetectorRef,
+    public platform: Platform,
     public modalController: ModalController
   ) {}
 
   ngOnInit() {
-    this.getStatus()
+    this.stripe.ready.subscribe(() => {
+      this.getStatus()
+    })
   }
 
   ngOnDestroy() {
@@ -59,7 +62,7 @@ export class HomePage implements OnInit, OnDestroy {
     if (!this.connectionStatusSubscription) {
       this.connectionStatusSubscription = this.stripe.terminal
         .connectionStatus()
-        .subscribe(newStatus => {
+        .subscribe((newStatus) => {
           this.newStatus(newStatus)
         })
     }

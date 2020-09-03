@@ -53,7 +53,7 @@
           </ion-select-option>
         </ion-select>
       </ion-item>
-      <ion-item>
+      <ion-item *ngIf="platform.is('ios')">
         <ion-label>Discovery Method</ion-label>
         <ion-select [(ngModel)]="discoveryConfig.discoveryMethod">
           <ion-select-option [value]="DiscoveryMethod.BluetoothScan">
