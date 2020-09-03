@@ -112,6 +112,13 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return new Observable(subscriber => {
+      const listener = StripeTerminal.addListener(
+        'readersDiscovered',
+        (readers: any) => {
+          subscriber.next(readers.readers)
+        }
+      )
+
       // start discovery
       StripeTerminal.discoverReaders(options)
         .then(() => {
@@ -120,13 +127,6 @@ export class StripeTerminalPlugin {
         .catch((err: any) => {
           subscriber.error(err)
         })
-
-      const listener = StripeTerminal.addListener(
-        'readersDiscovered',
-        (readers: any) => {
-          subscriber.next(readers.readers)
-        }
-      )
 
       return {
         unsubscribe: () => {
