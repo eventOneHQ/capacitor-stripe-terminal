@@ -184,37 +184,43 @@ public class StripeTerminal
 
   @PluginMethod
   public void discoverReaders(final PluginCall call) {
-    // Attempt to abort any pending discoverReader calls first.
-    abortDiscoverReaders();
+    try {
+      Boolean simulated = call.getBoolean("simulated");
+      DeviceType deviceType = DeviceType.values()[call.getInt("deviceType")];
 
-    Boolean simulated = call.getBoolean("simulated");
-    DeviceType deviceType = DeviceType.values()[call.getInt("deviceType")];
+      DiscoveryConfiguration discoveryConfiguration = new DiscoveryConfiguration(
+        0,
+        deviceType,
+        simulated
+      );
+      Callback statusCallback = new Callback() {
 
-    DiscoveryConfiguration discoveryConfiguration = new DiscoveryConfiguration(
-      0,
-      deviceType,
-      simulated
-    );
-    Callback statusCallback = new Callback() {
+        @Override
+        public void onSuccess() {
+          pendingDiscoverReaders = null;
+          call.resolve();
+        }
 
-      @Override
-      public void onSuccess() {
-        pendingDiscoverReaders = null;
-        call.resolve();
+        @Override
+        public void onFailure(@Nonnull TerminalException e) {
+          pendingDiscoverReaders = null;
+          call.error(e.getErrorMessage(), e);
+        }
+      };
+
+      // Attempt to abort any pending discoverReader calls first.
+      abortDiscoverReaders();
+      pendingDiscoverReaders =
+        Terminal
+          .getInstance()
+          .discoverReaders(discoveryConfiguration, this, statusCallback);
+    } catch (Exception e) {
+      e.printStackTrace();
+
+      if (e.getMessage() != null) {
+        call.error(e.getMessage(), e);
       }
-
-      @Override
-      public void onFailure(@Nonnull TerminalException e) {
-        pendingDiscoverReaders = null;
-        call.error(e.getErrorMessage());
-      }
-    };
-
-    abortDiscoverReaders();
-    pendingDiscoverReaders =
-      Terminal
-        .getInstance()
-        .discoverReaders(discoveryConfiguration, this, statusCallback);
+    }
   }
 
   @PluginMethod
