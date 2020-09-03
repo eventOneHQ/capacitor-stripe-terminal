@@ -9,7 +9,7 @@
     "clean": "rm -rf ./dist",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "docs": "typedoc --mode file --excludeExternals --excludeNotExported --out docs src"
+    "docs": "typedoc --mode file --excludeExternals --excludeNotExported --out out src"
   },
   "author": "eventOne Labs <opensource@event1.io>",
   "license": "MIT",
