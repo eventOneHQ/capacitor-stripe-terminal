@@ -14,7 +14,10 @@ import {
 
 const { StripeTerminal } = Plugins
 
-// The Android connection status enum is different from iOS, this maps Android to iOS
+/**
+ * The Android connection status enum is different from iOS, this maps Android to iOS
+ * @ignore
+ */
 const AndroidConnectionStatusMap = {
   0: ConnectionStatus.NotConnected,
   1: ConnectionStatus.Connecting,
@@ -29,10 +32,17 @@ export class StripeTerminalPlugin {
 
   private listeners: any = {}
 
-  constructor(options: StripeTerminalConfig) {
+  /**
+   * Creates an instance of `StripeTerminalPlugin` with the given options.
+   * @param options `StripeTerminalPlugin` options.
+   * @param autoInit For internal use. Should mostly be ignored.
+   */
+  constructor(options: StripeTerminalConfig, autoInit = true) {
     this._fetchConnectionToken = options.fetchConnectionToken
 
-    this.init()
+    if (autoInit) {
+      this.init()
+    }
   }
 
   private async init() {
@@ -106,12 +116,33 @@ export class StripeTerminalPlugin {
     }
   }
 
+  /**
+   * Creates an instance of `StripeTerminalPlugin` with the given options.
+   * @param options
+   */
+  public static async create(
+    options: StripeTerminalConfig
+  ): Promise<StripeTerminalPlugin> {
+    const terminal = new StripeTerminalPlugin(options, false)
+
+    await terminal.init()
+
+    return terminal
+  }
+
   public discoverReaders(
     options: DiscoveryConfiguration
   ): Observable<Reader[]> {
     this.ensureInitialized()
 
     return new Observable(subscriber => {
+      const listener = StripeTerminal.addListener(
+        'readersDiscovered',
+        (readers: any) => {
+          subscriber.next(readers.readers)
+        }
+      )
+
       // start discovery
       StripeTerminal.discoverReaders(options)
         .then(() => {
@@ -120,13 +151,6 @@ export class StripeTerminalPlugin {
         .catch((err: any) => {
           subscriber.error(err)
         })
-
-      const listener = StripeTerminal.addListener(
-        'readersDiscovered',
-        (readers: any) => {
-          subscriber.next(readers.readers)
-        }
-      )
 
       return {
         unsubscribe: () => {
