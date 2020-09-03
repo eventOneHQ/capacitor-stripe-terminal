@@ -25,6 +25,10 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         // self.notifyListeners("log", data: ["logline": logline])
     }
 
+    @objc func getPermissions(_ call: CAPPluginCall) {
+        call.resolve(["granted": true])
+    }
+
     @objc func initialize(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             Terminal.setTokenProvider(self)
