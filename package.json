@@ -20,6 +20,10 @@
   "devDependencies": {
     "@capacitor/android": "^2.1.2",
     "@capacitor/ios": "^2.1.2",
+    "husky": "^4.2.5",
+    "prettier": "^2.0.5",
+    "prettier-plugin-java": "^0.8.0",
+    "pretty-quick": "^2.0.1",
     "semantic-release": "^17.0.8",
     "typedoc": "^0.17.7",
     "typescript": "~3.8.3"
@@ -51,6 +55,11 @@
   },
   "bugs": {
     "url": "https://github.com/eventOneHQ/capacitor-stripe-terminal/issues"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "pretty-quick --staged"
+    }
   },
   "release": {
     "branches": [

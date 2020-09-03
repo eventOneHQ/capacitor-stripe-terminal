@@ -1,53 +1,104 @@
-<h3 align="center">capacitor-stripe-terminal</h3>
+<p align="center"><br><img src="https://user-images.githubusercontent.com/236501/85893648-1c92e880-b7a8-11ea-926d-95355b8175c7.png" width="128" height="128" /></p>
+<h3 align="center">Capacitor Stripe Terminal</h3>
+<p align="center"><strong><code>capacitor-stripe-terminal</code></strong></p>
+<p align="center">
+  Capacitor plugin for <a href="https://stripe.com/terminal">Stripe Terminal</a> (unofficial)
+</p>
 
-<div align="center">
-
-![npm](https://img.shields.io/npm/v/capacitor-stripe-terminal.svg)
-[![GitHub Issues](https://img.shields.io/github/issues/eventOneHQ/capacitor-stripe-terminal.svg)](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues)
-[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/eventOneHQ/capacitor-stripe-terminal.svg)](https://github.com/eventOneHQ/capacitor-stripe-terminal/pulls)
-[![GitHub license](https://img.shields.io/github/license/eventOneHQ/capacitor-stripe-terminal.svg)](https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/master/LICENSE)
-[![Slack](https://slack.event1.io/badge.svg)](https://slack.event1.io/)
-
-</div>
-
----
-
-<p align="center">Capacitor plugin for <a href="https://stripe.com/terminal">Stripe Terminal</a> (unofficial)
+<p align="center">
+  <img src="https://img.shields.io/maintenance/yes/2020?style=flat-square" />
+  <a href="https://github.com/eventonehq/capacitor-stripe-terminal/actions?query=workflow%3A%22Release%22"><img src="https://img.shields.io/github/workflow/status/eventonehq/capacitor-stripe-terminal/Release?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/l/capacitor-stripe-terminal?style=flat-square" /></a>
+<br>
+  <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/dw/capacitor-stripe-terminal?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/v/capacitor-stripe-terminal?style=flat-square" /></a>
+<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+<a href="#contributors-"><img src="https://img.shields.io/badge/all%20contributors-0-orange?style=flat-square" /></a>
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
 </p>
 
 **[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)**
 
 **WARNING:** Until this project reaches 1.0, the API is subject to breaking changes.
 
-## 📝 Table of Contents
+## Maintainers
 
-- [Current Project Status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)
-- [Getting Started](#getting_started)
-  - [iOS Setup](#ios-setup)
-- [Usage](#usage) 
-- [Contributing](CONTRIBUTING.md)
-- [Authors](#authors)
-- [Acknowledgments](#acknowledgement)
+| Maintainer | GitHub                              | Social                                      |
+| ---------- | ----------------------------------- | ------------------------------------------- |
+| Noah Prail | [nprail](https://github.com/nprail) | [@NoahPrail](https://twitter.com/NoahPrail) |
 
-## 🏁 Getting Started <a name = "getting_started"></a>
+## Installation
 
-### iOS Setup
-
-First, follow all Stripe instructions under ["Configure your app"](https://stripe.com/docs/terminal/sdk/ios#configure). Then run the following in your Capacitor project:
+Using npm:
 
 ```bash
-# install the bridge
 npm install capacitor-stripe-terminal
-
-# sync the iOS project
-npx cap sync ios
 ```
 
-### Android Setup
+Using yarn:
 
-(not supported yet)
+```bash
+yarn add capacitor-stripe-terminal
+```
 
-## 🎈 Usage <a name="usage"></a>
+Sync native files:
+
+```bash
+npx cap sync
+```
+
+## Configuration
+
+### iOS
+
+Follow all Stripe instructions under ["Configure your app"](https://stripe.com/docs/terminal/sdk/ios#configure).
+
+### Android
+
+Add the plugin to your `MainActivity.java`:
+
+```java
+// import it at the top
+import io.event1.capacitorstripeterminal.StripeTerminal;
+
+this.init(savedInstanceState, new ArrayList<Class<? extends Plugin>>() {{
+  // Additional plugins you've installed go here
+  // Ex: add(TotallyAwesomePlugin.class);
+  add(StripeTerminal.class);
+}});
+```
+
+Add the `ACCESS_FINE_LOCATION`, `BLUETOOTH`, and `BLUETOOTH_ADMIN` permissions to your app's manifest:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.stripe.example.app">
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+</manifest>
+```
+
+On Android, you must also make sure that Location permission has been granted by the user:
+
+```javascript
+const response = await StripeTerminalPlugin.getPermissions()
+
+if (!response.granted) {
+  throw new Error('Location permission is required.')
+}
+
+const terminal = new StripeTerminalPlugin()
+```
+
+If the user does not grant permission, `StripeTerminalPlugin` will throw an error when you try to initialize it so you will have to handle that.
+
+_Hint: If the user denies Location permission the first time you ask for it, Android will not display a prompt to the user on subsequent requests for permission and `response.granted` will always be `false`. You will have to ask the user to go into the app's settings to allow Location permission._
+
+## Usage
 
 ```javascript
 import {
@@ -57,7 +108,7 @@ import {
 } from 'capacitor-stripe-terminal'
 
 // First, initialize the SDK
-const terminal = new StripeTerminal({
+const terminal = new StripeTerminalPlugin({
   fetchConnectionToken: async () => {
     const resp = await fetch('https://your-backend.dev/token', {
       method: 'POST'
@@ -91,19 +142,17 @@ terminal
 // Once the reader is connected, collect a payment intent!
 ;(async () => {
   // subscribe to user instructions - these should be displayed to the user
-  const waitingSubscription = terminal
+  const displaySubscription = terminal
     .readerDisplayMessage()
-    .subscribe(message => {
-      console.log('readerDisplayMessage', message.text)
+    .subscribe(displayMessage => {
+      console.log('displayMessage', displayMessage)
     })
-  const inputSubscription = terminal.readerInput().subscribe(message => {
-    console.log('readerInput', message.text)
+  const inputSubscription = terminal.readerInput().subscribe(inputOptions => {
+    console.log('inputOptions', inputOptions)
   })
 
   // retrieve the payment intent
-  const pi = await terminal.retrievePaymentIntent(
-    'your client secret created server side'
-  )
+  await terminal.retrievePaymentIntent('your client secret created server side')
 
   // collect the payment method
   await terminal.collectPaymentMethod()
@@ -112,21 +161,16 @@ terminal
   await terminal.processPayment()
 
   // once you are done, make sure to unsubscribe (e.g. in ngOnDestroy)
-  waitingSubscription.unsubscribe()
+  displaySubscription.unsubscribe()
   inputSubscription.unsubscribe()
 })()
 ```
 
-See the full docs [here](https://oss.eventone.page/capacitor-stripe-terminal).
+## API Reference
 
-## ✍️ Authors <a name = "authors"></a>
+See the full API docs [here](https://oss.eventone.page/capacitor-stripe-terminal).
 
-- [@nprail](https://github.com/nprail) - Maintainer
+## Acknowledgements
 
-See also the list of [contributors](https://github.com/eventOneHQ/capacitor-stripe-terminal/contributors) who participated in this project.
-
-## 🎉 Acknowledgements <a name = "acknowledgement"></a>
-
-- Hat tip to anyone whose code was used
 - Thanks [Stripe](https://stripe.com/terminal) for creating such an amazing product
 - Thanks [react-native-stripe-terminal](https://github.com/theopolisme/react-native-stripe-terminal) for quite a few borrowed concepts
