@@ -99,6 +99,9 @@ export enum ReaderNetworkStatus {
 }
 
 export interface StripeTerminalConfig {
+  /**
+   * An event handler that [fetches a connection token](https://stripe.com/docs/terminal/sdk/js#connection-token) from your backend.
+   */
   fetchConnectionToken: () => Promise<string>
 }
 
@@ -116,7 +119,7 @@ export interface DiscoveryConfiguration {
   simulated?: boolean
 
   /**
-   * The method by which to discover readers.
+   * The method by which to discover readers. (iOS only.)
    *
    * @default DiscoveryMethod.BluetoothScan
    */
@@ -130,7 +133,7 @@ export interface DiscoveryConfiguration {
   deviceType?: DeviceType
 
   /**
-   * A location ID that can be used to filter discovery result so only readers registered to that location are returned. Currently this is only applicable to VerifoneP400 readers.
+   * A location ID that can be used to filter discovery result so only readers registered to that location are returned. Currently this is only applicable to VerifoneP400 readers. (iOS only.)
    */
   locationId?: string
 }

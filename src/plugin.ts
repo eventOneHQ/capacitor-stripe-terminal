@@ -14,7 +14,10 @@ import {
 
 const { StripeTerminal } = Plugins
 
-// The Android connection status enum is different from iOS, this maps Android to iOS
+/**
+ * The Android connection status enum is different from iOS, this maps Android to iOS
+ * @ignore
+ */
 const AndroidConnectionStatusMap = {
   0: ConnectionStatus.NotConnected,
   1: ConnectionStatus.Connecting,
@@ -29,10 +32,17 @@ export class StripeTerminalPlugin {
 
   private listeners: any = {}
 
-  constructor(options: StripeTerminalConfig) {
+  /**
+   * Creates an instance of `StripeTerminalPlugin` with the given options.
+   * @param options `StripeTerminalPlugin` options.
+   * @param autoInit For internal use. Should mostly be ignored.
+   */
+  constructor(options: StripeTerminalConfig, autoInit = true) {
     this._fetchConnectionToken = options.fetchConnectionToken
 
-    this.init()
+    if (autoInit) {
+      this.init()
+    }
   }
 
   private async init() {
@@ -104,6 +114,20 @@ export class StripeTerminalPlugin {
         'StripeTerminalPlugin must be initialized before you can use any methods.'
       )
     }
+  }
+
+  /**
+   * Creates an instance of `StripeTerminalPlugin` with the given options.
+   * @param options
+   */
+  public static async create(
+    options: StripeTerminalConfig
+  ): Promise<StripeTerminalPlugin> {
+    const terminal = new StripeTerminalPlugin(options, false)
+
+    await terminal.init()
+
+    return terminal
   }
 
   public discoverReaders(
