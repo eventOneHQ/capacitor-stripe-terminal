@@ -7,7 +7,7 @@ import {
   ConnectionStatus,
   ReaderSoftwareUpdate,
   PaymentIntent,
-  DeviceType,
+  // DeviceType,
   ReaderNetworkStatus
 } from './definitions'
 import {
@@ -15,28 +15,75 @@ import {
   StripeTerminal,
   Terminal,
   DiscoverResult,
+  Reader as DiscoverReader,
   ErrorResponse,
-  InternetMethodConfiguration
+  InternetMethodConfiguration,
+  ISdkManagedPaymentIntent,
+  IPaymentIntent
 } from '@stripe/terminal-js'
 
+/**
+ * @ignore
+ */
 interface TokenResponse {
   token?: string
   errorMessage?: string
 }
 
-const deviceTypes: { [type: string]: DeviceType } = {
-  chipper_2X: DeviceType.Chipper2X,
-  verifone_P400: DeviceType.VerifoneP400
+/**
+ * @ignore
+ */
+interface ConnectResult {
+  reader: DiscoverReader
 }
 
+/**
+ * @ignore
+ */
+interface CollectPaymentMethodResult {
+  paymentIntent: ISdkManagedPaymentIntent
+}
+
+/**
+ * @ignore
+ */
+interface ProcessPaymentResult {
+  paymentIntent: IPaymentIntent
+}
+
+// const deviceTypes: { [type: number]: string } = {
+//   [DeviceType.Chipper2X]: 'chipper_2X',
+//   [DeviceType.VerifoneP400]: 'verifone_P400'
+// }
+
+/**
+ * @ignore
+ */
 const readerStatuses: { [status: string]: ReaderNetworkStatus } = {
   online: ReaderNetworkStatus.Online,
   offline: ReaderNetworkStatus.Offline
 }
 
+/**
+ * @ignore
+ */
+const connectionStatus: { [status: string]: ConnectionStatus } = {
+  connecting: ConnectionStatus.Connecting,
+  connected: ConnectionStatus.Connected,
+  not_connected: ConnectionStatus.NotConnected
+}
+
+/**
+ * @ignore
+ */
 export class StripeTerminalWeb extends WebPlugin
   implements StripeTerminalInterface {
   private instance: Terminal
+
+  private connectedReader: Reader = null
+  private simulated: boolean
+  private currentClientSecret: string = null
+  private currentPaymentIntent: ISdkManagedPaymentIntent = null
 
   private connectionTokenCompletionSubject = new Subject<TokenResponse>()
 
@@ -47,16 +94,16 @@ export class StripeTerminalWeb extends WebPlugin
     })
   }
 
+  async getPermissions(): Promise<{ granted: boolean }> {
+    return { granted: true }
+  }
+
   async setConnectionToken(
     options: {
       token?: string
     },
     errorMessage?: string
   ): Promise<void> {
-    console.log('setConnectionToken', {
-      token: options.token,
-      errorMessage
-    })
     this.connectionTokenCompletionSubject.next({
       token: options.token,
       errorMessage
@@ -64,7 +111,6 @@ export class StripeTerminalWeb extends WebPlugin
   }
 
   async initialize(): Promise<void> {
-    console.log('initialize')
     const ST = await loadStripeTerminal()
 
     this.instance = ST.create({
@@ -89,37 +135,52 @@ export class StripeTerminalWeb extends WebPlugin
         this.notifyListeners('didReportUnexpectedReaderDisconnect', {
           reader: null
         })
+        this.connectedReader = null
+      },
+      onConnectionStatusChange: async event => {
+        this.notifyListeners('didChangeConnectionStatus', {
+          status: connectionStatus[event.status]
+        })
+        if (connectionStatus[event.status] === ConnectionStatus.NotConnected) {
+          this.connectedReader = null
+        }
+      },
+      onPaymentStatusChange: async event => {
+        this.notifyListeners('didChangePaymentStatus', {
+          status: event.status
+        })
       }
     })
   }
 
-  async discoverReaders(options: DiscoveryConfiguration): Promise<void> {
-    console.log('discoverReaders', options)
+  private translateReader(sdkReader: DiscoverReader): Reader {
+    return {
+      stripeId: sdkReader.id,
+      deviceType: sdkReader.device_type,
+      status: readerStatuses[sdkReader.status],
+      serialNumber: sdkReader.serial_number,
+      ipAddress: sdkReader.ip_address,
+      locationId: sdkReader.location,
+      label: sdkReader.label,
+      simulated: this.simulated
+    }
+  }
 
+  async discoverReaders(options: DiscoveryConfiguration): Promise<void> {
+    this.simulated = !!options.simulated
     const discoveryConfig: InternetMethodConfiguration = {
-      //   method: 'internet',
-      //   device_type: deviceTypes[options.deviceType],
       simulated: options.simulated,
       location: options.locationId
     }
-    console.log('discoverReaders translated', discoveryConfig)
+
     const discoverResult = await this.instance.discoverReaders(discoveryConfig)
 
-    console.log('discoverResult', discoverResult)
     if ((discoverResult as DiscoverResult).discoveredReaders) {
       const discover: DiscoverResult = discoverResult as DiscoverResult
 
-      const readers: Reader[] = discover?.discoveredReaders?.map(reader => ({
-        stripeId: reader.id,
-        deviceType: reader.device_type,
-        status: readerStatuses[reader.status],
-        serialNumber: reader.serial_number,
-        ipAddress: reader.ip_address,
-        location: reader.location,
-        label: reader.label,
-        simulated: true
-      }))
-      console.log(readers)
+      const readers: Reader[] = discover?.discoveredReaders?.map(
+        this.translateReader.bind(this)
+      )
 
       this.notifyListeners('readersDiscovered', {
         readers
@@ -133,63 +194,135 @@ export class StripeTerminalWeb extends WebPlugin
   async abortDiscoverReaders(): Promise<void> {}
 
   async connectReader(reader: Reader): Promise<{ reader: Reader }> {
-    console.log('connect', {
+    const readerOpts = {
       id: reader.stripeId,
       object: 'terminal.reader',
       device_type: reader.deviceType,
       ip_address: reader.ipAddress,
       serial_number: reader.serialNumber
-    })
-    await this.instance.connectReader({
-      id: reader.stripeId,
-      object: 'terminal.reader',
-      device_type: reader.deviceType,
-      ip_address: reader.ipAddress,
-      serial_number: reader.serialNumber
-    })
+    }
+    this.connectedReader = reader
 
-    return { reader: reader }
-  }
+    const connectResult = await this.instance.connectReader(readerOpts)
 
-  async getConnectedReader(): Promise<{ reader: Reader }> {
-    return { reader: null }
-  }
+    if ((connectResult as ConnectResult).reader) {
+      const result: ConnectResult = connectResult as ConnectResult
 
-  async getConnectionStatus(): Promise<{ status: ConnectionStatus }> {
-    return {
-      status: null
+      const translatedReader = this.translateReader(result.reader)
+      this.connectedReader = translatedReader
+
+      return { reader: translatedReader }
+    } else {
+      this.connectReader = null
+      const error: ErrorResponse = connectResult as ErrorResponse
+      throw error.error
     }
   }
 
-  async disconnectReader(): Promise<void> {}
+  async getConnectedReader(): Promise<{ reader: Reader }> {
+    return { reader: this.connectedReader }
+  }
+
+  async getConnectionStatus(): Promise<{ status: ConnectionStatus }> {
+    const status = this.instance.getConnectionStatus()
+    return {
+      status: connectionStatus[status]
+    }
+  }
+
+  async disconnectReader(): Promise<void> {
+    await this.instance.disconnectReader()
+    this.connectedReader = null
+  }
 
   async checkForUpdate(): Promise<{ update: ReaderSoftwareUpdate }> {
+    // no equivalent
+    console.warn(
+      'checkForUpdate is only available for BBPOS Chipper 2X readers.'
+    )
     return { update: null }
   }
 
-  async installUpdate(): Promise<void> {}
+  async installUpdate(): Promise<void> {
+    // no equivalent
+    console.warn(
+      'installUpdate is only available for BBPOS Chipper 2X readers.'
+    )
+  }
 
-  async abortInstallUpdate(): Promise<void> {}
+  async abortInstallUpdate(): Promise<void> {
+    // no equivalent
+    console.warn(
+      'abortInstallUpdate is only available for BBPOS Chipper 2X readers.'
+    )
+  }
 
   async retrievePaymentIntent(options: {
     clientSecret: string
   }): Promise<{ intent: PaymentIntent }> {
+    this.currentClientSecret = options.clientSecret
+
     return { intent: null }
   }
 
   async collectPaymentMethod(): Promise<{ intent: PaymentIntent }> {
-    return { intent: null }
+    const result = await this.instance.collectPaymentMethod(
+      this.currentClientSecret
+    )
+
+    if ((result as CollectPaymentMethodResult).paymentIntent) {
+      const res: CollectPaymentMethodResult = result as CollectPaymentMethodResult
+
+      this.currentPaymentIntent = res.paymentIntent
+
+      return {
+        intent: {
+          stripeId: this.currentPaymentIntent.id,
+          created: this.currentPaymentIntent.created,
+          status: this.currentPaymentIntent.status,
+          amount: this.currentPaymentIntent.amount,
+          currency: this.currentPaymentIntent.currency
+        }
+      }
+    } else {
+      const error: ErrorResponse = result as ErrorResponse
+      throw error.error
+    }
   }
 
-  async abortCollectPaymentMethod(): Promise<void> {}
+  async abortCollectPaymentMethod(): Promise<void> {
+    await this.instance.cancelCollectPaymentMethod()
+  }
 
   async processPayment(): Promise<{ intent: PaymentIntent }> {
-    return { intent: null }
+    const result = await this.instance.processPayment(this.currentPaymentIntent)
+
+    if ((result as ProcessPaymentResult).paymentIntent) {
+      const res: ProcessPaymentResult = result as ProcessPaymentResult
+
+      return {
+        intent: {
+          stripeId: res.paymentIntent.id,
+          created: res.paymentIntent.created,
+          status: res.paymentIntent.status,
+          amount: res.paymentIntent.amount,
+          currency: res.paymentIntent.currency
+        }
+      }
+    } else {
+      const error: ErrorResponse = result as ErrorResponse
+      throw error?.error
+    }
   }
 
-  async clearCachedCredentials(): Promise<void> {}
+  async clearCachedCredentials(): Promise<void> {
+    await this.instance.clearCachedCredentials()
+  }
 }
 
+/**
+ * @ignore
+ */
 const StripeTerminal = new StripeTerminalWeb()
 
 export { StripeTerminal }

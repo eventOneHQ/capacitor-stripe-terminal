@@ -14,6 +14,9 @@ import {
 
 import './web'
 
+/**
+ * @ignore
+ */
 const { StripeTerminal } = Plugins
 
 /**
