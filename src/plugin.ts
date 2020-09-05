@@ -29,6 +29,8 @@ export class StripeTerminalPlugin {
 
   private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
+  private _onUnexpectedReaderDisconnect: () => void = () =>
+    Promise.reject('You must initialize StripeTerminalPlugin first.')
 
   private listeners: any = {}
 
@@ -39,6 +41,7 @@ export class StripeTerminalPlugin {
    */
   constructor(options: StripeTerminalConfig, autoInit = true) {
     this._fetchConnectionToken = options.fetchConnectionToken
+    this._onUnexpectedReaderDisconnect = options.onUnexpectedReaderDisconnect
 
     if (autoInit) {
       this.init()
@@ -65,6 +68,15 @@ export class StripeTerminalPlugin {
               err.message || 'Error in user-supplied `fetchConnectionToken`.'
             )
           )
+      }
+    )
+
+    this.listeners[
+      'unexpectedReaderDisconnectListener'
+    ] = StripeTerminal.addListener(
+      'didReportUnexpectedReaderDisconnect',
+      () => {
+        this._onUnexpectedReaderDisconnect()
       }
     )
 
