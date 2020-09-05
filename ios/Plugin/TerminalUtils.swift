@@ -9,7 +9,6 @@
 import Foundation
 import StripeTerminal
 
-
 public class StripeTerminalUtils {
     static func serializeReader(reader: Reader) -> [String: Any] {
         let jsonObject: [String: Any] = [
@@ -24,19 +23,19 @@ public class StripeTerminalUtils {
             "label": reader.label,
             "simulated": reader.simulated,
         ]
-        
+
         return jsonObject
     }
-    
+
     static func serializeUpdate(update: ReaderSoftwareUpdate) -> [String: Any] {
         let jsonObject: [String: Any] = [
             "estimatedUpdateTime": ReaderSoftwareUpdate.string(from: update.estimatedUpdateTime),
             "deviceSoftwareVersion": update.deviceSoftwareVersion,
         ]
-        
+
         return jsonObject
     }
-    
+
     static func serializePaymentIntent(intent: PaymentIntent) -> [String: Any] {
         let jsonObject: [String: Any] = [
             "stripeId": intent.stripeId,
@@ -46,7 +45,7 @@ public class StripeTerminalUtils {
             "currency": intent.currency,
             //            "metadata": intent.metadata as [String: Any],
         ]
-        
+
         return jsonObject
     }
 }

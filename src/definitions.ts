@@ -99,7 +99,15 @@ export enum ReaderNetworkStatus {
 }
 
 export interface StripeTerminalConfig {
+  /**
+   * An event handler that [fetches a connection token](https://stripe.com/docs/terminal/sdk/js#connection-token) from your backend.
+   */
   fetchConnectionToken: () => Promise<string>
+
+  /**
+   * An event handler called [when a reader disconnects](https://stripe.com/docs/terminal/readers/connecting/verifone-p400#handling-disconnects) from your app.
+   */
+  onUnexpectedReaderDisconnect: () => void
 }
 
 /**
@@ -116,7 +124,7 @@ export interface DiscoveryConfiguration {
   simulated?: boolean
 
   /**
-   * The method by which to discover readers.
+   * The method by which to discover readers. (iOS only.)
    *
    * @default DiscoveryMethod.BluetoothScan
    */
@@ -130,7 +138,7 @@ export interface DiscoveryConfiguration {
   deviceType?: DeviceType
 
   /**
-   * A location ID that can be used to filter discovery result so only readers registered to that location are returned. Currently this is only applicable to VerifoneP400 readers.
+   * A location ID that can be used to filter discovery result so only readers registered to that location are returned. Currently this is only applicable to VerifoneP400 readers. (iOS only.)
    */
   locationId?: string
 }
@@ -310,7 +318,10 @@ export interface StripeTerminalInterface extends Plugin {
 
   getConnectedReader(): Promise<{ reader: Reader }>
 
-  getConnectionStatus(): Promise<{ status: ConnectionStatus }>
+  getConnectionStatus(): Promise<{
+    status: ConnectionStatus
+    isAndroid?: boolean
+  }>
 
   disconnectReader(): Promise<void>
 
@@ -331,4 +342,6 @@ export interface StripeTerminalInterface extends Plugin {
   processPayment(): Promise<{ intent: PaymentIntent }>
 
   clearCachedCredentials(): Promise<void>
+
+  getPermissions(): Promise<{ granted: boolean }>
 }

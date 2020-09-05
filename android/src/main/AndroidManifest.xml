@@ -1,5 +1,5 @@
 
   <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      package="io.event1.capacitor-stripe-terminal.capacitorstripeterminal">
+      package="io.event1.capacitorstripeterminal.capacitorstripeterminal">
   </manifest>
   
