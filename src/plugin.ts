@@ -155,8 +155,22 @@ export class StripeTerminalPlugin {
     return new Observable(subscriber => {
       const listener = StripeTerminal.addListener(
         'readersDiscovered',
-        (readers: any) => {
-          subscriber.next(readers.readers)
+        (event: { readers?: Reader[] }) => {
+          const readers =
+            event?.readers?.map((reader: Reader) => {
+              if (reader.batteryLevel === 0) {
+                // the only time that the battery level should be 0 is while scanning on Android and the level is unknown, so change it to null for consistency with iOS
+                reader.batteryLevel = null
+              }
+              if (reader.deviceSoftwareVersion === 'unknown') {
+                // replace unknown with null to make Android consistent with iOS
+                reader.deviceSoftwareVersion = null
+              }
+
+              return reader
+            }) || []
+
+          subscriber.next(readers)
         }
       )
 
