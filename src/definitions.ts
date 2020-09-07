@@ -103,6 +103,11 @@ export interface StripeTerminalConfig {
    * An event handler that [fetches a connection token](https://stripe.com/docs/terminal/sdk/js#connection-token) from your backend.
    */
   fetchConnectionToken: () => Promise<string>
+
+  /**
+   * An event handler called [when a reader disconnects](https://stripe.com/docs/terminal/readers/connecting/verifone-p400#handling-disconnects) from your app.
+   */
+  onUnexpectedReaderDisconnect: () => void
 }
 
 /**
@@ -295,6 +300,9 @@ export interface PaymentIntent {
   currency: string
 }
 
+/**
+ * @ignore
+ */
 export interface StripeTerminalInterface extends Plugin {
   setConnectionToken(
     options: {

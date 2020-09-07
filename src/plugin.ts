@@ -12,6 +12,11 @@ import {
   PaymentIntent
 } from './definitions'
 
+import './web'
+
+/**
+ * @ignore
+ */
 const { StripeTerminal } = Plugins
 
 /**
@@ -29,6 +34,8 @@ export class StripeTerminalPlugin {
 
   private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
+  private _onUnexpectedReaderDisconnect: () => void = () =>
+    Promise.reject('You must initialize StripeTerminalPlugin first.')
 
   private listeners: any = {}
 
@@ -39,6 +46,7 @@ export class StripeTerminalPlugin {
    */
   constructor(options: StripeTerminalConfig, autoInit = true) {
     this._fetchConnectionToken = options.fetchConnectionToken
+    this._onUnexpectedReaderDisconnect = options.onUnexpectedReaderDisconnect
 
     if (autoInit) {
       this.init()
@@ -65,6 +73,15 @@ export class StripeTerminalPlugin {
               err.message || 'Error in user-supplied `fetchConnectionToken`.'
             )
           )
+      }
+    )
+
+    this.listeners[
+      'unexpectedReaderDisconnectListener'
+    ] = StripeTerminal.addListener(
+      'didReportUnexpectedReaderDisconnect',
+      () => {
+        this._onUnexpectedReaderDisconnect()
       }
     )
 
@@ -138,8 +155,22 @@ export class StripeTerminalPlugin {
     return new Observable(subscriber => {
       const listener = StripeTerminal.addListener(
         'readersDiscovered',
-        (readers: any) => {
-          subscriber.next(readers.readers)
+        (event: { readers?: Reader[] }) => {
+          const readers =
+            event?.readers?.map((reader: Reader) => {
+              if (reader.batteryLevel === 0) {
+                // the only time that the battery level should be 0 is while scanning on Android and the level is unknown, so change it to null for consistency with iOS
+                reader.batteryLevel = null
+              }
+              if (reader.deviceSoftwareVersion === 'unknown') {
+                // replace unknown with null to make Android consistent with iOS
+                reader.deviceSoftwareVersion = null
+              }
+
+              return reader
+            }) || []
+
+          subscriber.next(readers)
         }
       )
 
