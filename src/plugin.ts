@@ -12,6 +12,11 @@ import {
   PaymentIntent
 } from './definitions'
 
+import './web'
+
+/**
+ * @ignore
+ */
 const { StripeTerminal } = Plugins
 
 /**

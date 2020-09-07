@@ -300,6 +300,9 @@ export interface PaymentIntent {
   currency: string
 }
 
+/**
+ * @ignore
+ */
 export interface StripeTerminalInterface extends Plugin {
   setConnectionToken(
     options: {
