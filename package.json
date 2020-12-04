@@ -23,9 +23,9 @@
     "@capacitor/ios": "^2.1.2",
     "husky": "^4.2.5",
     "prettier": "^2.0.5",
-    "prettier-plugin-java": "^0.8.0",
+    "prettier-plugin-java": "^1.0.1",
     "pretty-quick": "^2.0.1",
-    "semantic-release": "^17.0.8",
+    "semantic-release": "^17.3.0",
     "typedoc": "^0.17.7",
     "typescript": "~3.8.3"
   },
