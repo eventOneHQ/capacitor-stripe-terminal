@@ -78,12 +78,14 @@ const connectionStatus: { [status: string]: ConnectionStatus } = {
  */
 export class StripeTerminalWeb extends WebPlugin
   implements StripeTerminalInterface {
+  private STRIPE_API_BASE = 'https://api.stripe.com'
   private instance: Terminal
 
   private connectedReader: Reader = null
   private simulated: boolean
   private currentClientSecret: string = null
   private currentPaymentIntent: ISdkManagedPaymentIntent = null
+  private currentConnectionToken: string = null
 
   private connectionTokenCompletionSubject = new Subject<TokenResponse>()
 
@@ -104,6 +106,7 @@ export class StripeTerminalWeb extends WebPlugin
     },
     errorMessage?: string
   ): Promise<void> {
+    this.currentConnectionToken = options.token
     this.connectionTokenCompletionSubject.next({
       token: options.token,
       errorMessage
@@ -262,7 +265,46 @@ export class StripeTerminalWeb extends WebPlugin
   }): Promise<{ intent: PaymentIntent }> {
     this.currentClientSecret = options.clientSecret
 
-    return { intent: null }
+    // make sure fetch is supported
+    const isFetchSupported = 'fetch' in window
+    if (!isFetchSupported) {
+      return {
+        intent: null
+      }
+    }
+
+    // parse the paymentIntentId out of the clientSecret
+    const paymentIntentId = options.clientSecret
+      ? options.clientSecret.split('_secret')[0]
+      : null
+
+    const stripeUrl = new URL(
+      `/v1/payment_intents/${paymentIntentId}`,
+      this.STRIPE_API_BASE
+    )
+    stripeUrl.searchParams.append('client_secret', options.clientSecret)
+
+    const response = await fetch(stripeUrl.href, {
+      headers: {
+        Authorization: `Bearer ${this.currentConnectionToken}`
+      }
+    })
+
+    const json = await response.json()
+
+    if (!response.ok) {
+      throw new Error(json)
+    }
+
+    return {
+      intent: {
+        stripeId: json.id,
+        created: json.created,
+        status: json.status,
+        amount: json.amount,
+        currency: json.currency
+      }
+    }
   }
 
   async collectPaymentMethod(): Promise<{ intent: PaymentIntent }> {
