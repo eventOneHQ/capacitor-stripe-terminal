@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/maintenance/yes/2020?style=flat-square" />
+  <img src="https://img.shields.io/maintenance/yes/2021?style=flat-square" />
   <a href="https://github.com/eventonehq/capacitor-stripe-terminal/actions?query=workflow%3A%22Release%22"><img src="https://img.shields.io/github/workflow/status/eventonehq/capacitor-stripe-terminal/Release?style=flat-square" /></a>
   <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/l/capacitor-stripe-terminal?style=flat-square" /></a>
 <br>
@@ -17,7 +17,7 @@
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 </p>
 
-**[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)**
+**[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/discussions/42)**
 
 **WARNING:** Until this project reaches 1.0, the API is subject to breaking changes.
 
