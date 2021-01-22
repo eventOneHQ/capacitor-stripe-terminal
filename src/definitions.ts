@@ -1,3 +1,5 @@
+import { Plugin } from '@capacitor/core/dist/esm/definitions'
+
 declare module '@capacitor/core' {
   interface PluginRegistry {
     StripeTerminal: StripeTerminalInterface
@@ -25,19 +27,23 @@ export enum ConnectionStatus {
 /**
  * The possible device types for a reader.
  *
- * @see https://stripe.com/docs/terminal/readers
- */
-
-/**
  * @category Reader
+ * @see https://stripe.com/docs/terminal/readers
  */
 export enum DeviceType {
   /**
-   * Chipper 2X
+   * The BBPOS Chipper 2X BT mobile reader.
    *
-   * @see https://stripe.com/docs/terminal/readers
+   * @see https://stripe.com/docs/terminal/readers/bbpos-chipper2xbt
    */
-  Chipper2X
+  Chipper2X,
+
+  /**
+   * The Verifone P400 countertop reader.
+   *
+   * @see https://stripe.com/docs/terminal/readers/verifone-p400
+   */
+  VerifoneP400
 }
 
 /**
@@ -63,11 +69,45 @@ export enum DiscoveryMethod {
    *
    * When discovering a reader using this method, the `discoverReaders` Observable will be called twice. It will be called for the first time when the reader is initially discovered. The reader's LEDs will begin flashing. After a short delay, `discoverReaders` will be called a second time with an updated reader object, populated with additional info about the device, like its battery level.
    */
-  BluetoothProximity
+  BluetoothProximity,
+
+  /**
+   * Internet
+   *
+   * When discovering a reader with this method, the `discoverReaders` Observable will only be called once with a list of readers from `/v1/termina/readers`. Note that this will include readers that are both online and offline. This discovery method can only be used with the VerifoneP400 reader.
+   *
+   * @see https://stripe.com/docs/api/terminal/readers/list
+   */
+  Internet
+}
+
+/**
+ * The possible networking statuses of a reader.
+ *
+ * @category Reader
+ * @see https://stripe.com/docs/api/terminal/readers/object
+ */
+export enum ReaderNetworkStatus {
+  /**
+   * The reader is offline. Note that Chipper2x will also default to ‘offline’.
+   */
+  Offline,
+  /**
+   * The reader is online.
+   */
+  Online
 }
 
 export interface StripeTerminalConfig {
+  /**
+   * An event handler that [fetches a connection token](https://stripe.com/docs/terminal/sdk/js#connection-token) from your backend.
+   */
   fetchConnectionToken: () => Promise<string>
+
+  /**
+   * An event handler called [when a reader disconnects](https://stripe.com/docs/terminal/readers/connecting/verifone-p400#handling-disconnects) from your app.
+   */
+  onUnexpectedReaderDisconnect: () => void
 }
 
 /**
@@ -75,17 +115,32 @@ export interface StripeTerminalConfig {
  */
 export interface DiscoveryConfiguration {
   /**
+   * Whether to use simulated discovery to discover a device simulator.
+   *
+   * The Terminal SDK comes with the ability to simulate behavior without using physical hardware. This makes it easy to quickly test your integration end-to-end, from pairing with a reader to taking payments.
+   *
    * @default true
    */
   simulated?: boolean
+
   /**
+   * The method by which to discover readers. (iOS only.)
+   *
    * @default DiscoveryMethod.BluetoothScan
    */
   discoveryMethod?: DiscoveryMethod
+
   /**
+   * The reader device type to discover.
+   *
    * @default DeviceType.Chipper2X
    */
   deviceType?: DeviceType
+
+  /**
+   * A location ID that can be used to filter discovery result so only readers registered to that location are returned. Currently this is only applicable to VerifoneP400 readers. (iOS only.)
+   */
+  locationId?: string
 }
 
 /**
@@ -93,21 +148,40 @@ export interface DiscoveryConfiguration {
  */
 export interface Reader {
   /**
-   * The reader's serial number.
+   * The IP address of the reader. (Verifone P400 only.)
    */
-  serialNumber: string
+  ipAddress?: string
+
+  /**
+   * The location ID of the reader. (Verifone P400 only.)
+   *
+   * @see https://stripe.com/docs/api/terminal/locations
+   */
+  locationId?: string
+
+  /**
+   * The networking status of the reader: either offline or online. Note that the Chipper 2X’s status will always be offline. (Verifone P400 only.)
+   */
+  status: ReaderNetworkStatus
+
+  /**
+   * A custom label that may be given to a reader for easier identification. (Verifone P400 only.)
+   */
+  label?: string
+  /**
+   * The reader's battery level, represented as a boxed float in the range `[0, 1]`. If the reader does not have a battery, or the battery level is unknown, this value is `null`. (Chipper 2X only.)
+   */
+  batteryLevel?: number
+
+  /**
+   * The Stripe unique identifier for the reader.
+   */
+  stripeId?: string
+
   /**
    * The reader's device type.
    */
-  deviceType?: string
-  /**
-   * The reader's current device software version, or `null` if this information is unavailable.
-   */
-  deviceSoftwareVersion?: string
-  /**
-   * The reader's battery level, represented as a boxed float in the range `[0, 1]`. If the reader does not have a battery, or the battery level is unknown, this value is `null`.
-   */
-  batteryLevel?: number
+  deviceType: string
 
   /**
    * True if this is a simulated reader.
@@ -115,6 +189,16 @@ export interface Reader {
    * `DiscoveryConfiguration` objects with `simulated = true` produce simulated Readers.
    */
   simulated: boolean
+
+  /**
+   * The reader's serial number.
+   */
+  serialNumber: string
+
+  /**
+   * The reader's current device software version, or `null` if this information is unavailable.
+   */
+  deviceSoftwareVersion?: string
 }
 
 /**
@@ -134,16 +218,78 @@ export interface ReaderSoftwareUpdate {
 
 /**
  * The display messages that a reader may request be displayed by your app.
+ *
+ * @category Reader
+ * @see https://stripe.dev/stripe-terminal-ios/docs/Enums/SCPReaderDisplayMessage
  */
-export interface ReaderDisplayMessage {
-  text: string
+export enum ReaderDisplayMessage {
+  /**
+   * Retry the presented card.
+   */
+  RetryCard,
+
+  /**
+   * Insert the presented card.
+   */
+  InsertCard,
+
+  /**
+   * Insert or swipe the presented card.
+   */
+  InsertOrSwipeCard,
+
+  /**
+   * Swipe the presented card.
+   */
+  SwipeCard,
+
+  /**
+   * Remove the presented card.
+   */
+  RemoveCard,
+
+  /**
+   * The reader detected multiple contactless cards. Make sure only one contactless card or NFC device is near the reader.
+   */
+  MultipleContactlessCardsDetected,
+
+  /**
+   * The card could not be read. Try another read method on the same card, or use a different card.
+   */
+  TryAnotherReadMethod,
+
+  /**
+   * The card is invalid. Try another card.
+   */
+  TryAnotherCard
 }
 
 /**
  * This represents all of the input methods available to your user when the reader begins waiting for input.
+ *
+ * @category Reader
+ * @see https://stripe.dev/stripe-terminal-ios/docs/Enums/SCPReaderInputOptions
  */
-export interface ReaderInputOptions {
-  text: string
+export enum ReaderInputOptions {
+  /**
+   * No input options are available on the reader.
+   */
+  None = 0,
+
+  /**
+   * Swipe a magstripe card.
+   */
+  SwipeCard = 1 << 0,
+
+  /**
+   * Insert a chip card.
+   */
+  InsertCard = 1 << 1,
+
+  /**
+   * Tap a contactless card.
+   */
+  TapCard = 1 << 2
 }
 
 export interface PaymentIntent {
@@ -154,13 +300,51 @@ export interface PaymentIntent {
   currency: string
 }
 
-export interface StripeTerminalInterface {
-  setConnectionToken(options: {
-    token?: string
+/**
+ * @ignore
+ */
+export interface StripeTerminalInterface extends Plugin {
+  setConnectionToken(
+    options: {
+      token?: string
+    },
     errorMessage?: string
-  }): Promise<void>
+  ): Promise<void>
 
   initialize(): Promise<void>
 
-  getConnectionStatus(): Promise<ConnectionStatus>
+  discoverReaders(options: DiscoveryConfiguration): Promise<void>
+
+  abortDiscoverReaders(): Promise<void>
+
+  connectReader(reader: Reader): Promise<{ reader: Reader }>
+
+  getConnectedReader(): Promise<{ reader: Reader }>
+
+  getConnectionStatus(): Promise<{
+    status: ConnectionStatus
+    isAndroid?: boolean
+  }>
+
+  disconnectReader(): Promise<void>
+
+  checkForUpdate(): Promise<{ update: ReaderSoftwareUpdate }>
+
+  installUpdate(): Promise<void>
+
+  abortInstallUpdate(): Promise<void>
+
+  retrievePaymentIntent(options: {
+    clientSecret: string
+  }): Promise<{ intent: PaymentIntent }>
+
+  collectPaymentMethod(): Promise<{ intent: PaymentIntent }>
+
+  abortCollectPaymentMethod(): Promise<void>
+
+  processPayment(): Promise<{ intent: PaymentIntent }>
+
+  clearCachedCredentials(): Promise<void>
+
+  getPermissions(): Promise<{ granted: boolean }>
 }
