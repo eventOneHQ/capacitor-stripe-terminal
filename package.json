@@ -14,18 +14,18 @@
   "author": "eventOne Labs <opensource@event1.io>",
   "license": "MIT",
   "dependencies": {
-    "@capacitor/core": "^2.4.4",
+    "@capacitor/core": "^2.4.6",
     "@stripe/terminal-js": "^0.5.0",
     "rxjs": "^6.6.3"
   },
   "devDependencies": {
-    "@capacitor/android": "^2.4.4",
-    "@capacitor/ios": "^2.4.4",
-    "husky": "^4.3.0",
+    "@capacitor/android": "^2.4.6",
+    "@capacitor/ios": "^2.4.6",
+    "husky": "^4.3.8",
     "prettier": "^2.2.1",
     "prettier-plugin-java": "^1.0.1",
     "pretty-quick": "^3.1.0",
-    "semantic-release": "^17.3.0",
+    "semantic-release": "^17.3.6",
     "typedoc": "^0.19.2",
     "typescript": "^3.9.7"
   },
