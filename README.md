@@ -116,6 +116,9 @@ const terminal = await StripeTerminalPlugin.create({
     const data = await resp.json()
 
     return data.secret
+  },
+  onUnexpectedReaderDisconnect: () => {
+    // handle reader disconnect
   }
 })
 
