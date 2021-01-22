@@ -1,8 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>
-      Terminal
-    </ion-title>
+    <ion-title> Terminal </ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -18,9 +16,7 @@
     </div>
     <div *ngIf="status === ConnectionStatus.Connected">
       <img class="reader-image" src="assets/reader.png" alt="" />
-      <h5 class="ion-no-margin" *ngIf="!connectedReader">
-        Reader connected
-      </h5>
+      <h5 class="ion-no-margin" *ngIf="!connectedReader">Reader connected</h5>
 
       <ng-container *ngIf="connectedReader">
         <h5 class="ion-no-margin">
@@ -51,9 +47,14 @@
           <ion-select-option [value]="DeviceType.Chipper2X">
             Chipper 2X
           </ion-select-option>
+          <ion-select-option [value]="DeviceType.VerifoneP400">
+            Verifone P400
+          </ion-select-option>
         </ion-select>
       </ion-item>
-      <ion-item *ngIf="platform.is('ios')">
+      <ion-item
+        *ngIf="platform.is('ios') && discoveryConfig.deviceType===DeviceType.Chipper2X"
+      >
         <ion-label>Discovery Method</ion-label>
         <ion-select [(ngModel)]="discoveryConfig.discoveryMethod">
           <ion-select-option [value]="DiscoveryMethod.BluetoothScan">

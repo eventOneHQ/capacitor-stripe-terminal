@@ -21,15 +21,15 @@ export class TerminalService {
     }
 
     // First, initialize the SDK
-    this.terminal = new StripeTerminalPlugin({
+    this.terminal = await StripeTerminalPlugin.create({
       fetchConnectionToken: async () => {
         return this.api.fetchConnectionToken()
+      },
+      onUnexpectedReaderDisconnect: () => {
+        console.log('reader disconnect')
       }
     })
 
-    // give the SDK a moment to initialize
-    setTimeout(() => {
-      this.ready.emit()
-    }, 1000)
+    this.ready.emit()
   }
 }
