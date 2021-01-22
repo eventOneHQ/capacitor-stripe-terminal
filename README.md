@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/maintenance/yes/2020?style=flat-square" />
+  <img src="https://img.shields.io/maintenance/yes/2021?style=flat-square" />
   <a href="https://github.com/eventonehq/capacitor-stripe-terminal/actions?query=workflow%3A%22Release%22"><img src="https://img.shields.io/github/workflow/status/eventonehq/capacitor-stripe-terminal/Release?style=flat-square" /></a>
   <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/l/capacitor-stripe-terminal?style=flat-square" /></a>
 <br>
@@ -17,7 +17,7 @@
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 </p>
 
-**[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/issues/2)**
+**[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/discussions/42)**
 
 **WARNING:** Until this project reaches 1.0, the API is subject to breaking changes.
 
@@ -91,7 +91,7 @@ if (!response.granted) {
   throw new Error('Location permission is required.')
 }
 
-const terminal = new StripeTerminalPlugin()
+const terminal = await StripeTerminalPlugin.create({ ... })
 ```
 
 If the user does not grant permission, `StripeTerminalPlugin` will throw an error when you try to initialize it so you will have to handle that.
@@ -108,7 +108,7 @@ import {
 } from 'capacitor-stripe-terminal'
 
 // First, initialize the SDK
-const terminal = new StripeTerminalPlugin({
+const terminal = await StripeTerminalPlugin.create({
   fetchConnectionToken: async () => {
     const resp = await fetch('https://your-backend.dev/token', {
       method: 'POST'
@@ -116,6 +116,9 @@ const terminal = new StripeTerminalPlugin({
     const data = await resp.json()
 
     return data.secret
+  },
+  onUnexpectedReaderDisconnect: () => {
+    // handle reader disconnect
   }
 })
 
@@ -140,30 +143,29 @@ terminal
   })
 
 // Once the reader is connected, collect a payment intent!
-;(async () => {
-  // subscribe to user instructions - these should be displayed to the user
-  const displaySubscription = terminal
-    .readerDisplayMessage()
-    .subscribe(displayMessage => {
-      console.log('displayMessage', displayMessage)
-    })
-  const inputSubscription = terminal.readerInput().subscribe(inputOptions => {
-    console.log('inputOptions', inputOptions)
+
+// subscribe to user instructions - these should be displayed to the user
+const displaySubscription = terminal
+  .readerDisplayMessage()
+  .subscribe(displayMessage => {
+    console.log('displayMessage', displayMessage)
   })
+const inputSubscription = terminal.readerInput().subscribe(inputOptions => {
+  console.log('inputOptions', inputOptions)
+})
 
-  // retrieve the payment intent
-  await terminal.retrievePaymentIntent('your client secret created server side')
+// retrieve the payment intent
+await terminal.retrievePaymentIntent('your client secret created server side')
 
-  // collect the payment method
-  await terminal.collectPaymentMethod()
+// collect the payment method
+await terminal.collectPaymentMethod()
 
-  // and finally, process the payment
-  await terminal.processPayment()
+// and finally, process the payment
+await terminal.processPayment()
 
-  // once you are done, make sure to unsubscribe (e.g. in ngOnDestroy)
-  displaySubscription.unsubscribe()
-  inputSubscription.unsubscribe()
-})()
+// once you are done, make sure to unsubscribe (e.g. in ngOnDestroy)
+displaySubscription.unsubscribe()
+inputSubscription.unsubscribe()
 ```
 
 ## API Reference

@@ -12,9 +12,17 @@ import {
   PaymentIntent
 } from './definitions'
 
+import './web'
+
+/**
+ * @ignore
+ */
 const { StripeTerminal } = Plugins
 
-// The Android connection status enum is different from iOS, this maps Android to iOS
+/**
+ * The Android connection status enum is different from iOS, this maps Android to iOS
+ * @ignore
+ */
 const AndroidConnectionStatusMap = {
   0: ConnectionStatus.NotConnected,
   1: ConnectionStatus.Connecting,
@@ -26,13 +34,21 @@ export class StripeTerminalPlugin {
 
   private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
+  private _onUnexpectedReaderDisconnect: () => void = () =>
+    Promise.reject('You must initialize StripeTerminalPlugin first.')
 
   private listeners: any = {}
 
+  /**
+   * **_DO NOT USE THIS CONSTRUCTOR DIRECTLY._**
+   *
+   * Use the [[StripeTerminalPlugin.create]] method instead.
+   * @hidden
+   * @param options `StripeTerminalPlugin` options.
+   */
   constructor(options: StripeTerminalConfig) {
     this._fetchConnectionToken = options.fetchConnectionToken
-
-    this.init()
+    this._onUnexpectedReaderDisconnect = options.onUnexpectedReaderDisconnect
   }
 
   private async init() {
@@ -55,6 +71,15 @@ export class StripeTerminalPlugin {
               err.message || 'Error in user-supplied `fetchConnectionToken`.'
             )
           )
+      }
+    )
+
+    this.listeners[
+      'unexpectedReaderDisconnectListener'
+    ] = StripeTerminal.addListener(
+      'didReportUnexpectedReaderDisconnect',
+      () => {
+        this._onUnexpectedReaderDisconnect()
       }
     )
 
@@ -106,12 +131,64 @@ export class StripeTerminalPlugin {
     }
   }
 
+  /**
+   * Creates an instance of [[StripeTerminalPlugin]] with the given options.
+   *
+   * ```typescript
+   * const terminal = await StripeTerminalPlugin.create({
+   *   fetchConnectionToken: async () => {
+   *     const resp = await fetch('https://your-backend.dev/token', {
+   *       method: 'POST'
+   *     })
+   *     const data = await resp.json()
+   *
+   *     return data.secret
+   *   },
+   *   onUnexpectedReaderDisconnect: () => {
+   *     // handle reader disconnect
+   *   }
+   * })
+   * ```
+   *
+   * @param options [[StripeTerminalPlugin]] options.
+   */
+  public static async create(
+    options: StripeTerminalConfig
+  ): Promise<StripeTerminalPlugin> {
+    const terminal = new StripeTerminalPlugin(options)
+
+    await terminal.init()
+
+    return terminal
+  }
+
   public discoverReaders(
     options: DiscoveryConfiguration
   ): Observable<Reader[]> {
     this.ensureInitialized()
 
     return new Observable(subscriber => {
+      const listener = StripeTerminal.addListener(
+        'readersDiscovered',
+        (event: { readers?: Reader[] }) => {
+          const readers =
+            event?.readers?.map((reader: Reader) => {
+              if (reader.batteryLevel === 0) {
+                // the only time that the battery level should be 0 is while scanning on Android and the level is unknown, so change it to null for consistency with iOS
+                reader.batteryLevel = null
+              }
+              if (reader.deviceSoftwareVersion === 'unknown') {
+                // replace unknown with null to make Android consistent with iOS
+                reader.deviceSoftwareVersion = null
+              }
+
+              return reader
+            }) || []
+
+          subscriber.next(readers)
+        }
+      )
+
       // start discovery
       StripeTerminal.discoverReaders(options)
         .then(() => {
@@ -120,13 +197,6 @@ export class StripeTerminalPlugin {
         .catch((err: any) => {
           subscriber.error(err)
         })
-
-      const listener = StripeTerminal.addListener(
-        'readersDiscovered',
-        (readers: any) => {
-          subscriber.next(readers.readers)
-        }
-      )
 
       return {
         unsubscribe: () => {
