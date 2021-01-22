@@ -19,8 +19,6 @@
 
 **[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/discussions/42)**
 
-**WARNING:** Until this project reaches 1.0, the API is subject to breaking changes.
-
 ## Maintainers
 
 | Maintainer | GitHub                              | Social                                      |
