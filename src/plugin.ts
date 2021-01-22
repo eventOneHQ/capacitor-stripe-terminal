@@ -40,17 +40,15 @@ export class StripeTerminalPlugin {
   private listeners: any = {}
 
   /**
-   * Creates an instance of `StripeTerminalPlugin` with the given options.
+   * **_DO NOT USE THIS CONSTRUCTOR DIRECTLY._**
+   *
+   * Use the [[StripeTerminalPlugin.create]] method instead.
+   * @hidden
    * @param options `StripeTerminalPlugin` options.
-   * @param autoInit For internal use. Should mostly be ignored.
    */
-  constructor(options: StripeTerminalConfig, autoInit = true) {
+  constructor(options: StripeTerminalConfig) {
     this._fetchConnectionToken = options.fetchConnectionToken
     this._onUnexpectedReaderDisconnect = options.onUnexpectedReaderDisconnect
-
-    if (autoInit) {
-      this.init()
-    }
   }
 
   private async init() {
@@ -134,13 +132,30 @@ export class StripeTerminalPlugin {
   }
 
   /**
-   * Creates an instance of `StripeTerminalPlugin` with the given options.
-   * @param options
+   * Creates an instance of [[StripeTerminalPlugin]] with the given options.
+   *
+   * ```typescript
+   * const terminal = await StripeTerminalPlugin.create({
+   *   fetchConnectionToken: async () => {
+   *     const resp = await fetch('https://your-backend.dev/token', {
+   *       method: 'POST'
+   *     })
+   *     const data = await resp.json()
+   *
+   *     return data.secret
+   *   },
+   *   onUnexpectedReaderDisconnect: () => {
+   *     // handle reader disconnect
+   *   }
+   * })
+   * ```
+   *
+   * @param options [[StripeTerminalPlugin]] options.
    */
   public static async create(
     options: StripeTerminalConfig
   ): Promise<StripeTerminalPlugin> {
-    const terminal = new StripeTerminalPlugin(options, false)
+    const terminal = new StripeTerminalPlugin(options)
 
     await terminal.init()
 
