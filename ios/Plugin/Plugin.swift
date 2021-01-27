@@ -14,6 +14,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     private var pendingCollectPaymentMethod: Cancelable?
     private var currentUpdate: ReaderSoftwareUpdate?
     private var currentPaymentIntent: PaymentIntent?
+    private var isInitialized: Bool = false
 
     private var readers: [Reader]?
 
@@ -31,6 +32,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
 
     @objc func initialize(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
+          if (!self.isInitialized) {
             Terminal.setTokenProvider(self)
             Terminal.shared.delegate = self
 
@@ -41,8 +43,9 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
 
             self.abortDiscoverReaders()
             self.abortInstallUpdate()
-
-            call.resolve()
+            self.isInitialized = true
+          }
+          call.resolve()
         }
     }
 
