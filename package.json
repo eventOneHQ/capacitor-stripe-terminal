@@ -9,6 +9,8 @@
     "clean": "rm -rf ./dist",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
+    "prepare": "husky install",
+    "pre-commit": "pretty-quick --staged",
     "docs": "typedoc --excludeExternals --out out src/index.ts"
   },
   "author": "eventOne Labs <opensource@event1.io>",
@@ -21,7 +23,7 @@
   "devDependencies": {
     "@capacitor/android": "^2.4.7",
     "@capacitor/ios": "^2.4.7",
-    "husky": "^4.3.8",
+    "husky": "^6.0.0",
     "prettier": "^2.3.0",
     "prettier-plugin-java": "^1.1.0",
     "pretty-quick": "^3.1.0",
@@ -56,11 +58,6 @@
   },
   "bugs": {
     "url": "https://github.com/eventOneHQ/capacitor-stripe-terminal/issues"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "pretty-quick --staged"
-    }
   },
   "release": {
     "branches": [
