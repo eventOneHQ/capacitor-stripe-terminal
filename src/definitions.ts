@@ -191,6 +191,11 @@ export interface Reader {
   simulated: boolean
 
   /**
+   * Has the value true if the object exists in live mode or the value false if the object exists in test mode.
+   */
+  livemode?: boolean
+
+  /**
    * The reader's serial number.
    */
   serialNumber: string
