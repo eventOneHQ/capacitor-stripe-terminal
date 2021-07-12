@@ -8,7 +8,6 @@ import { DiscoverPage } from './discover.page'
 
 @NgModule({
   imports: [CommonModule, FormsModule, IonicModule],
-  entryComponents: [DiscoverPage],
   exports: [DiscoverPage],
   declarations: [DiscoverPage]
 })
