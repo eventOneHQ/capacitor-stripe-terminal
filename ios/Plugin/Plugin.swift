@@ -95,7 +95,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             self.pendingDiscoverReaders = nil
 
             if let error = error {
-                call.error(error.localizedDescription, error)
+                call.reject(error.localizedDescription, nil, error)
             } else {
                 call.resolve()
             }
@@ -106,7 +106,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         if pendingDiscoverReaders != nil {
             pendingDiscoverReaders?.cancel { error in
                 if let error = error {
-                    call?.error(error.localizedDescription, error)
+                    call?.reject(error.localizedDescription, nil, error)
                 } else {
                     call?.resolve()
                 }
@@ -136,7 +136,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
                         "reader": StripeTerminalUtils.serializeReader(reader: reader),
                     ])
                 } else if let error = error {
-                    call.error(error.localizedDescription, error)
+                    call.reject(error.localizedDescription, nil, error)
                 }
             })
         }
@@ -151,7 +151,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         DispatchQueue.main.async {
             Terminal.shared.disconnectReader { error in
                 if let error = error {
-                    call.error(error.localizedDescription, error)
+                    call.reject(error.localizedDescription, nil, error)
                 } else {
                     call.resolve()
                 }
@@ -163,7 +163,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         Terminal.shared.checkForUpdate { _update, error in
             self.currentUpdate = _update
             if let error = error {
-                call.error(error.localizedDescription, error)
+                call.reject(error.localizedDescription, nil, error)
             } else if let update = _update {
                 call.resolve(["update": StripeTerminalUtils.serializeUpdate(update: update)])
             } else {
@@ -176,7 +176,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         if let update = currentUpdate {
             pendingInstallUpdate = Terminal.shared.installUpdate(update, delegate: self, completion: { error in
                 if let error = error {
-                    call.error(error.localizedDescription, error)
+                    call.reject(error.localizedDescription, nil, error)
                 } else {
                     self.pendingInstallUpdate = nil
                     self.currentUpdate = nil
@@ -190,7 +190,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         if pendingInstallUpdate != nil {
             pendingInstallUpdate?.cancel { error in
                 if let error = error {
-                    call?.error(error.localizedDescription, error)
+                    call?.reject(error.localizedDescription, nil, error)
                 } else {
                     self.pendingInstallUpdate = nil
                     call?.resolve()
@@ -226,7 +226,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             self.currentPaymentIntent = retrieveResult
 
             if let error = retrieveError {
-                call.error(error.localizedDescription, error)
+                call.reject(error.localizedDescription, nil, error)
             } else if let paymentIntent = retrieveResult {
                 call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
             }
@@ -237,7 +237,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         if pendingCollectPaymentMethod != nil {
             pendingCollectPaymentMethod?.cancel { error in
                 if let error = error {
-                    call?.error(error.localizedDescription, error)
+                    call?.reject(error.localizedDescription, nil, error)
                 } else {
                     self.pendingCollectPaymentMethod = nil
                     call?.resolve()
@@ -256,7 +256,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
                 self.pendingCollectPaymentMethod = nil
 
                 if let error = collectError {
-                    call.error(error.localizedDescription, error)
+                    call.reject(error.localizedDescription, nil, error)
                 } else if let paymentIntent = collectResult {
                     self.currentPaymentIntent = collectResult
                     call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
@@ -271,7 +271,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         if let intent = currentPaymentIntent {
             Terminal.shared.processPayment(intent) { paymentIntent, error in
                 if let error = error {
-                    call.error(error.localizedDescription, error)
+                    call.reject(error.localizedDescription, nil, error)
                 } else if let paymentIntent = paymentIntent {
                     self.currentPaymentIntent = paymentIntent
                     call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
