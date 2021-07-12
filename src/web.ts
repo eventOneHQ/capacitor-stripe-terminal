@@ -12,7 +12,6 @@ import {
 } from './definitions'
 import {
   loadStripeTerminal,
-  StripeTerminal,
   Terminal,
   DiscoverResult,
   Reader as DiscoverReader,
@@ -376,13 +375,3 @@ export class StripeTerminalWeb
     await this.instance.clearCachedCredentials()
   }
 }
-
-/**
- * @ignore
- */
-const StripeTerminal = new StripeTerminalWeb()
-
-export { StripeTerminal }
-
-import { registerWebPlugin } from '@capacitor/core'
-registerWebPlugin(StripeTerminal)

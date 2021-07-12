@@ -1,4 +1,4 @@
-import { Plugins } from '@capacitor/core'
+import { PluginListenerHandle } from '@capacitor/core'
 import { Observable } from 'rxjs'
 
 import {
@@ -12,12 +12,7 @@ import {
   PaymentIntent
 } from './definitions'
 
-import './web'
-
-/**
- * @ignore
- */
-const { StripeTerminal } = Plugins
+import { StripeTerminal } from './plugin-registration'
 
 /**
  * The Android connection status enum is different from iOS, this maps Android to iOS
@@ -37,7 +32,7 @@ export class StripeTerminalPlugin {
   private _onUnexpectedReaderDisconnect: () => void = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
 
-  private listeners: any = {}
+  private listeners: { [key: string]: PluginListenerHandle } = {}
 
   /**
    * **_DO NOT USE THIS CONSTRUCTOR DIRECTLY._**
@@ -52,9 +47,8 @@ export class StripeTerminalPlugin {
   }
 
   private async init() {
-    this.listeners['connectionTokenListener'] = StripeTerminal.addListener(
-      'requestConnectionToken',
-      () => {
+    this.listeners['connectionTokenListener'] =
+      await StripeTerminal.addListener('requestConnectionToken', () => {
         this._fetchConnectionToken()
           .then(token => {
             if (token) {
@@ -71,17 +65,15 @@ export class StripeTerminalPlugin {
               err.message || 'Error in user-supplied `fetchConnectionToken`.'
             )
           )
-      }
-    )
+      })
 
-    this.listeners[
-      'unexpectedReaderDisconnectListener'
-    ] = StripeTerminal.addListener(
-      'didReportUnexpectedReaderDisconnect',
-      () => {
-        this._onUnexpectedReaderDisconnect()
-      }
-    )
+    this.listeners['unexpectedReaderDisconnectListener'] =
+      await StripeTerminal.addListener(
+        'didReportUnexpectedReaderDisconnect',
+        () => {
+          this._onUnexpectedReaderDisconnect()
+        }
+      )
 
     await StripeTerminal.initialize()
 
@@ -103,21 +95,25 @@ export class StripeTerminalPlugin {
   }
 
   private _listenerToObservable(
-    name: string,
+    name: 'didRequestReaderDisplayMessage' | 'didRequestReaderInput',
     transformFunc?: (data: any) => any
   ): Observable<any> {
     return new Observable(subscriber => {
-      const listener = StripeTerminal.addListener(name, (data: any) => {
+      let listener: PluginListenerHandle
+
+      StripeTerminal.addListener(name, (data: any) => {
         if (transformFunc) {
           return subscriber.next(transformFunc(data))
         }
 
         return subscriber.next(data)
+      }).then(l => {
+        listener = l
       })
 
       return {
         unsubscribe: () => {
-          listener.remove()
+          listener?.remove()
         }
       }
     })
@@ -168,7 +164,9 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return new Observable(subscriber => {
-      const listener = StripeTerminal.addListener(
+      let listener: PluginListenerHandle
+
+      StripeTerminal.addListener(
         'readersDiscovered',
         (event: { readers?: Reader[] }) => {
           const readers =
@@ -187,7 +185,9 @@ export class StripeTerminalPlugin {
 
           subscriber.next(readers)
         }
-      )
+      ).then(l => {
+        listener = l
+      })
 
       // start discovery
       StripeTerminal.discoverReaders(options)
@@ -201,7 +201,7 @@ export class StripeTerminalPlugin {
       return {
         unsubscribe: () => {
           StripeTerminal.abortDiscoverReaders()
-          listener.remove()
+          listener?.remove()
         }
       }
     })
@@ -263,18 +263,19 @@ export class StripeTerminalPlugin {
           subscriber.error(err)
         })
 
+      let listener: PluginListenerHandle
+
       // then listen for changes
-      const listener = StripeTerminal.addListener(
-        'didChangeConnectionStatus',
-        (status: any) => {
-          hasSentEvent = true
-          subscriber.next(this.translateConnectionStatus(status))
-        }
-      )
+      StripeTerminal.addListener('didChangeConnectionStatus', (status: any) => {
+        hasSentEvent = true
+        subscriber.next(this.translateConnectionStatus(status))
+      }).then(l => {
+        listener = l
+      })
 
       return {
         unsubscribe: () => {
-          listener.remove()
+          listener?.remove()
         }
       }
     })
@@ -293,18 +294,22 @@ export class StripeTerminalPlugin {
           subscriber.error(err)
         })
 
+      let listener: PluginListenerHandle
+
       // then listen for progress
-      const listener = StripeTerminal.addListener(
+      StripeTerminal.addListener(
         'didReportReaderSoftwareUpdateProgress',
         (data: any) => {
           subscriber.next(data.progress)
         }
-      )
+      ).then(l => {
+        listener = l
+      })
 
       return {
         unsubscribe: () => {
           StripeTerminal.abortInstallUpdate()
-          listener.remove()
+          listener?.remove()
         }
       }
     })
