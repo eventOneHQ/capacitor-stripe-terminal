@@ -237,7 +237,7 @@ export class StripeTerminalPlugin {
 
     const data = await StripeTerminal.getConnectedReader()
 
-    return data.reader
+    return data?.reader ?? null
   }
 
   public async getConnectionStatus(): Promise<ConnectionStatus> {
