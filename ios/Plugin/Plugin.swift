@@ -81,7 +81,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         let method = UInt(call.getInt("discoveryMethod") ?? 0)
         let device = UInt(call.getInt("deviceType") ?? 0)
         let locationId = call.getString("locationId") ?? nil
-        
+
         let deviceType = DeviceType(rawValue: device) ?? DeviceType.chipper2X
         let discoveryMethod = DiscoveryMethod(rawValue: method) ?? DiscoveryMethod.bluetoothProximity
 
