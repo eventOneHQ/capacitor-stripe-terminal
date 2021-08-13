@@ -1,0 +1,86 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title> Terminal </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="ion-padding ion-margin-vertical ion-text-center">
+    <div *ngIf="status === ConnectionStatus.NotConnected">
+      <img class="reader-image" src="assets/reader-empty.png" alt="" />
+      <p class="ion-no-margin">No reader connected</p>
+    </div>
+    <div *ngIf="status === ConnectionStatus.Connecting">
+      <img class="reader-image" src="assets/reader-empty.png" alt="" />
+      <p class="ion-no-margin">Reader connecting</p>
+    </div>
+    <div *ngIf="status === ConnectionStatus.Connected">
+      <img class="reader-image" src="assets/reader.png" alt="" />
+      <h5 class="ion-no-margin" *ngIf="!connectedReader">Reader connected</h5>
+
+      <ng-container *ngIf="connectedReader">
+        <h5 class="ion-no-margin">
+          {{niceDeviceType[connectedReader.deviceType]}}
+          {{connectedReader.serialNumber}}
+        </h5>
+        <p class="ion-no-margin">
+          {{ConnectionStatus[status]}}<span *ngIf="connectedReader.simulated"
+            >, simulated</span
+          >
+        </p>
+      </ng-container>
+    </div>
+  </div>
+
+  <div *ngIf="status === ConnectionStatus.NotConnected">
+    <ion-list>
+      <ion-list-header>Reader Connection</ion-list-header>
+      <ion-item (click)="discoverReaders()">
+        <ion-label color="primary">Discover Readers</ion-label>
+      </ion-item>
+    </ion-list>
+
+    <ion-list>
+      <ion-item>
+        <ion-label>Device Type</ion-label>
+        <ion-select [(ngModel)]="discoveryConfig.deviceType">
+          <ion-select-option [value]="DeviceType.Chipper2X">
+            Chipper 2X
+          </ion-select-option>
+          <ion-select-option [value]="DeviceType.VerifoneP400">
+            Verifone P400
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+      <ion-item
+        *ngIf="platform.is('ios') && discoveryConfig.deviceType===DeviceType.Chipper2X"
+      >
+        <ion-label>Discovery Method</ion-label>
+        <ion-select [(ngModel)]="discoveryConfig.discoveryMethod">
+          <ion-select-option [value]="DiscoveryMethod.BluetoothScan">
+            Bluetooth Scan
+          </ion-select-option>
+          <ion-select-option [value]="DiscoveryMethod.BluetoothProximity">
+            Bluetooth Proximity
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+      <ion-item>
+        <ion-label>Simulated</ion-label>
+        <ion-toggle
+          slot="end"
+          [(ngModel)]="discoveryConfig.simulated"
+        ></ion-toggle>
+      </ion-item>
+    </ion-list>
+  </div>
+
+  <div *ngIf="status === ConnectionStatus.Connected">
+    <ion-list>
+      <ion-list-header>Reader Connection</ion-list-header>
+      <ion-item (click)="disconnectReader()">
+        <ion-label color="danger">Disconnect</ion-label>
+      </ion-item>
+    </ion-list>
+  </div>
+</ion-content>

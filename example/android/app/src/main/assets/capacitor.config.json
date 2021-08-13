@@ -1,0 +1,8 @@
+{
+	"appId": "com.yourdomain.stripeterminalexample",
+	"appName": "Terminal",
+	"bundledWebRuntime": false,
+	"npmClient": "npm",
+	"webDir": "www",
+	"cordova": {}
+}

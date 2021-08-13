@@ -1,0 +1,6 @@
+[
+	{
+		"pkg": "capacitor-stripe-terminal",
+		"classpath": "io.event1.capacitorstripeterminal.StripeTerminal"
+	}
+]

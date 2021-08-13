@@ -1,0 +1,40 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="done()">Cancel</ion-button>
+    </ion-buttons>
+    <ion-title>Discovery</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-list>
+    <ion-list-header>
+      <ion-label
+        *ngIf="discoveryConfig.discoveryMethod === DiscoveryMethod.BluetoothScan"
+      >
+        Nearby Readers
+      </ion-label>
+      <ng-container
+        *ngIf="discoveryConfig.discoveryMethod === DiscoveryMethod.BluetoothProximity"
+      >
+        <ion-label *ngIf="!readers">Hold Reader Nearby</ion-label>
+        <ion-label *ngIf="readers">Discovered Reader</ion-label>
+      </ng-container>
+
+      <ion-spinner *ngIf="searching"></ion-spinner>
+    </ion-list-header>
+
+    <ion-item *ngFor="let reader of readers" (click)="connectReader(reader)">
+      <ion-label>
+        <h2>{{ reader.serialNumber }}</h2>
+        <h3 *ngIf="reader.deviceSoftwareVersion">
+          Firware Version: {{ reader.deviceSoftwareVersion }}
+        </h3>
+      </ion-label>
+      <ion-note *ngIf="reader.batteryLevel" slot="end">
+        {{ reader.batteryLevel * 100 }}%
+      </ion-note>
+    </ion-item>
+  </ion-list>
+</ion-content>
