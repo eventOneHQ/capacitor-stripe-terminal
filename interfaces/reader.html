@@ -1,0 +1,370 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>Reader | capacitor-stripe-terminal</title>
+	<meta name="description" content="Documentation for capacitor-stripe-terminal">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="../assets/css/main.css">
+	<script async src="../assets/js/search.js" id="search-script"></script>
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.json" data-base="..">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="../index.html" class="title">capacitor-stripe-terminal</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="../modules.html">capacitor-stripe-terminal</a>
+				</li>
+				<li>
+					<a href="reader.html">Reader</a>
+				</li>
+			</ul>
+			<h1>Interface Reader</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-hierarchy">
+				<h3>Hierarchy</h3>
+				<ul class="tsd-hierarchy">
+					<li>
+						<span class="target">Reader</span>
+					</li>
+				</ul>
+			</section>
+			<section class="tsd-panel-group tsd-index-group">
+				<h2>Index</h2>
+				<section class="tsd-panel tsd-index-panel">
+					<div class="tsd-index-content">
+						<section class="tsd-index-section ">
+							<h3>Properties</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#batterylevel" class="tsd-kind-icon">battery<wbr>Level</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#devicesoftwareversion" class="tsd-kind-icon">device<wbr>Software<wbr>Version</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#devicetype" class="tsd-kind-icon">device<wbr>Type</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#ipaddress" class="tsd-kind-icon">ip<wbr>Address</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#label" class="tsd-kind-icon">label</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#locationid" class="tsd-kind-icon">location<wbr>Id</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#serialnumber" class="tsd-kind-icon">serial<wbr>Number</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#simulated" class="tsd-kind-icon">simulated</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#status" class="tsd-kind-icon">status</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="reader.html#stripeid" class="tsd-kind-icon">stripe<wbr>Id</a></li>
+							</ul>
+						</section>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Properties</h2>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="batterylevel" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> battery<wbr>Level</h3>
+					<div class="tsd-signature tsd-kind-icon">battery<wbr>Level<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L174">definitions.ts:174</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The reader&#39;s battery level, represented as a boxed float in the range <code>[0, 1]</code>. If the reader does not have a battery, or the battery level is unknown, this value is <code>null</code>. (Chipper 2X only.)</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="devicesoftwareversion" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> device<wbr>Software<wbr>Version</h3>
+					<div class="tsd-signature tsd-kind-icon">device<wbr>Software<wbr>Version<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L201">definitions.ts:201</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The reader&#39;s current device software version, or <code>null</code> if this information is unavailable.</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="devicetype" class="tsd-anchor"></a>
+					<h3>device<wbr>Type</h3>
+					<div class="tsd-signature tsd-kind-icon">device<wbr>Type<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L184">definitions.ts:184</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The reader&#39;s device type.</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="ipaddress" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> ip<wbr>Address</h3>
+					<div class="tsd-signature tsd-kind-icon">ip<wbr>Address<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L153">definitions.ts:153</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The IP address of the reader. (Verifone P400 only.)</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="label" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> label</h3>
+					<div class="tsd-signature tsd-kind-icon">label<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L170">definitions.ts:170</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>A custom label that may be given to a reader for easier identification. (Verifone P400 only.)</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="locationid" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> location<wbr>Id</h3>
+					<div class="tsd-signature tsd-kind-icon">location<wbr>Id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L160">definitions.ts:160</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The location ID of the reader. (Verifone P400 only.)</p>
+						</div>
+						<dl class="tsd-comment-tags">
+							<dt>see</dt>
+							<dd><p><a href="https://stripe.com/docs/api/terminal/locations">https://stripe.com/docs/api/terminal/locations</a></p>
+							</dd>
+						</dl>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="serialnumber" class="tsd-anchor"></a>
+					<h3>serial<wbr>Number</h3>
+					<div class="tsd-signature tsd-kind-icon">serial<wbr>Number<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L196">definitions.ts:196</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The reader&#39;s serial number.</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="simulated" class="tsd-anchor"></a>
+					<h3>simulated</h3>
+					<div class="tsd-signature tsd-kind-icon">simulated<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L191">definitions.ts:191</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>True if this is a simulated reader.</p>
+						</div>
+						<p><code>DiscoveryConfiguration</code> objects with <code>simulated = true</code> produce simulated Readers.</p>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="status" class="tsd-anchor"></a>
+					<h3>status</h3>
+					<div class="tsd-signature tsd-kind-icon">status<span class="tsd-signature-symbol">:</span> <a href="../enums/readernetworkstatus.html" class="tsd-signature-type" data-tsd-kind="Enumeration">ReaderNetworkStatus</a></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L165">definitions.ts:165</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The networking status of the reader: either offline or online. Note that the Chipper 2X’s status will always be offline. (Verifone P400 only.)</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="stripeid" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> stripe<wbr>Id</h3>
+					<div class="tsd-signature tsd-kind-icon">stripe<wbr>Id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L179">definitions.ts:179</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The Stripe unique identifier for the reader.</p>
+						</div>
+					</div>
+				</section>
+			</section>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class=" ">
+						<a href="../modules.html">Exports</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-enum">
+						<a href="../enums/connectionstatus.html" class="tsd-kind-icon">Connection<wbr>Status</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="../enums/devicetype.html" class="tsd-kind-icon">Device<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="../enums/discoverymethod.html" class="tsd-kind-icon">Discovery<wbr>Method</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="../enums/readerdisplaymessage.html" class="tsd-kind-icon">Reader<wbr>Display<wbr>Message</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="../enums/readerinputoptions.html" class="tsd-kind-icon">Reader<wbr>Input<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="../enums/readernetworkstatus.html" class="tsd-kind-icon">Reader<wbr>Network<wbr>Status</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="../classes/stripeterminalplugin.html" class="tsd-kind-icon">Stripe<wbr>Terminal<wbr>Plugin</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="discoveryconfiguration.html" class="tsd-kind-icon">Discovery<wbr>Configuration</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="paymentintent.html" class="tsd-kind-icon">Payment<wbr>Intent</a>
+					</li>
+				</ul>
+				<ul class="current">
+					<li class="current tsd-kind-interface">
+						<a href="reader.html" class="tsd-kind-icon">Reader</a>
+						<ul>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#batterylevel" class="tsd-kind-icon">battery<wbr>Level</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#devicesoftwareversion" class="tsd-kind-icon">device<wbr>Software<wbr>Version</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#devicetype" class="tsd-kind-icon">device<wbr>Type</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#ipaddress" class="tsd-kind-icon">ip<wbr>Address</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#label" class="tsd-kind-icon">label</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#locationid" class="tsd-kind-icon">location<wbr>Id</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#serialnumber" class="tsd-kind-icon">serial<wbr>Number</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#simulated" class="tsd-kind-icon">simulated</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#status" class="tsd-kind-icon">status</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="reader.html#stripeid" class="tsd-kind-icon">stripe<wbr>Id</a>
+							</li>
+						</ul>
+					</li>
+				</ul>
+				<ul class="after-current">
+					<li class=" tsd-kind-interface">
+						<a href="readersoftwareupdate.html" class="tsd-kind-icon">Reader<wbr>Software<wbr>Update</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="stripeterminalconfig.html" class="tsd-kind-icon">Stripe<wbr>Terminal<wbr>Config</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static method</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="../assets/js/main.js"></script>
+</body>
+</html>

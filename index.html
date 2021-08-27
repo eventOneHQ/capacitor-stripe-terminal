@@ -1,0 +1,308 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>capacitor-stripe-terminal</title>
+	<meta name="description" content="Documentation for capacitor-stripe-terminal">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="assets/css/main.css">
+	<script async src="assets/js/search.js" id="search-script"></script>
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="assets/js/search.json" data-base=".">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="index.html" class="title">capacitor-stripe-terminal</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<h1>Project capacitor-stripe-terminal</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<div class="tsd-panel tsd-typography">
+				<p align="center"><br><img src="https://user-images.githubusercontent.com/236501/85893648-1c92e880-b7a8-11ea-926d-95355b8175c7.png" width="128" height="128" /></p>
+				<h3 align="center">Capacitor Stripe Terminal</h3>
+				<p align="center"><strong><code>capacitor-stripe-terminal</code></strong></p>
+				<p align="center">
+					Capacitor plugin for <a href="https://stripe.com/terminal">Stripe Terminal</a> (unofficial)
+				</p>
+				<p align="center">
+					<img src="https://img.shields.io/maintenance/yes/2021?style=flat-square" />
+					<a href="https://github.com/eventonehq/capacitor-stripe-terminal/actions?query=workflow%3A%22Release%22"><img src="https://img.shields.io/github/workflow/status/eventonehq/capacitor-stripe-terminal/Release?style=flat-square" /></a>
+					<a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/l/capacitor-stripe-terminal?style=flat-square" /></a>
+					<br>
+					<a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/dw/capacitor-stripe-terminal?style=flat-square" /></a>
+					<a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/v/capacitor-stripe-terminal?style=flat-square" /></a>
+					<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+					<a href="#contributors-"><img src="https://img.shields.io/badge/all%20contributors-0-orange?style=flat-square" /></a>
+					<!-- ALL-CONTRIBUTORS-BADGE:END -->
+				</p>
+				<p><strong><a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/discussions/42">Current project status</a></strong></p>
+				<a href="#maintainers" id="maintainers" style="color: inherit; text-decoration: none;">
+					<h2>Maintainers</h2>
+				</a>
+				<table>
+					<thead>
+						<tr>
+							<th>Maintainer</th>
+							<th>GitHub</th>
+							<th>Social</th>
+						</tr>
+					</thead>
+					<tbody><tr>
+							<td>Noah Prail</td>
+							<td><a href="https://github.com/nprail">nprail</a></td>
+							<td><a href="https://twitter.com/NoahPrail">@NoahPrail</a></td>
+						</tr>
+				</tbody></table>
+				<a href="#installation" id="installation" style="color: inherit; text-decoration: none;">
+					<h2>Installation</h2>
+				</a>
+				<p>Using npm:</p>
+				<pre><code class="language-bash"><span style="color: #000000">npm install capacitor-stripe-terminal</span>
+</code></pre>
+				<p>Using yarn:</p>
+				<pre><code class="language-bash"><span style="color: #000000">yarn add capacitor-stripe-terminal</span>
+</code></pre>
+				<p>Sync native files:</p>
+				<pre><code class="language-bash"><span style="color: #000000">npx cap sync</span>
+</code></pre>
+				<a href="#configuration" id="configuration" style="color: inherit; text-decoration: none;">
+					<h2>Configuration</h2>
+				</a>
+				<a href="#ios" id="ios" style="color: inherit; text-decoration: none;">
+					<h3>iOS</h3>
+				</a>
+				<p>Follow all Stripe instructions under <a href="https://stripe.com/docs/terminal/sdk/ios#configure">&quot;Configure your app&quot;</a>.</p>
+				<a href="#android" id="android" style="color: inherit; text-decoration: none;">
+					<h3>Android</h3>
+				</a>
+				<p>Add the plugin to your <code>MainActivity.java</code>:</p>
+				<pre><code class="language-java"><span style="color: #008000">// import it at the top</span>
+<span style="color: #0000FF">import</span><span style="color: #000000"> io.event1.capacitorstripeterminal.StripeTerminal;</span>
+
+<span style="color: #0000FF">this</span><span style="color: #000000">.</span><span style="color: #795E26">init</span><span style="color: #000000">(savedInstanceState, </span><span style="color: #AF00DB">new</span><span style="color: #000000"> </span><span style="color: #267F99">ArrayList</span><span style="color: #000000">&lt;</span><span style="color: #267F99">Class</span><span style="color: #000000">&lt;</span><span style="color: #0000FF">?</span><span style="color: #000000"> </span><span style="color: #0000FF">extends</span><span style="color: #000000"> </span><span style="color: #267F99">Plugin</span><span style="color: #000000">&gt;&gt;() {{</span>
+<span style="color: #000000">  </span><span style="color: #008000">// Additional plugins you&#039;ve installed go here</span>
+<span style="color: #000000">  </span><span style="color: #008000">// Ex: add(TotallyAwesomePlugin.class);</span>
+<span style="color: #000000">  </span><span style="color: #795E26">add</span><span style="color: #000000">(</span><span style="color: #001080">StripeTerminal</span><span style="color: #000000">.</span><span style="color: #001080">class</span><span style="color: #000000">);</span>
+<span style="color: #000000">}});</span>
+</code></pre>
+				<p>Add the <code>ACCESS_FINE_LOCATION</code>, <code>BLUETOOTH</code>, and <code>BLUETOOTH_ADMIN</code> permissions to your app&#39;s manifest:</p>
+				<pre><code class="language-xml"><span style="color: #800000">&lt;?xml</span><span style="color: #FF0000"> version</span><span style="color: #000000">=</span><span style="color: #0000FF">&quot;1.0&quot;</span><span style="color: #FF0000"> encoding</span><span style="color: #000000">=</span><span style="color: #0000FF">&quot;utf-8&quot;</span><span style="color: #800000">?&gt;</span>
+<span style="color: #800000">&lt;manifest</span><span style="color: #000000"> </span><span style="color: #FF0000">xmlns:android</span><span style="color: #000000">=</span><span style="color: #0000FF">&quot;http://schemas.android.com/apk/res/android&quot;</span>
+<span style="color: #000000">    </span><span style="color: #FF0000">xmlns:tools</span><span style="color: #000000">=</span><span style="color: #0000FF">&quot;http://schemas.android.com/tools&quot;</span>
+<span style="color: #000000">    </span><span style="color: #FF0000">package</span><span style="color: #000000">=</span><span style="color: #0000FF">&quot;com.stripe.example.app&quot;</span><span style="color: #800000">&gt;</span>
+
+<span style="color: #000000">    </span><span style="color: #800000">&lt;uses-permission</span><span style="color: #000000"> </span><span style="color: #FF0000">android:name</span><span style="color: #000000">=</span><span style="color: #0000FF">&quot;android.permission.ACCESS_FINE_LOCATION&quot;</span><span style="color: #000000"> </span><span style="color: #800000">/&gt;</span>
+<span style="color: #000000">    </span><span style="color: #800000">&lt;uses-permission</span><span style="color: #000000"> </span><span style="color: #FF0000">android:name</span><span style="color: #000000">=</span><span style="color: #0000FF">&quot;android.permission.BLUETOOTH&quot;</span><span style="color: #000000"> </span><span style="color: #800000">/&gt;</span>
+<span style="color: #000000">    </span><span style="color: #800000">&lt;uses-permission</span><span style="color: #000000"> </span><span style="color: #FF0000">android:name</span><span style="color: #000000">=</span><span style="color: #0000FF">&quot;android.permission.BLUETOOTH_ADMIN&quot;</span><span style="color: #000000"> </span><span style="color: #800000">/&gt;</span>
+<span style="color: #800000">&lt;/manifest&gt;</span>
+</code></pre>
+				<p>On Android, you must also make sure that Location permission has been granted by the user:</p>
+				<pre><code class="language-javascript"><span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">response</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">StripeTerminalPlugin</span><span style="color: #000000">.</span><span style="color: #795E26">getPermissions</span><span style="color: #000000">()</span>
+
+<span style="color: #AF00DB">if</span><span style="color: #000000"> (!</span><span style="color: #001080">response</span><span style="color: #000000">.</span><span style="color: #001080">granted</span><span style="color: #000000">) {</span>
+<span style="color: #000000">  </span><span style="color: #AF00DB">throw</span><span style="color: #000000"> </span><span style="color: #0000FF">new</span><span style="color: #000000"> </span><span style="color: #267F99">Error</span><span style="color: #000000">(</span><span style="color: #A31515">&#039;Location permission is required.&#039;</span><span style="color: #000000">)</span>
+<span style="color: #000000">}</span>
+
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">terminal</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">StripeTerminalPlugin</span><span style="color: #000000">.</span><span style="color: #795E26">create</span><span style="color: #000000">({ ... })</span>
+</code></pre>
+				<p>If the user does not grant permission, <code>StripeTerminalPlugin</code> will throw an error when you try to initialize it so you will have to handle that.</p>
+				<p><em>Hint: If the user denies Location permission the first time you ask for it, Android will not display a prompt to the user on subsequent requests for permission and <code>response.granted</code> will always be <code>false</code>. You will have to ask the user to go into the app&#39;s settings to allow Location permission.</em></p>
+				<a href="#usage" id="usage" style="color: inherit; text-decoration: none;">
+					<h2>Usage</h2>
+				</a>
+				<pre><code class="language-javascript"><span style="color: #AF00DB">import</span><span style="color: #000000"> {</span>
+<span style="color: #000000">  </span><span style="color: #001080">StripeTerminalPlugin</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">DeviceType</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">DiscoveryMethod</span>
+<span style="color: #000000">} </span><span style="color: #AF00DB">from</span><span style="color: #000000"> </span><span style="color: #A31515">&#039;capacitor-stripe-terminal&#039;</span>
+
+<span style="color: #008000">// First, initialize the SDK</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">terminal</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">StripeTerminalPlugin</span><span style="color: #000000">.</span><span style="color: #795E26">create</span><span style="color: #000000">({</span>
+<span style="color: #000000">  </span><span style="color: #795E26">fetchConnectionToken</span><span style="color: #001080">:</span><span style="color: #000000"> </span><span style="color: #0000FF">async</span><span style="color: #000000"> () </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">    </span><span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">resp</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">fetch</span><span style="color: #000000">(</span><span style="color: #A31515">&#039;https://your-backend.dev/token&#039;</span><span style="color: #000000">, {</span>
+<span style="color: #000000">      </span><span style="color: #001080">method:</span><span style="color: #000000"> </span><span style="color: #A31515">&#039;POST&#039;</span>
+<span style="color: #000000">    })</span>
+<span style="color: #000000">    </span><span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">data</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">resp</span><span style="color: #000000">.</span><span style="color: #795E26">json</span><span style="color: #000000">()</span>
+
+<span style="color: #000000">    </span><span style="color: #AF00DB">return</span><span style="color: #000000"> </span><span style="color: #001080">data</span><span style="color: #000000">.</span><span style="color: #001080">secret</span>
+<span style="color: #000000">  },</span>
+<span style="color: #000000">  </span><span style="color: #795E26">onUnexpectedReaderDisconnect</span><span style="color: #001080">:</span><span style="color: #000000"> () </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">    </span><span style="color: #008000">// handle reader disconnect</span>
+<span style="color: #000000">  }</span>
+<span style="color: #000000">})</span>
+
+<span style="color: #008000">// Start scanning for readers</span>
+<span style="color: #008000">// capacitor-stripe-terminal uses Observables for any data streams</span>
+<span style="color: #008000">// To stop scanning, unsubscribe from the Observable.</span>
+<span style="color: #008000">// You must connect to a reader while scanning</span>
+<span style="color: #001080">terminal</span>
+<span style="color: #000000">  .</span><span style="color: #795E26">discoverReaders</span><span style="color: #000000">({</span>
+<span style="color: #000000">    </span><span style="color: #001080">simulated:</span><span style="color: #000000"> </span><span style="color: #0000FF">false</span><span style="color: #000000">,</span>
+<span style="color: #000000">    </span><span style="color: #001080">deviceType:</span><span style="color: #000000"> </span><span style="color: #001080">DeviceType</span><span style="color: #000000">.</span><span style="color: #001080">Chipper2X</span><span style="color: #000000">,</span>
+<span style="color: #000000">    </span><span style="color: #001080">discoveryMethod:</span><span style="color: #000000"> </span><span style="color: #001080">DiscoveryMethod</span><span style="color: #000000">.</span><span style="color: #001080">BluetoothProximity</span>
+<span style="color: #000000">  })</span>
+<span style="color: #000000">  .</span><span style="color: #795E26">subscribe</span><span style="color: #000000">(</span><span style="color: #001080">readers</span><span style="color: #000000"> </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">    </span><span style="color: #AF00DB">if</span><span style="color: #000000"> (</span><span style="color: #001080">readers</span><span style="color: #000000">.</span><span style="color: #001080">length</span><span style="color: #000000">) {</span>
+<span style="color: #000000">      </span><span style="color: #001080">terminal</span>
+<span style="color: #000000">        .</span><span style="color: #795E26">connectReader</span><span style="color: #000000">({ </span><span style="color: #001080">serialNumber:</span><span style="color: #000000"> </span><span style="color: #001080">readers</span><span style="color: #000000">[</span><span style="color: #098658">0</span><span style="color: #000000">].</span><span style="color: #001080">serialNumber</span><span style="color: #000000"> })</span>
+<span style="color: #000000">        .</span><span style="color: #795E26">then</span><span style="color: #000000">(</span><span style="color: #001080">connectedReader</span><span style="color: #000000"> </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">          </span><span style="color: #008000">// the reader is now connected and usable</span>
+<span style="color: #000000">        })</span>
+<span style="color: #000000">    }</span>
+<span style="color: #000000">  })</span>
+
+<span style="color: #008000">// Once the reader is connected, collect a payment intent!</span>
+
+<span style="color: #008000">// subscribe to user instructions - these should be displayed to the user</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">displaySubscription</span><span style="color: #000000"> = </span><span style="color: #001080">terminal</span>
+<span style="color: #000000">  .</span><span style="color: #795E26">readerDisplayMessage</span><span style="color: #000000">()</span>
+<span style="color: #000000">  .</span><span style="color: #795E26">subscribe</span><span style="color: #000000">(</span><span style="color: #001080">displayMessage</span><span style="color: #000000"> </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">    </span><span style="color: #001080">console</span><span style="color: #000000">.</span><span style="color: #795E26">log</span><span style="color: #000000">(</span><span style="color: #A31515">&#039;displayMessage&#039;</span><span style="color: #000000">, </span><span style="color: #001080">displayMessage</span><span style="color: #000000">)</span>
+<span style="color: #000000">  })</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">inputSubscription</span><span style="color: #000000"> = </span><span style="color: #001080">terminal</span><span style="color: #000000">.</span><span style="color: #795E26">readerInput</span><span style="color: #000000">().</span><span style="color: #795E26">subscribe</span><span style="color: #000000">(</span><span style="color: #001080">inputOptions</span><span style="color: #000000"> </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">  </span><span style="color: #001080">console</span><span style="color: #000000">.</span><span style="color: #795E26">log</span><span style="color: #000000">(</span><span style="color: #A31515">&#039;inputOptions&#039;</span><span style="color: #000000">, </span><span style="color: #001080">inputOptions</span><span style="color: #000000">)</span>
+<span style="color: #000000">})</span>
+
+<span style="color: #008000">// retrieve the payment intent</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">terminal</span><span style="color: #000000">.</span><span style="color: #795E26">retrievePaymentIntent</span><span style="color: #000000">(</span><span style="color: #A31515">&#039;your client secret created server side&#039;</span><span style="color: #000000">)</span>
+
+<span style="color: #008000">// collect the payment method</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">terminal</span><span style="color: #000000">.</span><span style="color: #795E26">collectPaymentMethod</span><span style="color: #000000">()</span>
+
+<span style="color: #008000">// and finally, process the payment</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">terminal</span><span style="color: #000000">.</span><span style="color: #795E26">processPayment</span><span style="color: #000000">()</span>
+
+<span style="color: #008000">// once you are done, make sure to unsubscribe (e.g. in ngOnDestroy)</span>
+<span style="color: #001080">displaySubscription</span><span style="color: #000000">.</span><span style="color: #795E26">unsubscribe</span><span style="color: #000000">()</span>
+<span style="color: #001080">inputSubscription</span><span style="color: #000000">.</span><span style="color: #795E26">unsubscribe</span><span style="color: #000000">()</span>
+</code></pre>
+				<a href="#api-reference" id="api-reference" style="color: inherit; text-decoration: none;">
+					<h2>API Reference</h2>
+				</a>
+				<p>See the full API docs <a href="https://oss.eventone.page/capacitor-stripe-terminal">here</a>.</p>
+				<a href="#acknowledgements" id="acknowledgements" style="color: inherit; text-decoration: none;">
+					<h2>Acknowledgements</h2>
+				</a>
+				<ul>
+					<li>Thanks <a href="https://stripe.com/terminal">Stripe</a> for creating such an amazing product</li>
+					<li>Thanks <a href="https://github.com/theopolisme/react-native-stripe-terminal">react-native-stripe-terminal</a> for quite a few borrowed concepts</li>
+				</ul>
+			</div>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class=" ">
+						<a href="modules.html">Exports</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-enum">
+						<a href="enums/connectionstatus.html" class="tsd-kind-icon">Connection<wbr>Status</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/devicetype.html" class="tsd-kind-icon">Device<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/discoverymethod.html" class="tsd-kind-icon">Discovery<wbr>Method</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/readerdisplaymessage.html" class="tsd-kind-icon">Reader<wbr>Display<wbr>Message</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/readerinputoptions.html" class="tsd-kind-icon">Reader<wbr>Input<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/readernetworkstatus.html" class="tsd-kind-icon">Reader<wbr>Network<wbr>Status</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/stripeterminalplugin.html" class="tsd-kind-icon">Stripe<wbr>Terminal<wbr>Plugin</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/discoveryconfiguration.html" class="tsd-kind-icon">Discovery<wbr>Configuration</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/paymentintent.html" class="tsd-kind-icon">Payment<wbr>Intent</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/reader.html" class="tsd-kind-icon">Reader</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/readersoftwareupdate.html" class="tsd-kind-icon">Reader<wbr>Software<wbr>Update</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/stripeterminalconfig.html" class="tsd-kind-icon">Stripe<wbr>Terminal<wbr>Config</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static method</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,245 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>DiscoveryMethod | capacitor-stripe-terminal</title>
+	<meta name="description" content="Documentation for capacitor-stripe-terminal">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="../assets/css/main.css">
+	<script async src="../assets/js/search.js" id="search-script"></script>
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.json" data-base="..">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="../index.html" class="title">capacitor-stripe-terminal</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="../modules.html">capacitor-stripe-terminal</a>
+				</li>
+				<li>
+					<a href="discoverymethod.html">DiscoveryMethod</a>
+				</li>
+			</ul>
+			<h1>Enumeration DiscoveryMethod</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-comment">
+				<div class="tsd-comment tsd-typography">
+					<div class="lead">
+						<p>The possible methods for discovering a reader.</p>
+					</div>
+					<dl class="tsd-comment-tags">
+						<dt>see</dt>
+						<dd><p><a href="https://stripe.com/docs/terminal/readers/connecting">https://stripe.com/docs/terminal/readers/connecting</a></p>
+						</dd>
+					</dl>
+				</div>
+			</section>
+			<section class="tsd-panel-group tsd-index-group">
+				<h2>Index</h2>
+				<section class="tsd-panel tsd-index-panel">
+					<div class="tsd-index-content">
+						<section class="tsd-index-section ">
+							<h3>Enumeration members</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="discoverymethod.html#bluetoothproximity" class="tsd-kind-icon">Bluetooth<wbr>Proximity</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="discoverymethod.html#bluetoothscan" class="tsd-kind-icon">Bluetooth<wbr>Scan</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="discoverymethod.html#internet" class="tsd-kind-icon">Internet</a></li>
+							</ul>
+						</section>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Enumeration members</h2>
+				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
+					<a name="bluetoothproximity" class="tsd-anchor"></a>
+					<h3>Bluetooth<wbr>Proximity</h3>
+					<div class="tsd-signature tsd-kind-icon">Bluetooth<wbr>Proximity<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 1</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L72">definitions.ts:72</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Bluetooth Proximity</p>
+						</div>
+						<p>If your app will be used in a busy environment with multiple iOS devices pairing to multiple available readers at the same time, we recommend using this discovery method.</p>
+						<p>After a reader has been discovered using this method, the LEDs located above the reader&#39;s power button will start flashing multiple colors. After discovering the reader, your app should prompt the user to confirm that the reader is flashing, and require a user action (e.g. tapping a button) to connect to the reader.</p>
+						<p>When discovering a reader using this method, the <code>discoverReaders</code> Observable will be called twice. It will be called for the first time when the reader is initially discovered. The reader&#39;s LEDs will begin flashing. After a short delay, <code>discoverReaders</code> will be called a second time with an updated reader object, populated with additional info about the device, like its battery level.</p>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
+					<a name="bluetoothscan" class="tsd-anchor"></a>
+					<h3>Bluetooth<wbr>Scan</h3>
+					<div class="tsd-signature tsd-kind-icon">Bluetooth<wbr>Scan<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 0</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L61">definitions.ts:61</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Bluetooth Scan</p>
+						</div>
+						<p>When discovering a reader using this method, the <code>discoverReaders</code> Observable will be called multiple times as the Bluetooth scan proceeds.</p>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
+					<a name="internet" class="tsd-anchor"></a>
+					<h3>Internet</h3>
+					<div class="tsd-signature tsd-kind-icon">Internet<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = 2</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/blob/1c0aec3/src/definitions.ts#L81">definitions.ts:81</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Internet</p>
+						</div>
+						<p>When discovering a reader with this method, the <code>discoverReaders</code> Observable will only be called once with a list of readers from <code>/v1/termina/readers</code>. Note that this will include readers that are both online and offline. This discovery method can only be used with the VerifoneP400 reader.</p>
+						<dl class="tsd-comment-tags">
+							<dt>see</dt>
+							<dd><p><a href="https://stripe.com/docs/api/terminal/readers/list">https://stripe.com/docs/api/terminal/readers/list</a></p>
+							</dd>
+						</dl>
+					</div>
+				</section>
+			</section>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class=" ">
+						<a href="../modules.html">Exports</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-enum">
+						<a href="connectionstatus.html" class="tsd-kind-icon">Connection<wbr>Status</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="devicetype.html" class="tsd-kind-icon">Device<wbr>Type</a>
+					</li>
+				</ul>
+				<ul class="current">
+					<li class="current tsd-kind-enum">
+						<a href="discoverymethod.html" class="tsd-kind-icon">Discovery<wbr>Method</a>
+						<ul>
+							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+								<a href="discoverymethod.html#bluetoothproximity" class="tsd-kind-icon">Bluetooth<wbr>Proximity</a>
+							</li>
+							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+								<a href="discoverymethod.html#bluetoothscan" class="tsd-kind-icon">Bluetooth<wbr>Scan</a>
+							</li>
+							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+								<a href="discoverymethod.html#internet" class="tsd-kind-icon">Internet</a>
+							</li>
+						</ul>
+					</li>
+				</ul>
+				<ul class="after-current">
+					<li class=" tsd-kind-enum">
+						<a href="readerdisplaymessage.html" class="tsd-kind-icon">Reader<wbr>Display<wbr>Message</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="readerinputoptions.html" class="tsd-kind-icon">Reader<wbr>Input<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="readernetworkstatus.html" class="tsd-kind-icon">Reader<wbr>Network<wbr>Status</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="../classes/stripeterminalplugin.html" class="tsd-kind-icon">Stripe<wbr>Terminal<wbr>Plugin</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="../interfaces/discoveryconfiguration.html" class="tsd-kind-icon">Discovery<wbr>Configuration</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="../interfaces/paymentintent.html" class="tsd-kind-icon">Payment<wbr>Intent</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="../interfaces/reader.html" class="tsd-kind-icon">Reader</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="../interfaces/readersoftwareupdate.html" class="tsd-kind-icon">Reader<wbr>Software<wbr>Update</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="../interfaces/stripeterminalconfig.html" class="tsd-kind-icon">Stripe<wbr>Terminal<wbr>Config</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static method</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="../assets/js/main.js"></script>
+</body>
+</html>
