@@ -12,7 +12,6 @@ import {
 } from './definitions'
 import {
   loadStripeTerminal,
-  StripeTerminal,
   Terminal,
   DiscoverResult,
   Reader as DiscoverReader,
@@ -76,8 +75,10 @@ const connectionStatus: { [status: string]: ConnectionStatus } = {
 /**
  * @ignore
  */
-export class StripeTerminalWeb extends WebPlugin
-  implements StripeTerminalInterface {
+export class StripeTerminalWeb
+  extends WebPlugin
+  implements StripeTerminalInterface
+{
   private STRIPE_API_BASE = 'https://api.stripe.com'
   private instance: Terminal
 
@@ -165,6 +166,8 @@ export class StripeTerminalWeb extends WebPlugin
       ipAddress: sdkReader.ip_address,
       locationId: sdkReader.location,
       label: sdkReader.label,
+      deviceSoftwareVersion: sdkReader.device_sw_version,
+      livemode: sdkReader.livemode,
       simulated: this.simulated
     }
   }
@@ -197,12 +200,22 @@ export class StripeTerminalWeb extends WebPlugin
   async abortDiscoverReaders(): Promise<void> {}
 
   async connectReader(reader: Reader): Promise<{ reader: Reader }> {
-    const readerOpts = {
+    const readerOpts: DiscoverReader = {
       id: reader.stripeId,
       object: 'terminal.reader',
-      device_type: reader.deviceType,
+      device_type:
+        reader.deviceType === 'bbpos_wisepos_e'
+          ? 'bbpos_wisepos_e'
+          : 'verifone_P400', // device type will always be one of these two and never the chipper2x
       ip_address: reader.ipAddress,
-      serial_number: reader.serialNumber
+      serial_number: reader.serialNumber,
+      device_sw_version: reader.deviceSoftwareVersion,
+      label: reader.label,
+      livemode: reader.livemode,
+      location: reader.locationId,
+      metadata: {},
+      status:
+        reader.status === ReaderNetworkStatus.Offline ? 'offline' : 'online'
     }
     this.connectedReader = reader
 
@@ -313,7 +326,8 @@ export class StripeTerminalWeb extends WebPlugin
     )
 
     if ((result as CollectPaymentMethodResult).paymentIntent) {
-      const res: CollectPaymentMethodResult = result as CollectPaymentMethodResult
+      const res: CollectPaymentMethodResult =
+        result as CollectPaymentMethodResult
 
       this.currentPaymentIntent = res.paymentIntent
 
@@ -361,13 +375,3 @@ export class StripeTerminalWeb extends WebPlugin
     await this.instance.clearCachedCredentials()
   }
 }
-
-/**
- * @ignore
- */
-const StripeTerminal = new StripeTerminalWeb()
-
-export { StripeTerminal }
-
-import { registerWebPlugin } from '@capacitor/core'
-registerWebPlugin(StripeTerminal)

@@ -1,10 +1,4 @@
-import { Plugin } from '@capacitor/core/dist/esm/definitions'
-
-declare module '@capacitor/core' {
-  interface PluginRegistry {
-    StripeTerminal: StripeTerminalInterface
-  }
-}
+import type { PluginListenerHandle } from '@capacitor/core'
 
 /**
  * @category Terminal
@@ -191,6 +185,11 @@ export interface Reader {
   simulated: boolean
 
   /**
+   * Has the value true if the object exists in live mode or the value false if the object exists in test mode.
+   */
+  livemode?: boolean
+
+  /**
    * The reader's serial number.
    */
   serialNumber: string
@@ -303,7 +302,7 @@ export interface PaymentIntent {
 /**
  * @ignore
  */
-export interface StripeTerminalInterface extends Plugin {
+export interface StripeTerminalInterface {
   setConnectionToken(
     options: {
       token?: string
@@ -347,4 +346,39 @@ export interface StripeTerminalInterface extends Plugin {
   clearCachedCredentials(): Promise<void>
 
   getPermissions(): Promise<{ granted: boolean }>
+
+  addListener(
+    eventName: 'requestConnectionToken',
+    listenerFunc: () => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didReportUnexpectedReaderDisconnect',
+    listenerFunc: () => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'readersDiscovered',
+    listenerFunc: (event: { readers?: Reader[] }) => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didChangeConnectionStatus',
+    listenerFunc: (status: any) => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didReportReaderSoftwareUpdateProgress',
+    listenerFunc: (data: any) => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didRequestReaderDisplayMessage' | 'didRequestReaderInput',
+    listenerFunc: (data: any) => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: string,
+    listenerFunc: Function
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
 }
