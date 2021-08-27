@@ -32,6 +32,7 @@ export class StripeTerminalPlugin {
   private _onUnexpectedReaderDisconnect: () => void = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
 
+  private isDiscovering = false
   private listeners: { [key: string]: PluginListenerHandle } = {}
 
   /**
@@ -158,14 +159,26 @@ export class StripeTerminalPlugin {
     return terminal
   }
 
+  public async abortDiscoverReaders(): Promise<void> {
+    try {
+      this.listeners['readersDiscovered']?.remove()
+
+      if (!this.isDiscovering) {
+        return
+      }
+      await StripeTerminal.abortDiscoverReaders()
+      this.isDiscovering = false
+    } catch (err) {
+      // eat errors
+    }
+  }
+
   public discoverReaders(
     options: DiscoveryConfiguration
   ): Observable<Reader[]> {
     this.ensureInitialized()
 
     return new Observable(subscriber => {
-      let listener: PluginListenerHandle
-
       StripeTerminal.addListener(
         'readersDiscovered',
         (event: { readers?: Reader[] }) => {
@@ -186,22 +199,24 @@ export class StripeTerminalPlugin {
           subscriber.next(readers)
         }
       ).then(l => {
-        listener = l
+        this.listeners['readersDiscovered'] = l
       })
 
       // start discovery
+      this.isDiscovering = true
       StripeTerminal.discoverReaders(options)
         .then(() => {
+          this.isDiscovering = false
           subscriber.complete()
         })
         .catch((err: any) => {
+          this.isDiscovering = false
           subscriber.error(err)
         })
 
       return {
         unsubscribe: () => {
-          StripeTerminal.abortDiscoverReaders()
-          listener?.remove()
+          this.abortDiscoverReaders()
         }
       }
     })
@@ -220,7 +235,7 @@ export class StripeTerminalPlugin {
 
     const data = await StripeTerminal.getConnectedReader()
 
-    return data.reader
+    return data?.reader ?? null
   }
 
   public async getConnectionStatus(): Promise<ConnectionStatus> {
