@@ -19,6 +19,10 @@
 
 **[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/discussions/42)**
 
+**_WARNING_**
+
+_These instructions are for v2 which is currently in beta. See the [`v1-support`](https://github.com/eventOneHQ/capacitor-stripe-terminal/tree/v1-support) branch for v1 instructions._
+
 ## Maintainers
 
 | Maintainer | GitHub                              | Social                                      |
@@ -53,20 +57,7 @@ Follow all Stripe instructions under ["Configure your app"](https://stripe.com/d
 
 ### Android
 
-Add the plugin to your `MainActivity.java`:
-
-```java
-// import it at the top
-import io.event1.capacitorstripeterminal.StripeTerminal;
-
-this.init(savedInstanceState, new ArrayList<Class<? extends Plugin>>() {{
-  // Additional plugins you've installed go here
-  // Ex: add(TotallyAwesomePlugin.class);
-  add(StripeTerminal.class);
-}});
-```
-
-Add the `ACCESS_FINE_LOCATION`, `BLUETOOTH`, and `BLUETOOTH_ADMIN` permissions to your app's manifest:
+Add the `ACCESS_FINE_LOCATION` permission to your app's manifest:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -75,8 +66,6 @@ Add the `ACCESS_FINE_LOCATION`, `BLUETOOTH`, and `BLUETOOTH_ADMIN` permissions t
     package="com.stripe.example.app">
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 </manifest>
 ```
 
