@@ -19,6 +19,10 @@
 
 **[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/discussions/42)**
 
+**_WARNING_**
+
+_These instructions are for v2 which is currently in beta. See the [`v1-support`](https://github.com/eventOneHQ/capacitor-stripe-terminal/tree/v1-support) branch for v1 instructions._
+
 ## Maintainers
 
 | Maintainer | GitHub                              | Social                                      |
