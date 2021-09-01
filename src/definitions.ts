@@ -43,7 +43,16 @@ export enum DeviceType {
    *
    * @see https://stripe.com/docs/terminal/readers/verifone-p400
    */
-  VerifoneP400
+  VerifoneP400,
+
+  /**
+   * The BBPOS WisePad 3 mobile reader.
+   *
+   * Support for this reader is currently in beta.
+   *
+   * @see https://stripe.com/docs/terminal/readers/bbpos-wisepad3
+   */
+  WisePad3
 }
 
 /**
