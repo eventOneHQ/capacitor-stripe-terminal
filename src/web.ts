@@ -5,10 +5,12 @@ import {
   DiscoveryConfiguration,
   Reader,
   ConnectionStatus,
-  ReaderSoftwareUpdate,
   PaymentIntent,
-  // DeviceType,
-  ReaderNetworkStatus
+  DeviceType,
+  ReaderNetworkStatus,
+  BatteryStatus,
+  LocationStatus,
+  Cart
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -18,7 +20,8 @@ import {
   ErrorResponse,
   InternetMethodConfiguration,
   ISdkManagedPaymentIntent,
-  IPaymentIntent
+  IPaymentIntent,
+  ISetReaderDisplayRequest
 } from '@stripe/terminal-js'
 
 /**
@@ -50,10 +53,14 @@ interface ProcessPaymentResult {
   paymentIntent: IPaymentIntent
 }
 
-// const deviceTypes: { [type: number]: string } = {
-//   [DeviceType.Chipper2X]: 'chipper_2X',
-//   [DeviceType.VerifoneP400]: 'verifone_P400'
-// }
+/**
+ * @ignore
+ */
+const deviceTypes: { [type: string]: DeviceType } = {
+  ['chipper_2X']: DeviceType.Chipper2X,
+  ['verifone_P400']: DeviceType.VerifoneP400,
+  ['bbpos_wisepos_e']: DeviceType.WisePosE
+}
 
 /**
  * @ignore
@@ -160,13 +167,15 @@ export class StripeTerminalWeb
   private translateReader(sdkReader: DiscoverReader): Reader {
     return {
       stripeId: sdkReader.id,
-      deviceType: sdkReader.device_type,
+      deviceType: deviceTypes[sdkReader.device_type],
       status: readerStatuses[sdkReader.status],
       serialNumber: sdkReader.serial_number,
       ipAddress: sdkReader.ip_address,
       locationId: sdkReader.location,
       label: sdkReader.label,
       deviceSoftwareVersion: sdkReader.device_sw_version,
+      batteryStatus: BatteryStatus.Unknown,
+      locationStatus: LocationStatus.Unknown,
       livemode: sdkReader.livemode,
       simulated: this.simulated
     }
@@ -199,12 +208,12 @@ export class StripeTerminalWeb
 
   async abortDiscoverReaders(): Promise<void> {}
 
-  async connectReader(reader: Reader): Promise<{ reader: Reader }> {
+  async connectInternetReader(reader: Reader): Promise<{ reader: Reader }> {
     const readerOpts: DiscoverReader = {
       id: reader.stripeId,
       object: 'terminal.reader',
       device_type:
-        reader.deviceType === 'bbpos_wisepos_e'
+        reader.deviceType === DeviceType.WisePosE
           ? 'bbpos_wisepos_e'
           : 'verifone_P400', // device type will always be one of these two and never the chipper2x
       ip_address: reader.ipAddress,
@@ -229,10 +238,21 @@ export class StripeTerminalWeb
 
       return { reader: translatedReader }
     } else {
-      this.connectReader = null
+      this.connectedReader = null
       const error: ErrorResponse = connectResult as ErrorResponse
       throw error.error
     }
+  }
+
+  async connectBluetoothReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader }> {
+    // no equivalent
+    console.warn(
+      'connectBluetoothReader is only available for on iOS and Android.'
+    )
+    return { reader: null }
   }
 
   async getConnectedReader(): Promise<{ reader: Reader }> {
@@ -251,26 +271,14 @@ export class StripeTerminalWeb
     this.connectedReader = null
   }
 
-  async checkForUpdate(): Promise<{ update: ReaderSoftwareUpdate }> {
+  async installAvailableUpdate(): Promise<void> {
     // no equivalent
-    console.warn(
-      'checkForUpdate is only available for BBPOS Chipper 2X readers.'
-    )
-    return { update: null }
-  }
-
-  async installUpdate(): Promise<void> {
-    // no equivalent
-    console.warn(
-      'installUpdate is only available for BBPOS Chipper 2X readers.'
-    )
+    console.warn('installUpdate is only available for Bluetooth readers.')
   }
 
   async abortInstallUpdate(): Promise<void> {
     // no equivalent
-    console.warn(
-      'abortInstallUpdate is only available for BBPOS Chipper 2X readers.'
-    )
+    console.warn('abortInstallUpdate is only available for Bluetooth readers.')
   }
 
   async retrievePaymentIntent(options: {
@@ -373,5 +381,27 @@ export class StripeTerminalWeb
 
   async clearCachedCredentials(): Promise<void> {
     await this.instance.clearCachedCredentials()
+  }
+
+  async setReaderDisplay(cart: Cart): Promise<void> {
+    const readerDisplay: ISetReaderDisplayRequest = {
+      cart: {
+        line_items: cart.lineItems.map(li => ({
+          amount: li.amount,
+          description: li.displayName,
+          quantity: li.quantity
+        })),
+        currency: cart.currency,
+        tax: cart.tax,
+        total: cart.total
+      },
+      type: 'cart'
+    }
+
+    await this.instance.setReaderDisplay(readerDisplay)
+  }
+
+  async clearReaderDisplay(): Promise<void> {
+    await this.instance.clearReaderDisplay()
   }
 }

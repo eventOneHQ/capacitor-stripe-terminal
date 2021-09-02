@@ -4,12 +4,15 @@ import { Observable } from 'rxjs'
 import {
   StripeTerminalConfig,
   DiscoveryConfiguration,
+  InternetConnectionConfiguration,
+  BluetoothConnectionConfiguration,
   Reader,
   ConnectionStatus,
-  ReaderSoftwareUpdate,
   ReaderDisplayMessage,
   ReaderInputOptions,
-  PaymentIntent
+  PaymentIntent,
+  Cart,
+  ReaderSoftwareUpdate
 } from './definitions'
 
 import { StripeTerminal } from './plugin-registration'
@@ -96,7 +99,13 @@ export class StripeTerminalPlugin {
   }
 
   private _listenerToObservable(
-    name: 'didRequestReaderDisplayMessage' | 'didRequestReaderInput',
+    name:
+      | 'didRequestReaderDisplayMessage'
+      | 'didRequestReaderInput'
+      | 'didReportAvailableUpdate'
+      | 'didStartInstallingUpdate'
+      | 'didReportReaderSoftwareUpdateProgress'
+      | 'didFinishInstallingUpdate',
     transformFunc?: (data: any) => any
   ): Observable<any> {
     return new Observable(subscriber => {
@@ -222,12 +231,45 @@ export class StripeTerminalPlugin {
     })
   }
 
-  public async connectReader(reader: Reader): Promise<Reader> {
+  public async connectBluetoothReader(
+    reader: Reader,
+    config: BluetoothConnectionConfiguration
+  ): Promise<Reader> {
     this.ensureInitialized()
 
-    const data = await StripeTerminal.connectReader(reader)
+    const data = await StripeTerminal.connectBluetoothReader({
+      serialNumber: reader.serialNumber,
+      locationId: config.locationId
+    })
 
-    return data.reader
+    return data?.reader
+  }
+
+  public async connectInternetReader(
+    reader: Reader,
+    config?: InternetConnectionConfiguration
+  ): Promise<Reader> {
+    this.ensureInitialized()
+
+    const data = await StripeTerminal.connectInternetReader({
+      serialNumber: reader.serialNumber,
+      ipAddress: reader.ipAddress,
+      stripeId: reader.stripeId,
+      ...config
+    })
+
+    return data?.reader
+  }
+
+  /**
+   * This is only here for backwards compatibility
+   * @param reader
+   * @returns Reader
+   *
+   * @deprecated
+   */
+  public async connectReader(reader: Reader) {
+    return await this.connectInternetReader(reader)
   }
 
   public async getConnectedReader(): Promise<Reader> {
@@ -249,15 +291,7 @@ export class StripeTerminalPlugin {
   public async disconnectReader(): Promise<void> {
     this.ensureInitialized()
 
-    return StripeTerminal.disconnectReader()
-  }
-
-  public async checkForUpdate(): Promise<ReaderSoftwareUpdate> {
-    this.ensureInitialized()
-
-    const data = await StripeTerminal.checkForUpdate()
-
-    return data && data.update
+    return await StripeTerminal.disconnectReader()
   }
 
   public connectionStatus(): Observable<ConnectionStatus> {
@@ -296,12 +330,12 @@ export class StripeTerminalPlugin {
     })
   }
 
-  public installUpdate(): Observable<number> {
+  public installAvailableUpdate(): Observable<number> {
     this.ensureInitialized()
 
     return new Observable(subscriber => {
       // initiate the installation
-      StripeTerminal.installUpdate()
+      StripeTerminal.installAvailableUpdate()
         .then(() => {
           subscriber.complete()
         })
@@ -330,7 +364,7 @@ export class StripeTerminalPlugin {
     })
   }
 
-  public readerInput(): Observable<ReaderInputOptions> {
+  public didRequestReaderInput(): Observable<ReaderInputOptions> {
     return this._listenerToObservable('didRequestReaderInput', (data: any) => {
       if (data.isAndroid) {
         return data.value
@@ -340,11 +374,50 @@ export class StripeTerminalPlugin {
     })
   }
 
-  public readerDisplayMessage(): Observable<ReaderDisplayMessage> {
+  public didRequestReaderDisplayMessage(): Observable<ReaderDisplayMessage> {
     return this._listenerToObservable(
       'didRequestReaderDisplayMessage',
       (data: any) => {
         return parseFloat(data.value)
+      }
+    )
+  }
+
+  public didReportAvailableUpdate(): Observable<ReaderSoftwareUpdate> {
+    return this._listenerToObservable(
+      'didReportAvailableUpdate',
+      (data: { update: ReaderSoftwareUpdate }) => {
+        return data.update
+      }
+    )
+  }
+
+  public didStartInstallingUpdate(): Observable<ReaderSoftwareUpdate> {
+    return this._listenerToObservable(
+      'didStartInstallingUpdate',
+      (data: { update: ReaderSoftwareUpdate }) => {
+        return data.update
+      }
+    )
+  }
+
+  public didReportReaderSoftwareUpdateProgress(): Observable<number> {
+    return this._listenerToObservable(
+      'didReportReaderSoftwareUpdateProgress',
+      (data: any) => {
+        return parseFloat(data.value)
+      }
+    )
+  }
+
+  public didFinishInstallingUpdate(): Observable<{
+    update?: ReaderSoftwareUpdate
+    error?: string
+  }> {
+    return this._listenerToObservable(
+      'didFinishInstallingUpdate',
+      (data: { update?: ReaderSoftwareUpdate; error?: string }) => {
+        return data
       }
     )
   }
@@ -370,7 +443,7 @@ export class StripeTerminalPlugin {
   public async abortCollectPaymentMethod(): Promise<void> {
     this.ensureInitialized()
 
-    return StripeTerminal.abortCollectPaymentMethod()
+    return await StripeTerminal.abortCollectPaymentMethod()
   }
 
   public async processPayment(): Promise<PaymentIntent> {
@@ -384,14 +457,26 @@ export class StripeTerminalPlugin {
   public async clearCachedCredentials(): Promise<void> {
     this.ensureInitialized()
 
-    return StripeTerminal.clearCachedCredentials()
+    return await StripeTerminal.clearCachedCredentials()
+  }
+
+  public async setReaderDisplay(cart: Cart): Promise<void> {
+    this.ensureInitialized()
+
+    return await StripeTerminal.setReaderDisplay(cart)
+  }
+
+  public async clearReaderDisplay(): Promise<void> {
+    this.ensureInitialized()
+
+    return await StripeTerminal.clearReaderDisplay()
   }
 
   public static async getPermissions(): Promise<{ granted: boolean }> {
-    return StripeTerminal.getPermissions()
+    return await StripeTerminal.getPermissions()
   }
 
-  public addListener(eventName: string, listenerFunc: Function) {
-    return StripeTerminal.addListener(eventName, listenerFunc)
+  public async addListener(eventName: string, listenerFunc: Function) {
+    return await StripeTerminal.addListener(eventName, listenerFunc)
   }
 }

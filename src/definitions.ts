@@ -37,7 +37,32 @@ export enum DeviceType {
    *
    * @see https://stripe.com/docs/terminal/readers/verifone-p400
    */
-  VerifoneP400
+  VerifoneP400,
+
+  /**
+   * The BBPOS WisePad 3 mobile reader.
+   *
+   * Support for this reader is currently in beta.
+   *
+   * @see https://stripe.com/docs/terminal/readers/bbpos-wisepad3
+   */
+  WisePad3,
+
+  /**
+   * The Stripe Reader M2 mobile reader.
+   *
+   * Support for this reader is currently in beta.
+   */
+  StripeM2,
+
+  /**
+   * The BBPOS WisePOS E countertop reader.
+   *
+   * Support for this reader is currently in beta.
+   *
+   * @see https://stripe.com/docs/terminal/readers/bbpos-wisepos-e
+   */
+  WisePosE
 }
 
 /**
@@ -48,27 +73,27 @@ export enum DeviceType {
  */
 export enum DiscoveryMethod {
   /**
-   * Bluetooth Scan
-   *
    * When discovering a reader using this method, the `discoverReaders` Observable will be called multiple times as the Bluetooth scan proceeds.
    */
   BluetoothScan,
 
   /**
-   * Bluetooth Proximity
-   *
    * If your app will be used in a busy environment with multiple iOS devices pairing to multiple available readers at the same time, we recommend using this discovery method.
    *
    * After a reader has been discovered using this method, the LEDs located above the reader's power button will start flashing multiple colors. After discovering the reader, your app should prompt the user to confirm that the reader is flashing, and require a user action (e.g. tapping a button) to connect to the reader.
    *
    * When discovering a reader using this method, the `discoverReaders` Observable will be called twice. It will be called for the first time when the reader is initially discovered. The reader's LEDs will begin flashing. After a short delay, `discoverReaders` will be called a second time with an updated reader object, populated with additional info about the device, like its battery level.
+   *
+   * _The Bluetooth Proximity discovery method can only discovery Chipper 2X BT readers._
    */
   BluetoothProximity,
 
   /**
-   * Internet
+   * The Internet discovery method searches for internet-connected readers, such as the Verifone P400 or the BBPOS WisePOS E.
    *
-   * When discovering a reader with this method, the `discoverReaders` Observable will only be called once with a list of readers from `/v1/termina/readers`. Note that this will include readers that are both online and offline. This discovery method can only be used with the VerifoneP400 reader.
+   * When discovering a reader with this method, the `discoverReaders` Observable will only be called once with a list of readers from `/v1/terminal/readers`. Note that this will include readers that are both online and offline.
+   *
+   * Because the discovery process continues if connecting to a discovered reader fails, the SDK will refresh the list of `Readers` and call your subscriber with the results.
    *
    * @see https://stripe.com/docs/api/terminal/readers/list
    */
@@ -83,13 +108,60 @@ export enum DiscoveryMethod {
  */
 export enum ReaderNetworkStatus {
   /**
-   * The reader is offline. Note that Chipper2x will also default to ‘offline’.
+   * The reader is offline. Note that Chipper 2x and WisePad 3 will always report `offline`.
    */
   Offline,
   /**
    * The reader is online.
    */
   Online
+}
+
+/**
+ * A categorization of a reader’s battery charge level.
+ *
+ * @category Reader
+ */
+export enum BatteryStatus {
+  /**
+   * Battery state is not yet known or not available for the connected reader.
+   */
+  Unknown,
+  /**
+   * The device’s battery is less than or equal to 5%.
+   */
+  Critical,
+  /**
+   * The device’s battery is between 5% and 20%.
+   */
+  Low,
+  /**
+   * The device’s battery is greater than 20%.
+   */
+  Nominal
+}
+
+/**
+ * Represents the possible states of the location object for a discovered reader.
+ *
+ * @category Reader Discovery & Connection
+ * @see https://stripe.com/docs/api/terminal/readers/object
+ */
+export enum LocationStatus {
+  /**
+   * The location is not known. `location` will be null.
+   *
+   * A reader will only have a location status of `unknown` when a Bluetooth reader's full location information failed to fetch properly during discovery.
+   */
+  Unknown,
+  /**
+   * The location was successfully set to a known location. `location` is a valid `Location`.
+   */
+  Set,
+  /**
+   * This location is known to be not set. `location` will be null.
+   */
+  NotSet
 }
 
 export interface StripeTerminalConfig {
@@ -118,21 +190,14 @@ export interface DiscoveryConfiguration {
   simulated?: boolean
 
   /**
-   * The method by which to discover readers. (iOS only.)
+   * The method by which to discover readers.
    *
    * @default DiscoveryMethod.BluetoothScan
    */
   discoveryMethod?: DiscoveryMethod
 
   /**
-   * The reader device type to discover.
-   *
-   * @default DeviceType.Chipper2X
-   */
-  deviceType?: DeviceType
-
-  /**
-   * A location ID that can be used to filter discovery result so only readers registered to that location are returned. Currently this is only applicable to VerifoneP400 readers. (iOS only.)
+   * A location ID that can be used to filter discovery result so only readers registered to that location are returned. Filtering discovery by a location is only applicable to Internet readers; this parameter must be null when discovering Bluetooth readers.
    */
   locationId?: string
 }
@@ -140,42 +205,47 @@ export interface DiscoveryConfiguration {
 /**
  * @category Reader
  */
-export interface Reader {
+export interface BluetoothConnectionConfiguration {
   /**
-   * The IP address of the reader. (Verifone P400 only.)
-   */
-  ipAddress?: string
-
-  /**
-   * The location ID of the reader. (Verifone P400 only.)
+   * The ID of the [Location](https://stripe.com/docs/api/terminal/locations) which the reader should be registered to during connection.
    *
-   * @see https://stripe.com/docs/api/terminal/locations
+   * If the provided ID matches the location the reader is already registered to, the location will not be changed.
+   *
+   * When connecting to a simulated reader, pass in the reader's pre-existing mock location. You can find the mock location ID on the reader object, on the `locationId` property.
+   *
+   * @see https://stripe.com/docs/terminal/readers/fleet-management#bbpos-wisepad3-discovery
    */
-  locationId?: string
+  locationId: string
+}
+
+/**
+ * @category Reader
+ */
+export interface InternetConnectionConfiguration {
+  /**
+   * When set to true, the connection will automatically error if the reader is already connected to a device and collecting payment. When set to false, this will allow you to connect to a reader already connected to another device, and will break the existing reader-to-SDK connection on the other device when it attempts to collect payment.
+   * @default false
+   */
+  failIfInUse?: boolean
 
   /**
-   * The networking status of the reader: either offline or online. Note that the Chipper 2X’s status will always be offline. (Verifone P400 only.)
+   * If set to true, the customer will be able to press the red X button on the Verifone P400 to cancel a `collectPaymentMethod`, `collectReusableCard`, or `collectRefundPaymentMethod` command.
+   *
+   * This behavior is part of a private beta. Setting this property will have no effect if you are not part of the allowCustomerCancel beta program.
+   *
+   * @default false
    */
-  status: ReaderNetworkStatus
+  allowCustomerCancel?: boolean
+}
 
-  /**
-   * A custom label that may be given to a reader for easier identification. (Verifone P400 only.)
-   */
-  label?: string
-  /**
-   * The reader's battery level, represented as a boxed float in the range `[0, 1]`. If the reader does not have a battery, or the battery level is unknown, this value is `null`. (Chipper 2X only.)
-   */
-  batteryLevel?: number
-
-  /**
-   * The Stripe unique identifier for the reader.
-   */
-  stripeId?: string
-
+/**
+ * @category Reader
+ */
+export interface Reader {
   /**
    * The reader's device type.
    */
-  deviceType: string
+  deviceType: DeviceType
 
   /**
    * True if this is a simulated reader.
@@ -185,9 +255,25 @@ export interface Reader {
   simulated: boolean
 
   /**
-   * Has the value true if the object exists in live mode or the value false if the object exists in test mode.
+   * The Stripe unique identifier for the reader.
    */
-  livemode?: boolean
+  stripeId?: string
+
+  /**
+   * The ID of the reader’s [Location](https://stripe.com/docs/api/terminal/locations/object).
+   *
+   * Internet readers remain registered to the location specified when registering the reader to your account. For internet readers, this field represents that location. If you need to change your internet reader's location, re-register the reader and specify the new location id in the `location` param. See https://stripe.com/docs/api/terminal/readers/create
+   *
+   * Bluetooth readers are designed to be more mobile and must be registered to a location upon each connection. For Bluetooth readers, this field represents the last location that the reader was registered to. If the reader has not been used before, this field will be nil. If you associate the reader to a different location while calling `connectBluetoothReader`, this field will update to that new location's ID.
+   *
+   * @see https://stripe.com/docs/api/terminal/locations
+   */
+  locationId?: string
+
+  /**
+   * Used to tell whether the `location` field has been set. Note that the Verifone P400 and simulated readers will always have an `unknown` `locationStatus`. (Chipper 2X BT and WisePad 3 only.)
+   */
+  locationStatus: LocationStatus
 
   /**
    * The reader's serial number.
@@ -198,6 +284,46 @@ export interface Reader {
    * The reader's current device software version, or `null` if this information is unavailable.
    */
   deviceSoftwareVersion?: string
+
+  /**
+   * True if there is an available update.
+   */
+  isAvailableUpdate?: boolean
+
+  /**
+   * The reader's battery level, represented as a boxed float in the range `[0, 1]`. If the reader does not have a battery, or the battery level is unknown, this value is `null`. (Bluetooth readers only.)
+   */
+  batteryLevel?: number
+
+  /**
+   * The reader's battery status. Usable as a general classification for the current battery state.
+   */
+  batteryStatus: BatteryStatus
+
+  /**
+   * The reader's charging state, represented as a `boolean`. If the reader does not have a battery, or the battery level is unknown, this value is `null`. (Bluetooth readers only.)
+   */
+  isCharging?: boolean
+
+  /**
+   * The IP address of the reader. (Internet reader only.)
+   */
+  ipAddress?: string
+
+  /**
+   * The networking status of the reader: either `offline` or `online`. Note that the Chipper 2X and the WisePad 3's statuses will always be `offline`. (Verifone P400 only.)
+   */
+  status: ReaderNetworkStatus
+
+  /**
+   * A custom label that may be given to a reader for easier identification. (Verifone P400 only.)
+   */
+  label?: string
+
+  /**
+   * Has the value true if the object exists in live mode or the value false if the object exists in test mode.
+   */
+  livemode?: boolean
 }
 
 /**
@@ -300,6 +426,59 @@ export interface PaymentIntent {
 }
 
 /**
+ * An `Cart` object contains information about what line items are included in the current transaction. A cart object should be created and then passed into `setReaderDisplay()`, which will display the cart's contents on the reader's screen.
+ *
+ * The `Cart` only represents exactly what will be shown on the screen, and is not reflective of what the customer is actually charged. You are responsible for making sure that tax and total reflect what is in the cart.
+ *
+ * _Only Internet readers support `setReaderDisplay` functionality_
+ *
+ * @see https://stripe.com/docs/terminal/checkout/cart-display
+ */
+
+export interface Cart {
+  /**
+   * You can add or remove line items from this array individually or reassign the array entirely. After making your desired changes, call setReaderDisplay to update the cart on the reader's screen.
+   */
+  lineItems: CartLineItem[]
+  /**
+   * The displayed tax amount, provided in the currency’s smallest unit.
+   *
+   * @see https://stripe.com/docs/currencies#zero-decimal
+   */
+  tax: number
+  /**
+   * The cart’s total balance, provided in the currency’s smallest unit.
+   *
+   * @see https://stripe.com/docs/currencies#zero-decimal
+   */
+  total: number
+  /**
+   * The currency of the cart.
+   */
+  currency: string
+}
+
+/**
+ * Represents a single line item in an `Cart`, displayed on the reader's screen during checkout.
+ */
+export interface CartLineItem {
+  /**
+   * The quantity of the line item being purchased.
+   */
+  quantity: number
+  /**
+   * The description or name of the item.
+   */
+  displayName: string
+  /**
+   * The price of the item, provided in the cart's currency's smallest unit.
+   *
+   * @see https://stripe.com/docs/currencies#zero-decimal
+   */
+  amount: number
+}
+
+/**
  * @ignore
  */
 export interface StripeTerminalInterface {
@@ -316,7 +495,18 @@ export interface StripeTerminalInterface {
 
   abortDiscoverReaders(): Promise<void>
 
-  connectReader(reader: Reader): Promise<{ reader: Reader }>
+  connectBluetoothReader(options: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader }>
+
+  connectInternetReader(options: {
+    serialNumber: string
+    ipAddress?: string
+    stripeId?: string
+    failIfInUse?: boolean
+    allowCustomerCancel?: boolean
+  }): Promise<{ reader: Reader }>
 
   getConnectedReader(): Promise<{ reader: Reader }>
 
@@ -327,9 +517,7 @@ export interface StripeTerminalInterface {
 
   disconnectReader(): Promise<void>
 
-  checkForUpdate(): Promise<{ update: ReaderSoftwareUpdate }>
-
-  installUpdate(): Promise<void>
+  installAvailableUpdate(): Promise<void>
 
   abortInstallUpdate(): Promise<void>
 
@@ -344,6 +532,10 @@ export interface StripeTerminalInterface {
   processPayment(): Promise<{ intent: PaymentIntent }>
 
   clearCachedCredentials(): Promise<void>
+
+  setReaderDisplay(cart: Cart): Promise<void>
+
+  clearReaderDisplay(): Promise<void>
 
   getPermissions(): Promise<{ granted: boolean }>
 
@@ -375,6 +567,19 @@ export interface StripeTerminalInterface {
   addListener(
     eventName: 'didRequestReaderDisplayMessage' | 'didRequestReaderInput',
     listenerFunc: (data: any) => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didReportAvailableUpdate' | 'didStartInstallingUpdate',
+    listenerFunc: (data: any) => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didFinishInstallingUpdate',
+    listenerFunc: (data: {
+      update?: ReaderSoftwareUpdate
+      error?: string
+    }) => void
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
