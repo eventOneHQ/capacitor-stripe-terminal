@@ -12,6 +12,7 @@ import {
   ReaderInputOptions,
   PaymentIntent,
   Cart,
+  ListLocationsParameters,
   ReaderSoftwareUpdate
 } from './definitions'
 
@@ -470,6 +471,12 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return await StripeTerminal.clearReaderDisplay()
+  }
+
+  public async listLocations(options?: ListLocationsParameters) {
+    this.ensureInitialized()
+
+    return await StripeTerminal.listLocations(options)
   }
 
   public static async getPermissions(): Promise<{ granted: boolean }> {

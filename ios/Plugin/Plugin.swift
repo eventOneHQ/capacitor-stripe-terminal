@@ -343,6 +343,35 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         }
     }
 
+    @objc func listLocations(_ call: CAPPluginCall) {
+        let limit = call.getInt("limit") as NSNumber?
+        let endingBefore = call.getString("endingBefore")
+        let startingAfter = call.getString("startingAfter")
+
+        var params: ListLocationsParameters?
+
+        if limit != nil || endingBefore != nil || startingAfter != nil {
+            params = ListLocationsParameters(limit: limit,
+                                             endingBefore: endingBefore,
+                                             startingAfter: startingAfter)
+        }
+        Terminal.shared.listLocations(parameters: params) { locations, hasMore, error in
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else {
+                let locationsJSON = locations?.map {
+                    (location: Location) -> [String: Any] in
+                    StripeTerminalUtils.serializeLocation(location: location)
+                }
+
+                call.resolve([
+                    "hasMore": hasMore,
+                    "locations": locationsJSON as Any,
+                ])
+            }
+        }
+    }
+
     // MARK: DiscoveryDelegate
 
     public func terminal(_: Terminal, didUpdateDiscoveredReaders readers: [Reader]) {

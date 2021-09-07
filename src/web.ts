@@ -10,6 +10,8 @@ import {
   ReaderNetworkStatus,
   BatteryStatus,
   LocationStatus,
+  ListLocationsParameters,
+  Location,
   Cart
 } from './definitions'
 import {
@@ -98,10 +100,7 @@ export class StripeTerminalWeb
   private connectionTokenCompletionSubject = new Subject<TokenResponse>()
 
   constructor() {
-    super({
-      name: 'StripeTerminal',
-      platforms: ['web']
-    })
+    super()
   }
 
   async getPermissions(): Promise<{ granted: boolean }> {
@@ -403,5 +402,60 @@ export class StripeTerminalWeb
 
   async clearReaderDisplay(): Promise<void> {
     await this.instance.clearReaderDisplay()
+  }
+
+  async listLocations(
+    options?: ListLocationsParameters
+  ): Promise<{ locations?: Location[]; hasMore?: boolean }> {
+    // make sure fetch is supported
+    const isFetchSupported = 'fetch' in window
+    if (!isFetchSupported) {
+      throw new Error('fetch is not supported by this browser.')
+    }
+
+    const stripeUrl = new URL(`/v1/terminal/locations`, this.STRIPE_API_BASE)
+
+    if (options?.limit) {
+      stripeUrl.searchParams.append('limit', options.limit.toString())
+    }
+    if (options?.endingBefore) {
+      stripeUrl.searchParams.append('ending_before', options.endingBefore)
+    }
+    if (options?.startingAfter) {
+      stripeUrl.searchParams.append('starting_after', options.startingAfter)
+    }
+
+    const response = await fetch(stripeUrl.href, {
+      headers: {
+        Authorization: `Bearer ${this.currentConnectionToken}`
+      }
+    })
+
+    const json = await response.json()
+
+    if (!response.ok) {
+      throw new Error(json)
+    }
+
+    const locations: Location[] = json.data.map(
+      (l: any): Location => ({
+        stripeId: l.id,
+        displayName: l.display_name,
+        livemode: l.livemode,
+        address: {
+          city: l.address?.city,
+          country: l.address?.country,
+          line1: l.address?.line1,
+          line2: l.address?.line2,
+          postalCode: l.address?.postal_code,
+          state: l.address?.state
+        }
+      })
+    )
+
+    return {
+      locations,
+      hasMore: json.has_more
+    }
   }
 }

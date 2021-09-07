@@ -479,6 +479,93 @@ export interface CartLineItem {
 }
 
 /**
+ * Holds address data associated with a given `Location`.
+ *
+ * @see https://stripe.com/docs/api/terminal/locations/object#terminal_location_object-address
+ */
+export interface Address {
+  /**
+   * The city name
+   */
+  city?: string
+  /**
+   * The country code
+   */
+  country?: string
+  /**
+   * The first line of the address
+   */
+  line1?: string
+  /**
+   * The second line of the address
+   */
+  line2?: string
+  /**
+   * The postal code of the address
+   */
+  postalCode?: string
+  /**
+   * The state of the address
+   */
+  state?: string
+}
+
+/**
+ * A Location is used to group readers in the Stripe Terminal ecosystem. The Location to which a reader is registered can control regional behavior for that particular reader.
+ *
+ * You cannot create locations through the SDK. Instead, use the Stripe API from your backend to manage your account’s locations.
+ *
+ * To fetch the Location objects associated with your account, call `listLocations()`.
+ *
+ * @see https://stripe.com/docs/api/terminal/locations
+ */
+export interface Location {
+  /**
+   * The ID of the Location
+   */
+  stripeId: string
+  /**
+   * The address of this Location
+   */
+  address?: Address
+  /**
+   * The display name of this Location
+   */
+  displayName?: string
+  /**
+   * Whether this Location was created in livemode
+   */
+  livemode: boolean
+}
+
+/**
+ * Parameters to be used when calling `listLocations()` to list the Location objects associated with an account.
+ *
+ * @see https://stripe.com/docs/terminal/readers/connecting
+ */
+export interface ListLocationsParameters {
+  /**
+   * A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 10.
+   *
+   * @default 10
+   * @see https://stripe.com/docs/api/terminal/locations/list#list_terminal_locations-limit
+   */
+  limit?: number
+  /**
+   * A cursor for use in pagination. `ending_before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, starting with `obj_bar`, your subsequent call can include `ending_before=obj_bar` in order to fetch the previous page of the list.
+   *
+   * @see https://stripe.com/docs/api/terminal/locations/list#list_terminal_locations-ending_before
+   */
+  endingBefore?: string
+  /**
+   * A cursor for use in pagination. `starting_after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with `obj_foo`, your subsequent call can include `starting_after=obj_foo` in order to fetch the next page of the list.
+   *
+   * @see https://stripe.com/docs/api/terminal/locations/list#list_terminal_locations-starting_after
+   */
+  startingAfter?: string
+}
+
+/**
  * @ignore
  */
 export interface StripeTerminalInterface {
@@ -536,6 +623,10 @@ export interface StripeTerminalInterface {
   setReaderDisplay(cart: Cart): Promise<void>
 
   clearReaderDisplay(): Promise<void>
+
+  listLocations(
+    parameters?: ListLocationsParameters
+  ): Promise<{ locations?: Location[]; hasMore?: boolean }>
 
   getPermissions(): Promise<{ granted: boolean }>
 

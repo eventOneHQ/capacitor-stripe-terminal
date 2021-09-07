@@ -57,4 +57,32 @@ public class StripeTerminalUtils {
 
         return jsonObject
     }
+
+    static func serializeLocation(location: Location) -> [String: Any] {
+        var jsonObject: [String: Any] = [
+            "stripeId": location.stripeId,
+            "displayName": location.displayName as Any,
+            "livemode": location.livemode,
+//            "metadata": location.metadata as [String: Any],
+        ]
+
+        if let address = location.address {
+            jsonObject["address"] = serializeAddress(address: address)
+        }
+
+        return jsonObject
+    }
+
+    static func serializeAddress(address: Address) -> [String: Any] {
+        let jsonObject: [String: Any] = [
+            "city": address.city as Any,
+            "country": address.country as Any,
+            "line1": address.line1 as Any,
+            "line2": address.line2 as Any,
+            "postalCode": address.postalCode as Any,
+            "state": address.state as Any,
+        ]
+
+        return jsonObject
+    }
 }
