@@ -205,7 +205,7 @@ export class StripeTerminalWeb
     }
   }
 
-  async abortDiscoverReaders(): Promise<void> {}
+  async cancelDiscoverReaders(): Promise<void> {}
 
   async connectInternetReader(reader: Reader): Promise<{ reader: Reader }> {
     const readerOpts: DiscoverReader = {
@@ -275,9 +275,9 @@ export class StripeTerminalWeb
     console.warn('installUpdate is only available for Bluetooth readers.')
   }
 
-  async abortInstallUpdate(): Promise<void> {
+  async cancelInstallUpdate(): Promise<void> {
     // no equivalent
-    console.warn('abortInstallUpdate is only available for Bluetooth readers.')
+    console.warn('cancelInstallUpdate is only available for Bluetooth readers.')
   }
 
   async retrievePaymentIntent(options: {
@@ -353,7 +353,7 @@ export class StripeTerminalWeb
     }
   }
 
-  async abortCollectPaymentMethod(): Promise<void> {
+  async cancelCollectPaymentMethod(): Promise<void> {
     await this.instance.cancelCollectPaymentMethod()
   }
 

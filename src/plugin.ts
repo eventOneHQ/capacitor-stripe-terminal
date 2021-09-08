@@ -169,14 +169,14 @@ export class StripeTerminalPlugin {
     return terminal
   }
 
-  public async abortDiscoverReaders(): Promise<void> {
+  public async cancelDiscoverReaders(): Promise<void> {
     try {
       this.listeners['readersDiscovered']?.remove()
 
       if (!this.isDiscovering) {
         return
       }
-      await StripeTerminal.abortDiscoverReaders()
+      await StripeTerminal.cancelDiscoverReaders()
       this.isDiscovering = false
     } catch (err) {
       // eat errors
@@ -226,7 +226,7 @@ export class StripeTerminalPlugin {
 
       return {
         unsubscribe: () => {
-          this.abortDiscoverReaders()
+          this.cancelDiscoverReaders()
         }
       }
     })
@@ -358,7 +358,7 @@ export class StripeTerminalPlugin {
 
       return {
         unsubscribe: () => {
-          StripeTerminal.abortInstallUpdate()
+          StripeTerminal.cancelInstallUpdate()
           listener?.remove()
         }
       }
@@ -441,10 +441,10 @@ export class StripeTerminalPlugin {
     return data && data.intent
   }
 
-  public async abortCollectPaymentMethod(): Promise<void> {
+  public async cancelCollectPaymentMethod(): Promise<void> {
     this.ensureInitialized()
 
-    return await StripeTerminal.abortCollectPaymentMethod()
+    return await StripeTerminal.cancelCollectPaymentMethod()
   }
 
   public async processPayment(): Promise<PaymentIntent> {

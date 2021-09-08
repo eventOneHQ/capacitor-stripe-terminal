@@ -41,8 +41,8 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
                 }
                 // Terminal.shared.logLevel = LogLevel.verbose;
 
-                self.abortDiscoverReaders()
-                self.abortInstallUpdate()
+                self.cancelDiscoverReaders()
+                self.cancelInstallUpdate()
                 self.isInitialized = true
             }
             call.resolve()
@@ -74,8 +74,8 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     }
 
     @objc func discoverReaders(_ call: CAPPluginCall) {
-        // Attempt to abort any pending discoverReader calls first.
-        abortDiscoverReaders()
+        // Attempt to cancel any pending discoverReader calls first.
+        cancelDiscoverReaders()
 
         let simulated = call.getBool("simulated") ?? true
         let method = UInt(call.getInt("discoveryMethod") ?? 0)
@@ -99,7 +99,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         })
     }
 
-    @objc func abortDiscoverReaders(_ call: CAPPluginCall? = nil) {
+    @objc func cancelDiscoverReaders(_ call: CAPPluginCall? = nil) {
         if let cancelable = pendingDiscoverReaders {
             cancelable.cancel { error in
                 if let error = error {
@@ -204,7 +204,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         }
     }
 
-    @objc func abortInstallUpdate(_ call: CAPPluginCall? = nil) {
+    @objc func cancelInstallUpdate(_ call: CAPPluginCall? = nil) {
         if let cancelable = pendingInstallUpdate {
             cancelable.cancel { error in
                 if let error = error {
@@ -251,7 +251,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         }
     }
 
-    @objc func abortCollectPaymentMethod(_ call: CAPPluginCall? = nil) {
+    @objc func cancelCollectPaymentMethod(_ call: CAPPluginCall? = nil) {
         if let cancelable = pendingCollectPaymentMethod {
             cancelable.cancel { error in
                 if let error = error {

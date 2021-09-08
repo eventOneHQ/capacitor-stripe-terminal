@@ -582,7 +582,7 @@ export interface StripeTerminalInterface {
 
   discoverReaders(options: DiscoveryConfiguration): Promise<void>
 
-  abortDiscoverReaders(): Promise<void>
+  cancelDiscoverReaders(): Promise<void>
 
   connectBluetoothReader(options: {
     serialNumber: string
@@ -608,7 +608,7 @@ export interface StripeTerminalInterface {
 
   installAvailableUpdate(): Promise<void>
 
-  abortInstallUpdate(): Promise<void>
+  cancelInstallUpdate(): Promise<void>
 
   retrievePaymentIntent(options: {
     clientSecret: string
@@ -616,7 +616,7 @@ export interface StripeTerminalInterface {
 
   collectPaymentMethod(): Promise<{ intent: PaymentIntent }>
 
-  abortCollectPaymentMethod(): Promise<void>
+  cancelCollectPaymentMethod(): Promise<void>
 
   processPayment(): Promise<{ intent: PaymentIntent }>
 

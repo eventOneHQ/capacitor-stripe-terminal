@@ -11,11 +11,11 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(connectInternetReader, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getConnectionStatus, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getConnectedReader, CAPPluginReturnPromise);
-           CAP_PLUGIN_METHOD(abortDiscoverReaders, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(cancelDiscoverReaders, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(disconnectReader, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(installAvailableUpdate, CAPPluginReturnPromise);
-           CAP_PLUGIN_METHOD(abortInstallUpdate, CAPPluginReturnPromise);
-           CAP_PLUGIN_METHOD(abortCollectPaymentMethod, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(cancelInstallUpdate, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(cancelCollectPaymentMethod, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(retrievePaymentIntent, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(collectPaymentMethod, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(processPayment, CAPPluginReturnPromise);

@@ -122,8 +122,8 @@ public class StripeTerminal
     }
 
     pendingConnectionTokenCallback = null;
-    abortDiscoverReaders();
-    abortInstallUpdate();
+    cancelDiscoverReaders();
+    cancelInstallUpdate();
 
     LogLevel logLevel = LogLevel.VERBOSE;
     ConnectionTokenProvider tokenProvider = this;
@@ -208,8 +208,8 @@ public class StripeTerminal
         }
       };
 
-      // Attempt to abort any pending discoverReader calls first.
-      abortDiscoverReaders();
+      // Attempt to cancel any pending discoverReader calls first.
+      cancelDiscoverReaders();
       pendingDiscoverReaders =
         Terminal
           .getInstance()
@@ -224,7 +224,7 @@ public class StripeTerminal
   }
 
   @PluginMethod
-  public void abortDiscoverReaders(final PluginCall call) {
+  public void cancelDiscoverReaders(final PluginCall call) {
     if (
       pendingDiscoverReaders != null && !pendingDiscoverReaders.isCompleted()
     ) {
@@ -247,7 +247,7 @@ public class StripeTerminal
     }
   }
 
-  public void abortDiscoverReaders() {
+  public void cancelDiscoverReaders() {
     if (
       pendingDiscoverReaders != null && !pendingDiscoverReaders.isCompleted()
     ) {
@@ -488,7 +488,7 @@ public class StripeTerminal
   }
 
   @PluginMethod
-  public void abortCollectPaymentMethod(final PluginCall call) {
+  public void cancelCollectPaymentMethod(final PluginCall call) {
     if (
       pendingCollectPaymentMethod != null &&
       !pendingCollectPaymentMethod.isCompleted()
@@ -561,7 +561,7 @@ public class StripeTerminal
   }
 
   @PluginMethod
-  public void abortInstallUpdate(final PluginCall call) {
+  public void cancelInstallUpdate(final PluginCall call) {
     if (pendingInstallUpdate != null && !pendingInstallUpdate.isCompleted()) {
       pendingInstallUpdate.cancel(
         new Callback() {
@@ -582,7 +582,7 @@ public class StripeTerminal
     }
   }
 
-  public void abortInstallUpdate() {
+  public void cancelInstallUpdate() {
     if (pendingInstallUpdate != null && !pendingInstallUpdate.isCompleted()) {
       pendingInstallUpdate.cancel(
         new Callback() {
