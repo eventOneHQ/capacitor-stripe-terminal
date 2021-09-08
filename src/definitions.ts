@@ -62,7 +62,9 @@ export enum DeviceType {
    *
    * @see https://stripe.com/docs/terminal/readers/bbpos-wisepos-e
    */
-  WisePosE
+  WisePosE,
+
+  Unknown
 }
 
 /**
