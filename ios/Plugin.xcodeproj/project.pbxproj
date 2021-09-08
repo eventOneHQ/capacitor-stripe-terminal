@@ -287,7 +287,7 @@
 				"${PODS_ROOT}/Target Support Files/Pods-PluginTests/Pods-PluginTests-frameworks.sh",
 				"${BUILT_PRODUCTS_DIR}/Capacitor/Capacitor.framework",
 				"${BUILT_PRODUCTS_DIR}/CapacitorCordova/Cordova.framework",
-				"${PODS_ROOT}/StripeTerminal/Carthage/Build/iOS/StripeTerminal.framework",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/StripeTerminal/StripeTerminal.framework/StripeTerminal",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (

@@ -1,9 +1,12 @@
 package io.event1.capacitorstripeterminal;
 
 import com.getcapacitor.JSObject;
-import com.stripe.stripeterminal.model.external.PaymentIntent;
-import com.stripe.stripeterminal.model.external.Reader;
-import com.stripe.stripeterminal.model.external.ReaderSoftwareUpdate;
+import com.stripe.stripeterminal.external.models.Address;
+import com.stripe.stripeterminal.external.models.DiscoveryMethod;
+import com.stripe.stripeterminal.external.models.Location;
+import com.stripe.stripeterminal.external.models.PaymentIntent;
+import com.stripe.stripeterminal.external.models.Reader;
+import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 
 public class TerminalUtils {
 
@@ -11,25 +14,62 @@ public class TerminalUtils {
     JSObject object = new JSObject();
 
     if (reader != null) {
-      double batteryLevel = 0;
-      if (reader.getBatteryLevel() != null) batteryLevel =
-        (double) reader.getBatteryLevel();
-      object.put("batteryLevel", batteryLevel);
+      // device type
+      object.put(
+        "deviceType",
+        translateDeviceTypeToJS(reader.getDeviceType().ordinal())
+      );
 
-      int readerType = 0;
-      if (reader.getDeviceType() != null) readerType =
-        reader.getDeviceType().ordinal();
-      object.put("deviceType", readerType);
+      // simulated
+      object.put("simulated", reader.isSimulated());
 
-      String serial = "";
+      // stripe id
+      object.put("stripeId", reader.getId());
 
+      // location id
+      String locationId = null;
+      if (reader.getLocation() != null) locationId =
+        reader.getLocation().getId();
+      object.put("locationId", locationId);
+
+      // location status
+      object.put("locationStatus", reader.getLocationStatus().ordinal());
+
+      // serial number
+      String serial = null;
       if (reader.getSerialNumber() != null) serial = reader.getSerialNumber();
       object.put("serialNumber", serial);
 
-      String softwareVersion = "";
-      if (reader.getSoftwareVersion() != null) softwareVersion =
-        reader.getSoftwareVersion();
-      object.put("deviceSoftwareVersion", softwareVersion);
+      //
+      // BLUETOOTH READER PROPS
+      //
+
+      // software version
+      object.put("deviceSoftwareVersion", reader.getSoftwareVersion());
+
+      // is update available
+      object.put("isAvailableUpdate", reader.getAvailableUpdate() != null);
+
+      // battery level
+      Float level = reader.getBatteryLevel();
+      double batteryLevel = 0;
+      if (level != null) batteryLevel = (double) level;
+      object.put("batteryLevel", batteryLevel);
+
+      //
+      // INTERNET READER PROPS
+      //
+
+      // status
+      int status = Reader.NetworkStatus.OFFLINE.ordinal();
+      if (reader.getNetworkStatus() != null) status =
+        reader.getNetworkStatus().ordinal();
+      object.put("status", translateNetworkStatusToJS(status));
+
+      // label
+      String label = null;
+      if (reader.getLabel() != null) label = reader.getLabel();
+      object.put("label", label);
     }
     return object;
   }
@@ -65,10 +105,85 @@ public class TerminalUtils {
     if (readerSoftwareUpdate != null) {
       ReaderSoftwareUpdate.UpdateTimeEstimate updateTimeEstimate = readerSoftwareUpdate.getTimeEstimate();
 
-      object.put("estimatedUpdateTime", updateTimeEstimate.getDescription());
+      object.put(
+        "estimatedUpdateTimeString",
+        updateTimeEstimate.getDescription()
+      );
+      object.put("estimatedUpdateTime", updateTimeEstimate.ordinal());
       object.put("deviceSoftwareVersion", readerSoftwareUpdate.getVersion());
+      object.put("components", readerSoftwareUpdate.getComponents());
+      object.put("requiredAt", readerSoftwareUpdate.getRequiredAt().getTime());
     }
 
     return object;
+  }
+
+  public static JSObject serializeLocation(Location location) {
+    JSObject object = new JSObject();
+
+    if (location != null) {
+      object.put("stripeId", location.getId());
+      object.put("displayName", location.getDisplayName());
+      object.put("livemode", location.getLivemode());
+
+      Address address = location.getAddress();
+      if (address != null) {
+        object.put("address", serializeAddress(address));
+      }
+    }
+
+    return object;
+  }
+
+  public static JSObject serializeAddress(Address address) {
+    JSObject object = new JSObject();
+
+    if (address != null) {
+      object.put("city", address.getCity());
+      object.put("country", address.getCountry());
+      object.put("line1", address.getLine1());
+      object.put("line2", address.getLine2());
+      object.put("postalCode", address.getPostalCode());
+      object.put("state", address.getState());
+    }
+
+    return object;
+  }
+
+  public static DiscoveryMethod translateDiscoveryMethod(Integer method) {
+    if (method == 0) {
+      return DiscoveryMethod.BLUETOOTH_SCAN;
+    } else if (method == 1) {
+      return DiscoveryMethod.BLUETOOTH_SCAN;
+    } else if (method == 2) {
+      return DiscoveryMethod.INTERNET;
+    } else {
+      return DiscoveryMethod.BLUETOOTH_SCAN;
+    }
+  }
+
+  // translate the android device type enum to the JS device type enum
+  public static Integer translateDeviceTypeToJS(int type) {
+    if (type == 0) {
+      return 0;
+    } else if (type == 1) {
+      return 3;
+    } else if (type == 3) {
+      return 1;
+    } else if (type == 4) {
+      return 2;
+    } else if (type == 5) {
+      return 4;
+    } else {
+      return 5;
+    }
+  }
+
+  public static Integer translateNetworkStatusToJS(int status) {
+    if (status == 0) {
+      return 1; // online
+    } else {
+      return 0; // offline
+    }
   }
 }

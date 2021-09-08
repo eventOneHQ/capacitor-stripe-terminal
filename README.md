@@ -90,7 +90,6 @@ _Hint: If the user denies Location permission the first time you ask for it, And
 ```javascript
 import {
   StripeTerminalPlugin,
-  DeviceType,
   DiscoveryMethod
 } from 'capacitor-stripe-terminal'
 
@@ -116,13 +115,16 @@ const terminal = await StripeTerminalPlugin.create({
 terminal
   .discoverReaders({
     simulated: false,
-    deviceType: DeviceType.Chipper2X,
     discoveryMethod: DiscoveryMethod.BluetoothProximity
   })
   .subscribe(readers => {
     if (readers.length) {
+      const selectedReader = readers[0]
+      const connectionConfig = {
+        locationId: '{{LOCATION_ID}}'
+      }
       terminal
-        .connectReader({ serialNumber: readers[0].serialNumber })
+        .connectBluetoothReader(selectedReader, connectionConfig)
         .then(connectedReader => {
           // the reader is now connected and usable
         })
@@ -133,13 +135,15 @@ terminal
 
 // subscribe to user instructions - these should be displayed to the user
 const displaySubscription = terminal
-  .readerDisplayMessage()
+  .didRequestReaderDisplayMessage()
   .subscribe(displayMessage => {
     console.log('displayMessage', displayMessage)
   })
-const inputSubscription = terminal.readerInput().subscribe(inputOptions => {
-  console.log('inputOptions', inputOptions)
-})
+const inputSubscription = terminal
+  .didRequestReaderInput()
+  .subscribe(inputOptions => {
+    console.log('inputOptions', inputOptions)
+  })
 
 // retrieve the payment intent
 await terminal.retrievePaymentIntent('your client secret created server side')
