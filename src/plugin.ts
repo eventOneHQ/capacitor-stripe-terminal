@@ -139,6 +139,19 @@ export class StripeTerminalPlugin {
   }
 
   /**
+   * Ensure that an object exists and is not empty
+   * @param object Object to check
+   * @returns
+   */
+  private objectExists<T>(object: T): T {
+    if (Object.keys(object ?? {}).length) {
+      return object
+    }
+
+    return null
+  }
+
+  /**
    * Creates an instance of [[StripeTerminalPlugin]] with the given options.
    *
    * ```typescript
@@ -243,7 +256,7 @@ export class StripeTerminalPlugin {
       locationId: config.locationId
     })
 
-    return data?.reader
+    return this.objectExists(data?.reader)
   }
 
   public async connectInternetReader(
@@ -259,7 +272,7 @@ export class StripeTerminalPlugin {
       ...config
     })
 
-    return data?.reader
+    return this.objectExists(data?.reader)
   }
 
   /**
@@ -278,7 +291,7 @@ export class StripeTerminalPlugin {
 
     const data = await StripeTerminal.getConnectedReader()
 
-    return data?.reader ?? null
+    return this.objectExists(data?.reader)
   }
 
   public async getConnectionStatus(): Promise<ConnectionStatus> {
@@ -388,7 +401,7 @@ export class StripeTerminalPlugin {
     return this._listenerToObservable(
       'didReportAvailableUpdate',
       (data: { update: ReaderSoftwareUpdate }) => {
-        return data.update
+        return this.objectExists(data?.update)
       }
     )
   }
@@ -397,7 +410,7 @@ export class StripeTerminalPlugin {
     return this._listenerToObservable(
       'didStartInstallingUpdate',
       (data: { update: ReaderSoftwareUpdate }) => {
-        return data.update
+        return this.objectExists(data?.update)
       }
     )
   }
@@ -418,7 +431,7 @@ export class StripeTerminalPlugin {
     return this._listenerToObservable(
       'didFinishInstallingUpdate',
       (data: { update?: ReaderSoftwareUpdate; error?: string }) => {
-        return data
+        return this.objectExists(data)
       }
     )
   }
@@ -430,7 +443,7 @@ export class StripeTerminalPlugin {
 
     const data = await StripeTerminal.retrievePaymentIntent({ clientSecret })
 
-    return data && data.intent
+    return this.objectExists(data?.intent)
   }
 
   public async collectPaymentMethod(): Promise<PaymentIntent> {
@@ -438,7 +451,7 @@ export class StripeTerminalPlugin {
 
     const data = await StripeTerminal.collectPaymentMethod()
 
-    return data && data.intent
+    return this.objectExists(data?.intent)
   }
 
   public async cancelCollectPaymentMethod(): Promise<void> {
@@ -452,7 +465,7 @@ export class StripeTerminalPlugin {
 
     const data = await StripeTerminal.processPayment()
 
-    return data && data.intent
+    return this.objectExists(data?.intent)
   }
 
   public async clearCachedCredentials(): Promise<void> {
