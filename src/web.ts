@@ -12,6 +12,8 @@ import {
   LocationStatus,
   ListLocationsParameters,
   Location,
+  SimulatedCardType,
+  SimulatorConfiguration,
   Cart
 } from './definitions'
 import {
@@ -79,6 +81,47 @@ const connectionStatus: { [status: string]: ConnectionStatus } = {
   connecting: ConnectionStatus.Connecting,
   connected: ConnectionStatus.Connected,
   not_connected: ConnectionStatus.NotConnected
+}
+
+/**
+ * @ignore
+ */
+const testPaymentMethodMap: { [method: string]: SimulatedCardType } = {
+  visa: SimulatedCardType.Visa,
+  visa_debit: SimulatedCardType.VisaDebit,
+  mastercard: SimulatedCardType.Mastercard,
+  mastercard_debit: SimulatedCardType.MasterDebit,
+  mastercard_prepaid: SimulatedCardType.MastercardPrepaid,
+  amex: SimulatedCardType.Amex,
+  amex2: SimulatedCardType.Amex2,
+  discover: SimulatedCardType.Discover,
+  discover2: SimulatedCardType.Discover2,
+  diners: SimulatedCardType.Diners,
+  diners_14digits: SimulatedCardType.Diners14Digit,
+  jcb: SimulatedCardType.Jcb,
+  unionpay: SimulatedCardType.UnionPay,
+  interac: SimulatedCardType.Interac,
+  charge_declined: SimulatedCardType.ChargeDeclined,
+  charge_declined_insufficient_funds:
+    SimulatedCardType.ChargeDeclinedInsufficientFunds,
+  charge_declined_lost_card: SimulatedCardType.ChargeDeclinedLostCard,
+  charge_declined_stolen_card: SimulatedCardType.ChargeDeclinedStolenCard,
+  charge_declined_expired_card: SimulatedCardType.ChargeDeclinedExpiredCard,
+  charge_declined_processing_error:
+    SimulatedCardType.ChargeDeclinedProcessingError,
+  refund_fail: SimulatedCardType.RefundFailed
+}
+
+/**
+ * @ignore
+ */
+const paymentStatus: { [status: string]: string } = {
+  requires_payment_method: '0',
+  requires_confirmation: '1',
+  requires_capture: '2',
+  processing: '3',
+  canceled: '4',
+  succeeded: '5'
 }
 
 /**
@@ -320,7 +363,7 @@ export class StripeTerminalWeb
       intent: {
         stripeId: json.id,
         created: json.created,
-        status: json.status,
+        status: paymentStatus[json.status],
         amount: json.amount,
         currency: json.currency
       }
@@ -342,7 +385,7 @@ export class StripeTerminalWeb
         intent: {
           stripeId: this.currentPaymentIntent.id,
           created: this.currentPaymentIntent.created,
-          status: this.currentPaymentIntent.status,
+          status: paymentStatus[this.currentPaymentIntent.status],
           amount: this.currentPaymentIntent.amount,
           currency: this.currentPaymentIntent.currency
         }
@@ -367,7 +410,7 @@ export class StripeTerminalWeb
         intent: {
           stripeId: res.paymentIntent.id,
           created: res.paymentIntent.created,
-          status: res.paymentIntent.status,
+          status: paymentStatus[res.paymentIntent.status],
           amount: res.paymentIntent.amount,
           currency: res.paymentIntent.currency
         }
@@ -456,6 +499,38 @@ export class StripeTerminalWeb
     return {
       locations,
       hasMore: json.has_more
+    }
+  }
+
+  async getSimulatorConfiguration(): Promise<SimulatorConfiguration> {
+    const config = this.instance.getSimulatorConfiguration()
+
+    return {
+      simulatedCard: testPaymentMethodMap[config.testPaymentMethod]
+    }
+  }
+
+  async setSimulatorConfiguration(
+    config: SimulatorConfiguration
+  ): Promise<SimulatorConfiguration> {
+    let testPaymentMethod: string
+
+    for (const key in testPaymentMethodMap) {
+      if (Object.prototype.hasOwnProperty.call(testPaymentMethodMap, key)) {
+        const method = testPaymentMethodMap[key]
+
+        if (method === config.simulatedCard) {
+          testPaymentMethod = key
+        }
+      }
+    }
+
+    this.instance.setSimulatorConfiguration({
+      testPaymentMethod
+    })
+
+    return {
+      simulatedCard: config.simulatedCard
     }
   }
 }

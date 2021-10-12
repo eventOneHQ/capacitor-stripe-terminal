@@ -568,6 +568,60 @@ export interface ListLocationsParameters {
 }
 
 /**
+ * Simulator specific configurations you can set to test your integration's behavior in different scenarios. We recommend changing these properties during testing to ensure your app works as expected for different reader updates and for different presented cards.
+ */
+export interface SimulatorConfiguration {
+  availableReaderUpdate?: SimulateReaderUpdate
+  simulatedCard?: SimulatedCardType
+}
+
+/**
+ * Enum used to simulate various types of cards and error cases.
+ * @see https://stripe.com/docs/terminal/testing#simulated-test-cards
+ */
+export enum SimulatedCardType {
+  Visa,
+  VisaDebit,
+  Mastercard,
+  MasterDebit,
+  MastercardPrepaid,
+  Amex,
+  Amex2,
+  Discover,
+  Discover2,
+  Diners,
+  Diners14Digit,
+  Jcb,
+  UnionPay,
+  Interac,
+  ChargeDeclined,
+  ChargeDeclinedInsufficientFunds,
+  ChargeDeclinedLostCard,
+  ChargeDeclinedStolenCard,
+  ChargeDeclinedExpiredCard,
+  ChargeDeclinedProcessingError,
+  RefundFailed
+}
+
+export enum SimulateReaderUpdate {
+  // Default: An update is available that is marked as needing to be installed within 7 days
+  Available,
+  // No updates are available
+  None,
+  // A required full reader software update exists. Use this to simulate the auto-install of a required update that will be applied during connect. This simulated update will take 1 minute and progress will be provided.
+  Required,
+  // A required update exists. When the SDK connects to the reader, the connection will fail because the reader's battery is too low for the update to begin.
+  LowBattery,
+  // Randomly picks a type of update for the reader to help exercise the various states.
+  Random
+}
+
+export enum DeviceStyle {
+  Internet,
+  Bluetooth
+}
+
+/**
  * @ignore
  */
 export interface StripeTerminalInterface {
@@ -629,6 +683,12 @@ export interface StripeTerminalInterface {
   listLocations(
     parameters?: ListLocationsParameters
   ): Promise<{ locations?: Location[]; hasMore?: boolean }>
+
+  getSimulatorConfiguration(): Promise<SimulatorConfiguration>
+
+  setSimulatorConfiguration(
+    config: SimulatorConfiguration
+  ): Promise<SimulatorConfiguration>
 
   getPermissions(): Promise<{ granted: boolean }>
 

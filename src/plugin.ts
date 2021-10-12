@@ -13,6 +13,10 @@ import {
   PaymentIntent,
   Cart,
   ListLocationsParameters,
+  SimulatedCardType,
+  SimulatorConfiguration,
+  DeviceType,
+  DeviceStyle,
   ReaderSoftwareUpdate
 } from './definitions'
 
@@ -38,6 +42,8 @@ export class StripeTerminalPlugin {
 
   private isDiscovering = false
   private listeners: { [key: string]: PluginListenerHandle } = {}
+
+  private simulatedCardType: SimulatedCardType
 
   /**
    * **_DO NOT USE THIS CONSTRUCTOR DIRECTLY._**
@@ -344,38 +350,16 @@ export class StripeTerminalPlugin {
     })
   }
 
-  public installAvailableUpdate(): Observable<number> {
+  public async installAvailableUpdate(): Promise<void> {
     this.ensureInitialized()
 
-    return new Observable(subscriber => {
-      // initiate the installation
-      StripeTerminal.installAvailableUpdate()
-        .then(() => {
-          subscriber.complete()
-        })
-        .catch((err: any) => {
-          subscriber.error(err)
-        })
+    return await StripeTerminal.installAvailableUpdate()
+  }
 
-      let listener: PluginListenerHandle
+  public async cancelInstallUpdate(): Promise<void> {
+    this.ensureInitialized()
 
-      // then listen for progress
-      StripeTerminal.addListener(
-        'didReportReaderSoftwareUpdateProgress',
-        (data: any) => {
-          subscriber.next(data.progress)
-        }
-      ).then(l => {
-        listener = l
-      })
-
-      return {
-        unsubscribe: () => {
-          StripeTerminal.cancelInstallUpdate()
-          listener?.remove()
-        }
-      }
-    })
+    return await StripeTerminal.cancelInstallUpdate()
   }
 
   public didRequestReaderInput(): Observable<ReaderInputOptions> {
@@ -419,7 +403,7 @@ export class StripeTerminalPlugin {
     return this._listenerToObservable(
       'didReportReaderSoftwareUpdateProgress',
       (data: any) => {
-        return parseFloat(data.value)
+        return parseFloat(data.progress)
       }
     )
   }
@@ -490,6 +474,74 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return await StripeTerminal.listLocations(options)
+  }
+
+  private simulatedCardTypeStringToEnum(cardType: any): SimulatedCardType {
+    // the simulated card type comes back as a string of the enum name so that needs to be converted back to an enum
+    const enumSimulatedCard: any = SimulatedCardType[cardType]
+
+    return enumSimulatedCard as SimulatedCardType
+  }
+
+  public async getSimulatorConfiguration() {
+    this.ensureInitialized()
+    const config = await StripeTerminal.getSimulatorConfiguration()
+
+    if (config?.simulatedCard !== null && config?.simulatedCard !== undefined) {
+      // the simulated card type comes back as a string of the enum name so that needs to be converted back to an enum
+      config.simulatedCard = this.simulatedCardTypeStringToEnum(
+        config.simulatedCard
+      )
+
+      this.simulatedCardType = config.simulatedCard
+    } else {
+      // use the stored simulated card type if it doesn't exist, probably because we are on android where you can't get it
+      config.simulatedCard = this.simulatedCardType
+    }
+
+    return this.objectExists(config)
+  }
+
+  public async setSimulatorConfiguration(config: SimulatorConfiguration) {
+    this.ensureInitialized()
+
+    const newConfig = await StripeTerminal.setSimulatorConfiguration(config)
+
+    if (config?.simulatedCard) {
+      // store the simulated card type because we can't get it from android
+      this.simulatedCardType = config.simulatedCard
+    }
+
+    if (
+      newConfig?.simulatedCard !== null &&
+      newConfig?.simulatedCard !== undefined
+    ) {
+      // the simulated card type comes back as a string of the enum name so that needs to be converted back to an enum
+      newConfig.simulatedCard = this.simulatedCardTypeStringToEnum(
+        newConfig.simulatedCard
+      )
+    } else if (this.objectExists(newConfig)) {
+      newConfig.simulatedCard = config.simulatedCard
+    }
+
+    return this.objectExists(newConfig)
+  }
+
+  public getDeviceStyleFromDeviceType(type: DeviceType): DeviceStyle {
+    if (
+      type === DeviceType.Chipper2X ||
+      type === DeviceType.StripeM2 ||
+      type === DeviceType.WisePad3
+    ) {
+      return DeviceStyle.Bluetooth
+    } else if (
+      type === DeviceType.WisePosE ||
+      type === DeviceType.VerifoneP400
+    ) {
+      return DeviceStyle.Internet
+    }
+
+    return DeviceStyle.Internet
   }
 
   public static async getPermissions(): Promise<{ granted: boolean }> {

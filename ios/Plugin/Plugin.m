@@ -24,5 +24,7 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(setReaderDisplay, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(clearReaderDisplay, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(listLocations, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(getSimulatorConfiguration, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(setSimulatorConfiguration, CAPPluginReturnPromise);
 )
 
