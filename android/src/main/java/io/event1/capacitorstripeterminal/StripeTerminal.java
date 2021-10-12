@@ -40,6 +40,10 @@ import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
 import com.stripe.stripeterminal.external.models.ReaderEvent;
 import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
+import com.stripe.stripeterminal.external.models.SimulateReaderUpdate;
+import com.stripe.stripeterminal.external.models.SimulatedCard;
+import com.stripe.stripeterminal.external.models.SimulatedCardType;
+import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.TerminalException;
 import com.stripe.stripeterminal.log.LogLevel;
 import java.util.ArrayList;
@@ -711,6 +715,48 @@ public class StripeTerminal
           }
         }
       );
+  }
+
+  @PluginMethod
+  public void getSimulatorConfiguration(@NonNull final PluginCall call) {
+    SimulatorConfiguration config = Terminal
+      .getInstance()
+      .getSimulatorConfiguration();
+    JSObject serialized = TerminalUtils.serializeSimulatorConfiguration(config);
+
+    call.resolve(serialized);
+  }
+
+  @PluginMethod
+  public void setSimulatorConfiguration(@NonNull final PluginCall call) {
+    Integer availableReaderUpdateInt = call.getInt("availableReaderUpdate");
+    Integer simulatedCardInt = call.getInt("simulatedCard");
+
+    SimulatorConfiguration currentConfig = Terminal
+      .getInstance()
+      .getSimulatorConfiguration();
+
+    SimulateReaderUpdate availableReaderUpdate = currentConfig.getUpdate();
+    SimulatedCard simulatedCard = currentConfig.getSimulatedCard();
+
+    if (availableReaderUpdateInt != null) {
+      availableReaderUpdate =
+        SimulateReaderUpdate.values()[availableReaderUpdateInt];
+    }
+
+    if (simulatedCardInt != null) {
+      SimulatedCardType type = SimulatedCardType.values()[simulatedCardInt];
+      simulatedCard = new SimulatedCard(type);
+    }
+
+    SimulatorConfiguration newConfig = new SimulatorConfiguration(
+      availableReaderUpdate,
+      simulatedCard
+    );
+
+    Terminal.getInstance().setSimulatorConfiguration(newConfig);
+
+    getSimulatorConfiguration(call);
   }
 
   @Override

@@ -85,4 +85,13 @@ public class StripeTerminalUtils {
 
         return jsonObject
     }
+    
+    static func serializeSimulatorConfiguration(simulatorConfig: SimulatorConfiguration) -> [String: Any] {
+        let jsonObject: [String: Any] = [
+            "availableReaderUpdate": simulatorConfig.availableReaderUpdate.rawValue,
+            "simulatedCard": "\(simulatorConfig.simulatedCard)" as Any,
+        ]
+                
+        return jsonObject
+    }
 }

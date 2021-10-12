@@ -7,6 +7,7 @@ import com.stripe.stripeterminal.external.models.Location;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
+import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 
 public class TerminalUtils {
 
@@ -145,6 +146,19 @@ public class TerminalUtils {
       object.put("line2", address.getLine2());
       object.put("postalCode", address.getPostalCode());
       object.put("state", address.getState());
+    }
+
+    return object;
+  }
+
+  public static JSObject serializeSimulatorConfiguration(
+    SimulatorConfiguration config
+  ) {
+    JSObject object = new JSObject();
+
+    if (config != null) {
+      object.put("availableReaderUpdate", config.getUpdate().ordinal());
+      //      object.put("simulatedCard", config.getSimulatedCard().getEmvBlob().toString());
     }
 
     return object;

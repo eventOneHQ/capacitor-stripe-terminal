@@ -371,6 +371,33 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             }
         }
     }
+    
+    @objc func getSimulatorConfiguration(_ call: CAPPluginCall) {
+        let config = Terminal.shared.simulatorConfiguration;
+        let serialized = StripeTerminalUtils.serializeSimulatorConfiguration(simulatorConfig: config);
+        
+        call.resolve(serialized);
+    }
+    
+    @objc func setSimulatorConfiguration(_ call: CAPPluginCall) {
+        let availableReaderUpdateInt = call.getInt("availableReaderUpdate");
+        let simulatedCardInt = call.getInt("simulatedCard");
+        
+        if (availableReaderUpdateInt != nil) {
+            let availableReaderUpdate = SimulateReaderUpdate(rawValue: UInt(availableReaderUpdateInt ?? 0)) ?? Terminal.shared.simulatorConfiguration.availableReaderUpdate;
+            
+            Terminal.shared.simulatorConfiguration.availableReaderUpdate = availableReaderUpdate;
+        }
+        
+        if (simulatedCardInt != nil) {
+            let simulatedCardType = SimulatedCardType(rawValue: UInt(simulatedCardInt ?? 0)) ?? SimulatedCardType.visa;
+            let simulatedCard = SimulatedCard(type: simulatedCardType);
+            
+            Terminal.shared.simulatorConfiguration.simulatedCard = simulatedCard;
+        }
+        
+        return self.getSimulatorConfiguration(call);
+    }
 
     // MARK: DiscoveryDelegate
 
