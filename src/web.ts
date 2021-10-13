@@ -6,6 +6,7 @@ import {
   Reader,
   ConnectionStatus,
   PaymentIntent,
+  PaymentIntentStatus,
   DeviceType,
   ReaderNetworkStatus,
   BatteryStatus,
@@ -115,13 +116,13 @@ const testPaymentMethodMap: { [method: string]: SimulatedCardType } = {
 /**
  * @ignore
  */
-const paymentStatus: { [status: string]: string } = {
-  requires_payment_method: '0',
-  requires_confirmation: '1',
-  requires_capture: '2',
-  processing: '3',
-  canceled: '4',
-  succeeded: '5'
+const paymentStatus: { [status: string]: PaymentIntentStatus } = {
+  requires_payment_method: PaymentIntentStatus.RequiresPaymentMethod,
+  requires_confirmation: PaymentIntentStatus.RequiresConfirmation,
+  requires_capture: PaymentIntentStatus.RequiresCapture,
+  processing: PaymentIntentStatus.Processing,
+  canceled: PaymentIntentStatus.Canceled,
+  succeeded: PaymentIntentStatus.Succeeded
 }
 
 /**
