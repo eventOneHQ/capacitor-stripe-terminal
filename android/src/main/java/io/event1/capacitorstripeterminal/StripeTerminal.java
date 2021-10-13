@@ -511,6 +511,8 @@ public class StripeTerminal
           }
         }
       );
+    } else {
+      call.resolve();
     }
   }
 

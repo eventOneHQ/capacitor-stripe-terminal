@@ -419,10 +419,56 @@ export enum ReaderInputOptions {
   TapCard = 1 << 2
 }
 
+/**
+ * The possible statuses for a PaymentIntent.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/payment_intents/object#payment_intent_object-status
+ */
+export enum PaymentIntentStatus {
+  /**
+   * Next step: collect a payment method by calling `collectPaymentMethod`.
+   */
+  RequiresPaymentMethod,
+
+  /**
+   * Next step: process the payment by calling `processPayment`.
+   */
+  RequiresConfirmation,
+
+  /**
+   * Next step: capture the PaymentIntent on your backend via the Stripe API.
+   */
+  RequiresCapture,
+
+  /**
+   * The PaymentIntent is in the middle of full EMV processing.
+   */
+  Processing,
+
+  /**
+   * The PaymentIntent was canceled.
+   */
+  Canceled,
+
+  /**
+   * The PaymentIntent succeeded.
+   */
+  Succeeded
+}
+
+/**
+ * A PaymentIntent tracks the process of collecting a payment from your customer. We recommend that you create exactly one PaymentIntent for each order or customer session in your system. You can reference the PaymentIntent later to see the history of payment attempts for a particular session.
+ *
+ * A PaymentIntent transitions through multiple statuses throughout its lifetime and ultimately creates at most one successful charge.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/payment_intents
+ */
 export interface PaymentIntent {
   stripeId: string
   created: number
-  status: string
+  status: PaymentIntentStatus
   amount: number
   currency: string
 }

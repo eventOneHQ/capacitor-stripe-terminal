@@ -83,7 +83,10 @@ public class TerminalUtils {
 
     object.put("stripeId", paymentIntent.getId());
     object.put("created", paymentIntent.getCreated());
-    object.put("status", paymentIntent.getStatus().ordinal());
+    object.put(
+      "status",
+      translatePaymentStatusToJS(paymentIntent.getStatus().ordinal())
+    );
     object.put("amount", paymentIntent.getAmount());
     object.put("currency", currency);
 
@@ -188,6 +191,23 @@ public class TerminalUtils {
       return 2;
     } else if (type == 5) {
       return 4;
+    } else {
+      return 5;
+    }
+  }
+
+  // translate the android status enum to the JS device type enum
+  public static Integer translatePaymentStatusToJS(int status) {
+    if (status == 0) {
+      return 4;
+    } else if (status == 1) {
+      return 2;
+    } else if (status == 2) {
+      return 1;
+    } else if (status == 3) {
+      return 0;
+    } else if (status == 4) {
+      return 5;
     } else {
       return 5;
     }
