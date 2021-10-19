@@ -17,6 +17,7 @@ import {
   SimulatorConfiguration,
   DeviceType,
   DeviceStyle,
+  PermissionStatus,
   ReaderSoftwareUpdate
 } from './definitions'
 
@@ -544,8 +545,19 @@ export class StripeTerminalPlugin {
     return DeviceStyle.Internet
   }
 
-  public static async getPermissions(): Promise<{ granted: boolean }> {
-    return await StripeTerminal.getPermissions()
+  /**
+   * @deprecated use requestPermissions and checkPermissions instead
+   */
+  public static async getPermissions(): Promise<PermissionStatus> {
+    return await this.requestPermissions()
+  }
+
+  public static async checkPermissions(): Promise<PermissionStatus> {
+    return await StripeTerminal.checkPermissions()
+  }
+
+  public static async requestPermissions(): Promise<PermissionStatus> {
+    return await StripeTerminal.requestPermissions()
   }
 
   public async addListener(eventName: string, listenerFunc: Function) {

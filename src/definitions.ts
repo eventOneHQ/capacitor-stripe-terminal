@@ -1,4 +1,8 @@
-import type { PluginListenerHandle } from '@capacitor/core'
+import type { PluginListenerHandle, PermissionState } from '@capacitor/core'
+
+export interface PermissionStatus {
+  location: PermissionState
+}
 
 /**
  * @category Terminal
@@ -736,7 +740,13 @@ export interface StripeTerminalInterface {
     config: SimulatorConfiguration
   ): Promise<SimulatorConfiguration>
 
-  getPermissions(): Promise<{ granted: boolean }>
+  /**
+   * @deprecated use requestPermissions and checkPermissions
+   */
+  getPermissions(): Promise<PermissionStatus>
+
+  checkPermissions(): Promise<PermissionStatus>
+  requestPermissions(): Promise<PermissionStatus>
 
   addListener(
     eventName: 'requestConnectionToken',

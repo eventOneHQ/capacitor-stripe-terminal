@@ -21,6 +21,8 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(processPayment, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(clearCachedCredentials, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getPermissions, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(checkPermissions, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(requestPermissions, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(setReaderDisplay, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(clearReaderDisplay, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(listLocations, CAPPluginReturnPromise);
