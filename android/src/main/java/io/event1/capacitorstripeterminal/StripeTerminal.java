@@ -85,7 +85,7 @@ public class StripeTerminal
       requestPermissions(call);
     } else {
       JSObject result = new JSObject();
-      result.put("granted", true);
+      result.put("location", "granted");
       call.resolve(result);
     }
   }

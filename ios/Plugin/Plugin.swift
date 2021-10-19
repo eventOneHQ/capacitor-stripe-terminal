@@ -27,7 +27,15 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     }
 
     @objc func getPermissions(_ call: CAPPluginCall) {
-        call.resolve(["granted": true])
+        requestPermissions(call)
+    }
+
+    @objc override public func checkPermissions(_ call: CAPPluginCall) {
+        call.unimplemented("Permissions are handled automatically on iOS.")
+    }
+
+    @objc override public func requestPermissions(_ call: CAPPluginCall) {
+        call.unimplemented("Permissions are handled automatically on iOS.")
     }
 
     @objc func initialize(_ call: CAPPluginCall) {
@@ -371,32 +379,32 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             }
         }
     }
-    
+
     @objc func getSimulatorConfiguration(_ call: CAPPluginCall) {
-        let config = Terminal.shared.simulatorConfiguration;
-        let serialized = StripeTerminalUtils.serializeSimulatorConfiguration(simulatorConfig: config);
-        
-        call.resolve(serialized);
+        let config = Terminal.shared.simulatorConfiguration
+        let serialized = StripeTerminalUtils.serializeSimulatorConfiguration(simulatorConfig: config)
+
+        call.resolve(serialized)
     }
-    
+
     @objc func setSimulatorConfiguration(_ call: CAPPluginCall) {
-        let availableReaderUpdateInt = call.getInt("availableReaderUpdate");
-        let simulatedCardInt = call.getInt("simulatedCard");
-        
-        if (availableReaderUpdateInt != nil) {
-            let availableReaderUpdate = SimulateReaderUpdate(rawValue: UInt(availableReaderUpdateInt ?? 0)) ?? Terminal.shared.simulatorConfiguration.availableReaderUpdate;
-            
-            Terminal.shared.simulatorConfiguration.availableReaderUpdate = availableReaderUpdate;
+        let availableReaderUpdateInt = call.getInt("availableReaderUpdate")
+        let simulatedCardInt = call.getInt("simulatedCard")
+
+        if availableReaderUpdateInt != nil {
+            let availableReaderUpdate = SimulateReaderUpdate(rawValue: UInt(availableReaderUpdateInt ?? 0)) ?? Terminal.shared.simulatorConfiguration.availableReaderUpdate
+
+            Terminal.shared.simulatorConfiguration.availableReaderUpdate = availableReaderUpdate
         }
-        
-        if (simulatedCardInt != nil) {
-            let simulatedCardType = SimulatedCardType(rawValue: UInt(simulatedCardInt ?? 0)) ?? SimulatedCardType.visa;
-            let simulatedCard = SimulatedCard(type: simulatedCardType);
-            
-            Terminal.shared.simulatorConfiguration.simulatedCard = simulatedCard;
+
+        if simulatedCardInt != nil {
+            let simulatedCardType = SimulatedCardType(rawValue: UInt(simulatedCardInt ?? 0)) ?? SimulatedCardType.visa
+            let simulatedCard = SimulatedCard(type: simulatedCardType)
+
+            Terminal.shared.simulatorConfiguration.simulatedCard = simulatedCard
         }
-        
-        return self.getSimulatorConfiguration(call);
+
+        return getSimulatorConfiguration(call)
     }
 
     // MARK: DiscoveryDelegate

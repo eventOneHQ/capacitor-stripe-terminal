@@ -72,10 +72,19 @@ Add the `ACCESS_FINE_LOCATION` permission to your app's manifest:
 On Android, you must also make sure that Location permission has been granted by the user:
 
 ```javascript
-const response = await StripeTerminalPlugin.getPermissions()
+if (Capacitor.getPlatform() === 'android') {
+  // check if permission is required
+  let response = await StripeTerminalPlugin.checkPermissions();
 
-if (!response.granted) {
-  throw new Error('Location permission is required.')
+  if (response.location === 'prompt') {
+    // if it is required, request it
+    response = await StripeTerminalPlugin.requestPermissions();
+
+    if (response.location !== 'granted') {
+      // if the request fails, show a message to the user
+      throw new Error('Location permission is required.')
+    }
+  }
 }
 
 const terminal = await StripeTerminalPlugin.create({ ... })
@@ -83,7 +92,7 @@ const terminal = await StripeTerminalPlugin.create({ ... })
 
 If the user does not grant permission, `StripeTerminalPlugin` will throw an error when you try to initialize it so you will have to handle that.
 
-_Hint: If the user denies Location permission the first time you ask for it, Android will not display a prompt to the user on subsequent requests for permission and `response.granted` will always be `false`. You will have to ask the user to go into the app's settings to allow Location permission._
+_Hint: If the user denies Location permission the first time you ask for it, Android will not display a prompt to the user on subsequent requests for permission and `response` will always be `denied`. You will have to ask the user to go into the app's settings to allow Location permission._
 
 ## Usage
 

@@ -15,6 +15,7 @@ import {
   Location,
   SimulatedCardType,
   SimulatorConfiguration,
+  PermissionStatus,
   Cart
 } from './definitions'
 import {
@@ -147,8 +148,18 @@ export class StripeTerminalWeb
     super()
   }
 
-  async getPermissions(): Promise<{ granted: boolean }> {
-    return { granted: true }
+  async getPermissions(): Promise<PermissionStatus> {
+    return this.requestPermissions()
+  }
+
+  async checkPermissions(): Promise<PermissionStatus> {
+    // location permission isn't actually needed for the web version
+    throw this.unimplemented('Permissions are not required on web.')
+  }
+
+  async requestPermissions(): Promise<PermissionStatus> {
+    // location permission isn't actually needed for the web version
+    throw this.unimplemented('Permissions are not required on web.')
   }
 
   async setConnectionToken(
