@@ -810,7 +810,7 @@ public class StripeTerminal
   }
 
   @Override
-  public void onUpdateDiscoveredReaders(@NonNull List<? extends Reader> list) {
+  public void onUpdateDiscoveredReaders(@NonNull List<Reader> list) {
     discoveredReadersList = list;
 
     JSArray readersDiscoveredArr = new JSArray();
