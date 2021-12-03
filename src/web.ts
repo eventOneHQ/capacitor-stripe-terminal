@@ -220,7 +220,7 @@ export class StripeTerminalWeb
   }
 
   private isInstanceOfLocation(object: any): object is StripeLocation {
-    return 'id' in object
+    return typeof object === 'object' && 'id' in object
   }
 
   private translateReader(sdkReader: DiscoverReader): Reader {
@@ -287,7 +287,6 @@ export class StripeTerminalWeb
       status:
         reader.status === ReaderNetworkStatus.Offline ? 'offline' : 'online'
     }
-    this.connectedReader = reader
 
     const connectResult = await this.instance.connectReader(readerOpts)
 
@@ -317,6 +316,10 @@ export class StripeTerminalWeb
   }
 
   async getConnectedReader(): Promise<{ reader: Reader }> {
+    const reader = this.instance.getConnectedReader()
+
+    this.connectedReader = this.translateReader(reader)
+
     return { reader: this.connectedReader }
   }
 
