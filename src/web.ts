@@ -25,6 +25,7 @@ import {
   Reader as DiscoverReader,
   ErrorResponse,
   InternetMethodConfiguration,
+  Location as StripeLocation,
   ISdkManagedPaymentIntent,
   IPaymentIntent,
   ISetReaderDisplayRequest
@@ -218,6 +219,10 @@ export class StripeTerminalWeb
     })
   }
 
+  private isInstanceOfLocation(object: any): object is StripeLocation {
+    return typeof object === 'object' && 'id' in object
+  }
+
   private translateReader(sdkReader: DiscoverReader): Reader {
     return {
       stripeId: sdkReader.id,
@@ -225,7 +230,9 @@ export class StripeTerminalWeb
       status: readerStatuses[sdkReader.status],
       serialNumber: sdkReader.serial_number,
       ipAddress: sdkReader.ip_address,
-      locationId: sdkReader.location,
+      locationId: this.isInstanceOfLocation(sdkReader.location)
+        ? sdkReader.location.id
+        : sdkReader.location,
       label: sdkReader.label,
       deviceSoftwareVersion: sdkReader.device_sw_version,
       batteryStatus: BatteryStatus.Unknown,
@@ -280,7 +287,6 @@ export class StripeTerminalWeb
       status:
         reader.status === ReaderNetworkStatus.Offline ? 'offline' : 'online'
     }
-    this.connectedReader = reader
 
     const connectResult = await this.instance.connectReader(readerOpts)
 
@@ -310,6 +316,10 @@ export class StripeTerminalWeb
   }
 
   async getConnectedReader(): Promise<{ reader: Reader }> {
+    const reader = this.instance.getConnectedReader()
+
+    this.connectedReader = this.translateReader(reader)
+
     return { reader: this.connectedReader }
   }
 
