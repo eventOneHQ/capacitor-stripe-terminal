@@ -137,7 +137,6 @@ export class StripeTerminalWeb
   private STRIPE_API_BASE = 'https://api.stripe.com'
   private instance: Terminal
 
-  private connectedReader: Reader = null
   private simulated: boolean
   private currentClientSecret: string = null
   private currentPaymentIntent: ISdkManagedPaymentIntent = null
@@ -201,15 +200,11 @@ export class StripeTerminalWeb
         this.notifyListeners('didReportUnexpectedReaderDisconnect', {
           reader: null
         })
-        this.connectedReader = null
       },
       onConnectionStatusChange: async event => {
         this.notifyListeners('didChangeConnectionStatus', {
           status: connectionStatus[event.status]
         })
-        if (connectionStatus[event.status] === ConnectionStatus.NotConnected) {
-          this.connectedReader = null
-        }
       },
       onPaymentStatusChange: async event => {
         this.notifyListeners('didChangePaymentStatus', {
@@ -294,11 +289,9 @@ export class StripeTerminalWeb
       const result: ConnectResult = connectResult as ConnectResult
 
       const translatedReader = this.translateReader(result.reader)
-      this.connectedReader = translatedReader
 
       return { reader: translatedReader }
     } else {
-      this.connectedReader = null
       const error: ErrorResponse = connectResult as ErrorResponse
       throw error.error
     }
@@ -318,9 +311,13 @@ export class StripeTerminalWeb
   async getConnectedReader(): Promise<{ reader: Reader }> {
     const reader = this.instance.getConnectedReader()
 
-    this.connectedReader = this.translateReader(reader)
+    if (!reader) {
+      return { reader: null }
+    }
 
-    return { reader: this.connectedReader }
+    const translatedReader = this.translateReader(reader)
+
+    return { reader: translatedReader }
   }
 
   async getConnectionStatus(): Promise<{ status: ConnectionStatus }> {
@@ -332,7 +329,6 @@ export class StripeTerminalWeb
 
   async disconnectReader(): Promise<void> {
     await this.instance.disconnectReader()
-    this.connectedReader = null
   }
 
   async installAvailableUpdate(): Promise<void> {
