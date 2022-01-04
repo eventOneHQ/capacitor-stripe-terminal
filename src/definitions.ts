@@ -2,6 +2,7 @@ import type { PluginListenerHandle, PermissionState } from '@capacitor/core'
 
 export interface PermissionStatus {
   location: PermissionState
+  bluetooth: PermissionState
 }
 
 /**

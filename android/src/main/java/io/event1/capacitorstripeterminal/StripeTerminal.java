@@ -57,6 +57,13 @@ import org.json.JSONObject;
     @Permission(
       strings = { Manifest.permission.ACCESS_FINE_LOCATION },
       alias = "location"
+    ),
+    @Permission(
+      strings = {
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.BLUETOOTH_SCAN
+      },
+      alias = "bluetooth"
     )
   }
 )
@@ -94,8 +101,19 @@ public class StripeTerminal
   public void initialize(PluginCall call) {
     if (getPermissionState("location") != PermissionState.GRANTED) {
       requestPermissionForAlias("location", call, "locationPermsCallback");
+    } else if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+      requestPermissionForAlias("bluetooth", call, "bluetoothPermsCallback");
     } else {
       _initialize(call);
+    }
+  }
+
+  @PermissionCallback
+  private void bluetoothPermsCallback(PluginCall call) {
+    if (getPermissionState("bluetooth") == PermissionState.GRANTED) {
+      _initialize(call);
+    } else {
+      call.reject("Bluetooth permissions are required.");
     }
   }
 
