@@ -19,6 +19,10 @@
 
 **[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/discussions/42)**
 
+**_WARNING_**
+
+_These instructions are for v2 which is currently in beta. See the [`v1-support`](https://github.com/eventOneHQ/capacitor-stripe-terminal/tree/v1-support) branch for v1 instructions._
+
 ## Maintainers
 
 | Maintainer | GitHub                              | Social                                      |
@@ -53,20 +57,7 @@ Follow all Stripe instructions under ["Configure your app"](https://stripe.com/d
 
 ### Android
 
-Add the plugin to your `MainActivity.java`:
-
-```java
-// import it at the top
-import io.event1.capacitorstripeterminal.StripeTerminal;
-
-this.init(savedInstanceState, new ArrayList<Class<? extends Plugin>>() {{
-  // Additional plugins you've installed go here
-  // Ex: add(TotallyAwesomePlugin.class);
-  add(StripeTerminal.class);
-}});
-```
-
-Add the `ACCESS_FINE_LOCATION`, `BLUETOOTH`, and `BLUETOOTH_ADMIN` permissions to your app's manifest:
+Add the `ACCESS_FINE_LOCATION` permission to your app's manifest:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -75,18 +66,25 @@ Add the `ACCESS_FINE_LOCATION`, `BLUETOOTH`, and `BLUETOOTH_ADMIN` permissions t
     package="com.stripe.example.app">
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 </manifest>
 ```
 
 On Android, you must also make sure that Location permission has been granted by the user:
 
 ```javascript
-const response = await StripeTerminalPlugin.getPermissions()
+if (Capacitor.getPlatform() === 'android') {
+  // check if permission is required
+  let response = await StripeTerminalPlugin.checkPermissions();
 
-if (!response.granted) {
-  throw new Error('Location permission is required.')
+  if (response.location === 'prompt') {
+    // if it is required, request it
+    response = await StripeTerminalPlugin.requestPermissions();
+
+    if (response.location !== 'granted') {
+      // if the request fails, show a message to the user
+      throw new Error('Location permission is required.')
+    }
+  }
 }
 
 const terminal = await StripeTerminalPlugin.create({ ... })
@@ -94,14 +92,13 @@ const terminal = await StripeTerminalPlugin.create({ ... })
 
 If the user does not grant permission, `StripeTerminalPlugin` will throw an error when you try to initialize it so you will have to handle that.
 
-_Hint: If the user denies Location permission the first time you ask for it, Android will not display a prompt to the user on subsequent requests for permission and `response.granted` will always be `false`. You will have to ask the user to go into the app's settings to allow Location permission._
+_Hint: If the user denies Location permission the first time you ask for it, Android will not display a prompt to the user on subsequent requests for permission and `response` will always be `denied`. You will have to ask the user to go into the app's settings to allow Location permission._
 
 ## Usage
 
 ```javascript
 import {
   StripeTerminalPlugin,
-  DeviceType,
   DiscoveryMethod
 } from 'capacitor-stripe-terminal'
 
@@ -127,13 +124,16 @@ const terminal = await StripeTerminalPlugin.create({
 terminal
   .discoverReaders({
     simulated: false,
-    deviceType: DeviceType.Chipper2X,
     discoveryMethod: DiscoveryMethod.BluetoothProximity
   })
   .subscribe(readers => {
     if (readers.length) {
+      const selectedReader = readers[0]
+      const connectionConfig = {
+        locationId: '{{LOCATION_ID}}'
+      }
       terminal
-        .connectReader({ serialNumber: readers[0].serialNumber })
+        .connectBluetoothReader(selectedReader, connectionConfig)
         .then(connectedReader => {
           // the reader is now connected and usable
         })
@@ -144,13 +144,15 @@ terminal
 
 // subscribe to user instructions - these should be displayed to the user
 const displaySubscription = terminal
-  .readerDisplayMessage()
+  .didRequestReaderDisplayMessage()
   .subscribe(displayMessage => {
     console.log('displayMessage', displayMessage)
   })
-const inputSubscription = terminal.readerInput().subscribe(inputOptions => {
-  console.log('inputOptions', inputOptions)
-})
+const inputSubscription = terminal
+  .didRequestReaderInput()
+  .subscribe(inputOptions => {
+    console.log('inputOptions', inputOptions)
+  })
 
 // retrieve the payment intent
 await terminal.retrievePaymentIntent('your client secret created server side')

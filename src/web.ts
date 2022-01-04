@@ -5,21 +5,30 @@ import {
   DiscoveryConfiguration,
   Reader,
   ConnectionStatus,
-  ReaderSoftwareUpdate,
   PaymentIntent,
-  // DeviceType,
-  ReaderNetworkStatus
+  PaymentIntentStatus,
+  DeviceType,
+  ReaderNetworkStatus,
+  BatteryStatus,
+  LocationStatus,
+  ListLocationsParameters,
+  Location,
+  SimulatedCardType,
+  SimulatorConfiguration,
+  PermissionStatus,
+  Cart
 } from './definitions'
 import {
   loadStripeTerminal,
-  StripeTerminal,
   Terminal,
   DiscoverResult,
   Reader as DiscoverReader,
   ErrorResponse,
   InternetMethodConfiguration,
+  Location as StripeLocation,
   ISdkManagedPaymentIntent,
-  IPaymentIntent
+  IPaymentIntent,
+  ISetReaderDisplayRequest
 } from '@stripe/terminal-js'
 
 /**
@@ -51,10 +60,14 @@ interface ProcessPaymentResult {
   paymentIntent: IPaymentIntent
 }
 
-// const deviceTypes: { [type: number]: string } = {
-//   [DeviceType.Chipper2X]: 'chipper_2X',
-//   [DeviceType.VerifoneP400]: 'verifone_P400'
-// }
+/**
+ * @ignore
+ */
+const deviceTypes: { [type: string]: DeviceType } = {
+  ['chipper_2X']: DeviceType.Chipper2X,
+  ['verifone_P400']: DeviceType.VerifoneP400,
+  ['bbpos_wisepos_e']: DeviceType.WisePosE
+}
 
 /**
  * @ignore
@@ -76,12 +89,54 @@ const connectionStatus: { [status: string]: ConnectionStatus } = {
 /**
  * @ignore
  */
-export class StripeTerminalWeb extends WebPlugin
-  implements StripeTerminalInterface {
+const testPaymentMethodMap: { [method: string]: SimulatedCardType } = {
+  visa: SimulatedCardType.Visa,
+  visa_debit: SimulatedCardType.VisaDebit,
+  mastercard: SimulatedCardType.Mastercard,
+  mastercard_debit: SimulatedCardType.MasterDebit,
+  mastercard_prepaid: SimulatedCardType.MastercardPrepaid,
+  amex: SimulatedCardType.Amex,
+  amex2: SimulatedCardType.Amex2,
+  discover: SimulatedCardType.Discover,
+  discover2: SimulatedCardType.Discover2,
+  diners: SimulatedCardType.Diners,
+  diners_14digits: SimulatedCardType.Diners14Digit,
+  jcb: SimulatedCardType.Jcb,
+  unionpay: SimulatedCardType.UnionPay,
+  interac: SimulatedCardType.Interac,
+  charge_declined: SimulatedCardType.ChargeDeclined,
+  charge_declined_insufficient_funds:
+    SimulatedCardType.ChargeDeclinedInsufficientFunds,
+  charge_declined_lost_card: SimulatedCardType.ChargeDeclinedLostCard,
+  charge_declined_stolen_card: SimulatedCardType.ChargeDeclinedStolenCard,
+  charge_declined_expired_card: SimulatedCardType.ChargeDeclinedExpiredCard,
+  charge_declined_processing_error:
+    SimulatedCardType.ChargeDeclinedProcessingError,
+  refund_fail: SimulatedCardType.RefundFailed
+}
+
+/**
+ * @ignore
+ */
+const paymentStatus: { [status: string]: PaymentIntentStatus } = {
+  requires_payment_method: PaymentIntentStatus.RequiresPaymentMethod,
+  requires_confirmation: PaymentIntentStatus.RequiresConfirmation,
+  requires_capture: PaymentIntentStatus.RequiresCapture,
+  processing: PaymentIntentStatus.Processing,
+  canceled: PaymentIntentStatus.Canceled,
+  succeeded: PaymentIntentStatus.Succeeded
+}
+
+/**
+ * @ignore
+ */
+export class StripeTerminalWeb
+  extends WebPlugin
+  implements StripeTerminalInterface
+{
   private STRIPE_API_BASE = 'https://api.stripe.com'
   private instance: Terminal
 
-  private connectedReader: Reader = null
   private simulated: boolean
   private currentClientSecret: string = null
   private currentPaymentIntent: ISdkManagedPaymentIntent = null
@@ -90,14 +145,21 @@ export class StripeTerminalWeb extends WebPlugin
   private connectionTokenCompletionSubject = new Subject<TokenResponse>()
 
   constructor() {
-    super({
-      name: 'StripeTerminal',
-      platforms: ['web']
-    })
+    super()
   }
 
-  async getPermissions(): Promise<{ granted: boolean }> {
-    return { granted: true }
+  async getPermissions(): Promise<PermissionStatus> {
+    return this.requestPermissions()
+  }
+
+  async checkPermissions(): Promise<PermissionStatus> {
+    // location permission isn't actually needed for the web version
+    throw this.unimplemented('Permissions are not required on web.')
+  }
+
+  async requestPermissions(): Promise<PermissionStatus> {
+    // location permission isn't actually needed for the web version
+    throw this.unimplemented('Permissions are not required on web.')
   }
 
   async setConnectionToken(
@@ -138,15 +200,11 @@ export class StripeTerminalWeb extends WebPlugin
         this.notifyListeners('didReportUnexpectedReaderDisconnect', {
           reader: null
         })
-        this.connectedReader = null
       },
       onConnectionStatusChange: async event => {
         this.notifyListeners('didChangeConnectionStatus', {
           status: connectionStatus[event.status]
         })
-        if (connectionStatus[event.status] === ConnectionStatus.NotConnected) {
-          this.connectedReader = null
-        }
       },
       onPaymentStatusChange: async event => {
         this.notifyListeners('didChangePaymentStatus', {
@@ -156,15 +214,25 @@ export class StripeTerminalWeb extends WebPlugin
     })
   }
 
+  private isInstanceOfLocation(object: any): object is StripeLocation {
+    return typeof object === 'object' && 'id' in object
+  }
+
   private translateReader(sdkReader: DiscoverReader): Reader {
     return {
       stripeId: sdkReader.id,
-      deviceType: sdkReader.device_type,
+      deviceType: deviceTypes[sdkReader.device_type],
       status: readerStatuses[sdkReader.status],
       serialNumber: sdkReader.serial_number,
       ipAddress: sdkReader.ip_address,
-      locationId: sdkReader.location,
+      locationId: this.isInstanceOfLocation(sdkReader.location)
+        ? sdkReader.location.id
+        : sdkReader.location,
       label: sdkReader.label,
+      deviceSoftwareVersion: sdkReader.device_sw_version,
+      batteryStatus: BatteryStatus.Unknown,
+      locationStatus: LocationStatus.Unknown,
+      livemode: sdkReader.livemode,
       simulated: this.simulated
     }
   }
@@ -194,17 +262,26 @@ export class StripeTerminalWeb extends WebPlugin
     }
   }
 
-  async abortDiscoverReaders(): Promise<void> {}
+  async cancelDiscoverReaders(): Promise<void> {}
 
-  async connectReader(reader: Reader): Promise<{ reader: Reader }> {
-    const readerOpts = {
+  async connectInternetReader(reader: Reader): Promise<{ reader: Reader }> {
+    const readerOpts: DiscoverReader = {
       id: reader.stripeId,
       object: 'terminal.reader',
-      device_type: reader.deviceType,
+      device_type:
+        reader.deviceType === DeviceType.WisePosE
+          ? 'bbpos_wisepos_e'
+          : 'verifone_P400', // device type will always be one of these two and never the chipper2x
       ip_address: reader.ipAddress,
-      serial_number: reader.serialNumber
+      serial_number: reader.serialNumber,
+      device_sw_version: reader.deviceSoftwareVersion,
+      label: reader.label,
+      livemode: reader.livemode,
+      location: reader.locationId,
+      metadata: {},
+      status:
+        reader.status === ReaderNetworkStatus.Offline ? 'offline' : 'online'
     }
-    this.connectedReader = reader
 
     const connectResult = await this.instance.connectReader(readerOpts)
 
@@ -212,18 +289,35 @@ export class StripeTerminalWeb extends WebPlugin
       const result: ConnectResult = connectResult as ConnectResult
 
       const translatedReader = this.translateReader(result.reader)
-      this.connectedReader = translatedReader
 
       return { reader: translatedReader }
     } else {
-      this.connectReader = null
       const error: ErrorResponse = connectResult as ErrorResponse
       throw error.error
     }
   }
 
+  async connectBluetoothReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader }> {
+    // no equivalent
+    console.warn(
+      'connectBluetoothReader is only available for on iOS and Android.'
+    )
+    return { reader: null }
+  }
+
   async getConnectedReader(): Promise<{ reader: Reader }> {
-    return { reader: this.connectedReader }
+    const reader = this.instance.getConnectedReader()
+
+    if (!reader) {
+      return { reader: null }
+    }
+
+    const translatedReader = this.translateReader(reader)
+
+    return { reader: translatedReader }
   }
 
   async getConnectionStatus(): Promise<{ status: ConnectionStatus }> {
@@ -235,29 +329,16 @@ export class StripeTerminalWeb extends WebPlugin
 
   async disconnectReader(): Promise<void> {
     await this.instance.disconnectReader()
-    this.connectedReader = null
   }
 
-  async checkForUpdate(): Promise<{ update: ReaderSoftwareUpdate }> {
+  async installAvailableUpdate(): Promise<void> {
     // no equivalent
-    console.warn(
-      'checkForUpdate is only available for BBPOS Chipper 2X readers.'
-    )
-    return { update: null }
+    console.warn('installUpdate is only available for Bluetooth readers.')
   }
 
-  async installUpdate(): Promise<void> {
+  async cancelInstallUpdate(): Promise<void> {
     // no equivalent
-    console.warn(
-      'installUpdate is only available for BBPOS Chipper 2X readers.'
-    )
-  }
-
-  async abortInstallUpdate(): Promise<void> {
-    // no equivalent
-    console.warn(
-      'abortInstallUpdate is only available for BBPOS Chipper 2X readers.'
-    )
+    console.warn('cancelInstallUpdate is only available for Bluetooth readers.')
   }
 
   async retrievePaymentIntent(options: {
@@ -300,7 +381,7 @@ export class StripeTerminalWeb extends WebPlugin
       intent: {
         stripeId: json.id,
         created: json.created,
-        status: json.status,
+        status: paymentStatus[json.status],
         amount: json.amount,
         currency: json.currency
       }
@@ -313,7 +394,8 @@ export class StripeTerminalWeb extends WebPlugin
     )
 
     if ((result as CollectPaymentMethodResult).paymentIntent) {
-      const res: CollectPaymentMethodResult = result as CollectPaymentMethodResult
+      const res: CollectPaymentMethodResult =
+        result as CollectPaymentMethodResult
 
       this.currentPaymentIntent = res.paymentIntent
 
@@ -321,7 +403,7 @@ export class StripeTerminalWeb extends WebPlugin
         intent: {
           stripeId: this.currentPaymentIntent.id,
           created: this.currentPaymentIntent.created,
-          status: this.currentPaymentIntent.status,
+          status: paymentStatus[this.currentPaymentIntent.status],
           amount: this.currentPaymentIntent.amount,
           currency: this.currentPaymentIntent.currency
         }
@@ -332,7 +414,7 @@ export class StripeTerminalWeb extends WebPlugin
     }
   }
 
-  async abortCollectPaymentMethod(): Promise<void> {
+  async cancelCollectPaymentMethod(): Promise<void> {
     await this.instance.cancelCollectPaymentMethod()
   }
 
@@ -346,7 +428,7 @@ export class StripeTerminalWeb extends WebPlugin
         intent: {
           stripeId: res.paymentIntent.id,
           created: res.paymentIntent.created,
-          status: res.paymentIntent.status,
+          status: paymentStatus[res.paymentIntent.status],
           amount: res.paymentIntent.amount,
           currency: res.paymentIntent.currency
         }
@@ -360,14 +442,113 @@ export class StripeTerminalWeb extends WebPlugin
   async clearCachedCredentials(): Promise<void> {
     await this.instance.clearCachedCredentials()
   }
+
+  async setReaderDisplay(cart: Cart): Promise<void> {
+    const readerDisplay: ISetReaderDisplayRequest = {
+      cart: {
+        line_items: cart.lineItems.map(li => ({
+          amount: li.amount,
+          description: li.displayName,
+          quantity: li.quantity
+        })),
+        currency: cart.currency,
+        tax: cart.tax,
+        total: cart.total
+      },
+      type: 'cart'
+    }
+
+    await this.instance.setReaderDisplay(readerDisplay)
+  }
+
+  async clearReaderDisplay(): Promise<void> {
+    await this.instance.clearReaderDisplay()
+  }
+
+  async listLocations(
+    options?: ListLocationsParameters
+  ): Promise<{ locations?: Location[]; hasMore?: boolean }> {
+    // make sure fetch is supported
+    const isFetchSupported = 'fetch' in window
+    if (!isFetchSupported) {
+      throw new Error('fetch is not supported by this browser.')
+    }
+
+    const stripeUrl = new URL(`/v1/terminal/locations`, this.STRIPE_API_BASE)
+
+    if (options?.limit) {
+      stripeUrl.searchParams.append('limit', options.limit.toString())
+    }
+    if (options?.endingBefore) {
+      stripeUrl.searchParams.append('ending_before', options.endingBefore)
+    }
+    if (options?.startingAfter) {
+      stripeUrl.searchParams.append('starting_after', options.startingAfter)
+    }
+
+    const response = await fetch(stripeUrl.href, {
+      headers: {
+        Authorization: `Bearer ${this.currentConnectionToken}`
+      }
+    })
+
+    const json = await response.json()
+
+    if (!response.ok) {
+      throw new Error(json)
+    }
+
+    const locations: Location[] = json.data.map(
+      (l: any): Location => ({
+        stripeId: l.id,
+        displayName: l.display_name,
+        livemode: l.livemode,
+        address: {
+          city: l.address?.city,
+          country: l.address?.country,
+          line1: l.address?.line1,
+          line2: l.address?.line2,
+          postalCode: l.address?.postal_code,
+          state: l.address?.state
+        }
+      })
+    )
+
+    return {
+      locations,
+      hasMore: json.has_more
+    }
+  }
+
+  async getSimulatorConfiguration(): Promise<SimulatorConfiguration> {
+    const config = this.instance.getSimulatorConfiguration()
+
+    return {
+      simulatedCard: testPaymentMethodMap[config.testPaymentMethod]
+    }
+  }
+
+  async setSimulatorConfiguration(
+    config: SimulatorConfiguration
+  ): Promise<SimulatorConfiguration> {
+    let testPaymentMethod: string
+
+    for (const key in testPaymentMethodMap) {
+      if (Object.prototype.hasOwnProperty.call(testPaymentMethodMap, key)) {
+        const method = testPaymentMethodMap[key]
+
+        if (method === config.simulatedCard) {
+          testPaymentMethod = key
+        }
+      }
+    }
+
+    this.instance.setSimulatorConfiguration({
+      testPaymentMethod
+    })
+
+    return {
+      simulatedCard: config.simulatedCard
+    }
+  }
 }
-
-/**
- * @ignore
- */
-const StripeTerminal = new StripeTerminalWeb()
-
-export { StripeTerminal }
-
-import { registerWebPlugin } from '@capacitor/core'
-registerWebPlugin(StripeTerminal)

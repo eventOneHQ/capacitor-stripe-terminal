@@ -2,46 +2,63 @@ package io.event1.capacitorstripeterminal;
 
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
+import androidx.annotation.NonNull;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
-import com.getcapacitor.NativePlugin;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import com.stripe.stripeterminal.Terminal;
-import com.stripe.stripeterminal.callable.Callback;
-import com.stripe.stripeterminal.callable.Cancelable;
-import com.stripe.stripeterminal.callable.ConnectionTokenCallback;
-import com.stripe.stripeterminal.callable.ConnectionTokenProvider;
-import com.stripe.stripeterminal.callable.DiscoveryListener;
-import com.stripe.stripeterminal.callable.PaymentIntentCallback;
-import com.stripe.stripeterminal.callable.ReaderCallback;
-import com.stripe.stripeterminal.callable.ReaderDisplayListener;
-import com.stripe.stripeterminal.callable.ReaderSoftwareUpdateCallback;
-import com.stripe.stripeterminal.callable.ReaderSoftwareUpdateListener;
-import com.stripe.stripeterminal.callable.TerminalListener;
+import com.stripe.stripeterminal.external.callable.BluetoothReaderListener;
+import com.stripe.stripeterminal.external.callable.Callback;
+import com.stripe.stripeterminal.external.callable.Cancelable;
+import com.stripe.stripeterminal.external.callable.ConnectionTokenCallback;
+import com.stripe.stripeterminal.external.callable.ConnectionTokenProvider;
+import com.stripe.stripeterminal.external.callable.DiscoveryListener;
+import com.stripe.stripeterminal.external.callable.LocationListCallback;
+import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
+import com.stripe.stripeterminal.external.callable.ReaderCallback;
+import com.stripe.stripeterminal.external.callable.TerminalListener;
+import com.stripe.stripeterminal.external.models.Cart;
+import com.stripe.stripeterminal.external.models.CartLineItem;
+import com.stripe.stripeterminal.external.models.ConnectionConfiguration.BluetoothConnectionConfiguration;
+import com.stripe.stripeterminal.external.models.ConnectionConfiguration.InternetConnectionConfiguration;
+import com.stripe.stripeterminal.external.models.ConnectionStatus;
+import com.stripe.stripeterminal.external.models.ConnectionTokenException;
+import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
+import com.stripe.stripeterminal.external.models.DiscoveryMethod;
+import com.stripe.stripeterminal.external.models.ListLocationsParameters;
+import com.stripe.stripeterminal.external.models.Location;
+import com.stripe.stripeterminal.external.models.PaymentIntent;
+import com.stripe.stripeterminal.external.models.PaymentStatus;
+import com.stripe.stripeterminal.external.models.Reader;
+import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
+import com.stripe.stripeterminal.external.models.ReaderEvent;
+import com.stripe.stripeterminal.external.models.ReaderInputOptions;
+import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
+import com.stripe.stripeterminal.external.models.SimulateReaderUpdate;
+import com.stripe.stripeterminal.external.models.SimulatedCard;
+import com.stripe.stripeterminal.external.models.SimulatedCardType;
+import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
+import com.stripe.stripeterminal.external.models.TerminalException;
 import com.stripe.stripeterminal.log.LogLevel;
-import com.stripe.stripeterminal.model.external.ConnectionStatus;
-import com.stripe.stripeterminal.model.external.ConnectionTokenException;
-import com.stripe.stripeterminal.model.external.DeviceType;
-import com.stripe.stripeterminal.model.external.DiscoveryConfiguration;
-import com.stripe.stripeterminal.model.external.PaymentIntent;
-import com.stripe.stripeterminal.model.external.PaymentIntentParameters;
-import com.stripe.stripeterminal.model.external.PaymentStatus;
-import com.stripe.stripeterminal.model.external.Reader;
-import com.stripe.stripeterminal.model.external.ReaderDisplayMessage;
-import com.stripe.stripeterminal.model.external.ReaderEvent;
-import com.stripe.stripeterminal.model.external.ReaderInputOptions;
-import com.stripe.stripeterminal.model.external.ReaderSoftwareUpdate;
-import com.stripe.stripeterminal.model.external.TerminalException;
+import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-@NativePlugin(
-  permissionRequestCode = StripeTerminal.REQUEST_CODE,
-  permissions = { Manifest.permission.ACCESS_FINE_LOCATION }
+@CapacitorPlugin(
+  name = "StripeTerminal",
+  permissions = {
+    @Permission(
+      strings = { Manifest.permission.ACCESS_FINE_LOCATION },
+      alias = "location"
+    )
+  }
 )
 public class StripeTerminal
   extends Plugin
@@ -49,91 +66,77 @@ public class StripeTerminal
     ConnectionTokenProvider,
     TerminalListener,
     DiscoveryListener,
-    ReaderDisplayListener,
-    ReaderSoftwareUpdateListener {
-  public static final int REQUEST_CODE = 0x6424; // Unique request code
+    BluetoothReaderListener {
+
   Cancelable pendingDiscoverReaders = null;
   Cancelable pendingCollectPaymentMethod = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
   String lastCurrency = null;
 
+  ReaderSoftwareUpdate currentUpdate = null;
   PaymentIntent currentPaymentIntent = null;
   ReaderEvent lastReaderEvent = ReaderEvent.CARD_REMOVED;
   List<? extends Reader> discoveredReadersList = null;
-  ReaderSoftwareUpdate readerSoftwareUpdate;
   Cancelable pendingInstallUpdate = null;
 
   @PluginMethod
   public void getPermissions(PluginCall call) {
-    if (!hasRequiredPermissions()) {
+    if (getPermissionState("location") != PermissionState.GRANTED) {
       requestPermissions(call);
     } else {
       JSObject result = new JSObject();
-      result.put("granted", true);
-      call.success(result);
-    }
-  }
-
-  @Override
-  protected void handleRequestPermissionsResult(
-    int requestCode,
-    String[] permissions,
-    int[] grantResults
-  ) {
-    super.handleRequestPermissionsResult(
-      requestCode,
-      permissions,
-      grantResults
-    );
-
-    PluginCall savedCall = getSavedCall();
-    JSObject result = new JSObject();
-
-    if (!hasRequiredPermissions()) {
-      result.put("granted", false);
-      savedCall.success(result);
-    } else {
-      result.put("granted", true);
-      savedCall.success(result);
+      result.put("location", "granted");
+      call.resolve(result);
     }
   }
 
   @PluginMethod
   public void initialize(PluginCall call) {
-    if (!hasRequiredPermissions()) {
-      call.error("Location permission is required.");
+    if (getPermissionState("location") != PermissionState.GRANTED) {
+      requestPermissionForAlias("location", call, "locationPermsCallback");
+    } else {
+      _initialize(call);
     }
+  }
 
+  @PermissionCallback
+  private void locationPermsCallback(PluginCall call) {
+    if (getPermissionState("location") == PermissionState.GRANTED) {
+      _initialize(call);
+    } else {
+      call.reject("Location permission is required.");
+    }
+  }
+
+  private void _initialize(PluginCall call) {
     // turn on bluetooth
     BluetoothAdapter bluetooth = BluetoothAdapter.getDefaultAdapter();
-    if (bluetooth.isEnabled() == false) {
+    if (!bluetooth.isEnabled()) {
       bluetooth.enable();
     }
 
-    try {
-      // Check if stripe is initialized
-      Terminal.getInstance();
-
+    // Check if stripe is initialized
+    boolean isInitialized = Terminal.isInitialized();
+    if (isInitialized) {
       JSObject ret = new JSObject();
       ret.put("isInitialized", true);
 
       call.resolve(ret);
       return;
-    } catch (IllegalStateException e) {}
+    }
 
     pendingConnectionTokenCallback = null;
-    abortDiscoverReaders();
-    abortInstallUpdate();
+    cancelDiscoverReaders();
+    cancelInstallUpdate();
 
     LogLevel logLevel = LogLevel.VERBOSE;
     ConnectionTokenProvider tokenProvider = this;
     TerminalListener terminalListener = this;
 
     String err = "";
-    boolean isInitialized = false;
     try {
       Terminal.initTerminal(
-        getBridge().getActivity(),
+        this.bridge.getActivity(),
         logLevel,
         tokenProvider,
         terminalListener
@@ -141,7 +144,7 @@ public class StripeTerminal
       lastReaderEvent = ReaderEvent.CARD_REMOVED;
       isInitialized = true;
     } catch (TerminalException e) {
-      e.printStackTrace();
+      //      e.printStackTrace();
       err = e.getErrorMessage();
       isInitialized = false;
     } catch (IllegalStateException ex) {
@@ -155,7 +158,7 @@ public class StripeTerminal
 
     if (!isInitialized) {
       ret.put("error", err);
-      call.error(err);
+      call.reject(err);
       return;
     }
 
@@ -172,7 +175,7 @@ public class StripeTerminal
         pendingConnectionTokenCallback.onFailure(
           new ConnectionTokenException(errorMessage)
         );
-      } else {
+      } else if (token != null) {
         pendingConnectionTokenCallback.onSuccess(token);
       }
 
@@ -185,16 +188,17 @@ public class StripeTerminal
   @PluginMethod
   public void discoverReaders(final PluginCall call) {
     try {
-      Boolean simulated = call.getBoolean("simulated");
-      DeviceType deviceType = DeviceType.values()[call.getInt("deviceType")];
+      Boolean simulated = call.getBoolean("simulated", true);
+      DiscoveryMethod discoveryMethod = TerminalUtils.translateDiscoveryMethod(
+        call.getInt("discoveryMethod", 0)
+      );
 
       DiscoveryConfiguration discoveryConfiguration = new DiscoveryConfiguration(
         0,
-        deviceType,
+        discoveryMethod,
         simulated
       );
       Callback statusCallback = new Callback() {
-
         @Override
         public void onSuccess() {
           pendingDiscoverReaders = null;
@@ -202,14 +206,14 @@ public class StripeTerminal
         }
 
         @Override
-        public void onFailure(@Nonnull TerminalException e) {
+        public void onFailure(@NonNull TerminalException e) {
           pendingDiscoverReaders = null;
-          call.error(e.getErrorMessage(), e);
+          call.reject(e.getErrorMessage(), e);
         }
       };
 
-      // Attempt to abort any pending discoverReader calls first.
-      abortDiscoverReaders();
+      // Attempt to cancel any pending discoverReader calls first.
+      cancelDiscoverReaders();
       pendingDiscoverReaders =
         Terminal
           .getInstance()
@@ -218,19 +222,18 @@ public class StripeTerminal
       e.printStackTrace();
 
       if (e.getMessage() != null) {
-        call.error(e.getMessage(), e);
+        call.reject(e.getMessage(), e);
       }
     }
   }
 
   @PluginMethod
-  public void abortDiscoverReaders(final PluginCall call) {
+  public void cancelDiscoverReaders(final PluginCall call) {
     if (
       pendingDiscoverReaders != null && !pendingDiscoverReaders.isCompleted()
     ) {
       pendingDiscoverReaders.cancel(
         new Callback() {
-
           @Override
           public void onSuccess() {
             pendingDiscoverReaders = null;
@@ -238,8 +241,8 @@ public class StripeTerminal
           }
 
           @Override
-          public void onFailure(@Nonnull TerminalException e) {
-            call.error(e.getErrorMessage());
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage());
           }
         }
       );
@@ -248,28 +251,32 @@ public class StripeTerminal
     }
   }
 
-  public void abortDiscoverReaders() {
+  public void cancelDiscoverReaders() {
     if (
       pendingDiscoverReaders != null && !pendingDiscoverReaders.isCompleted()
     ) {
       pendingDiscoverReaders.cancel(
         new Callback() {
-
           @Override
           public void onSuccess() {
             pendingDiscoverReaders = null;
           }
 
           @Override
-          public void onFailure(@Nonnull TerminalException e) {}
+          public void onFailure(@NonNull TerminalException e) {}
         }
       );
     }
   }
 
-  @PluginMethod
-  public void connectReader(final PluginCall call) {
+  private Reader getReaderFromDiscovered(PluginCall call) {
     String serialNumber = call.getString("serialNumber");
+
+    if (serialNumber == null) {
+      call.reject("Must provide a serial number");
+      return null;
+    }
+
     Reader selectedReader = null;
     if (discoveredReadersList != null && discoveredReadersList.size() > 0) {
       for (Reader reader : discoveredReadersList) {
@@ -281,29 +288,89 @@ public class StripeTerminal
       }
     }
 
-    if (selectedReader != null) {
-      Terminal
-        .getInstance()
-        .connectReader(
-          selectedReader,
-          new ReaderCallback() {
-
-            @Override
-            public void onSuccess(@Nonnull Reader reader) {
-              JSObject ret = new JSObject();
-              ret.put("reader", TerminalUtils.serializeReader(reader));
-              call.resolve(ret);
-            }
-
-            @Override
-            public void onFailure(@Nonnull TerminalException e) {
-              call.error(e.getErrorMessage(), e);
-            }
-          }
-        );
-    } else {
-      call.error("No reader found with provided serial number");
+    if (selectedReader == null) {
+      call.reject("No reader found");
     }
+
+    return selectedReader;
+  }
+
+  @PluginMethod
+  public void connectInternetReader(final PluginCall call) {
+    Reader reader = getReaderFromDiscovered(call);
+
+    if (reader == null) {
+      return;
+    }
+
+    Boolean failIfInUse = call.getBoolean("failIfInUse", false);
+    // TODO: Add below when supported
+    // Boolean allowCustomerCancel = call.getBoolean("allowCustomerCancel", false);
+
+    InternetConnectionConfiguration connectionConfig = new InternetConnectionConfiguration(
+      failIfInUse
+    );
+
+    Terminal
+      .getInstance()
+      .connectInternetReader(
+        reader,
+        connectionConfig,
+        new ReaderCallback() {
+          @Override
+          public void onSuccess(@NonNull Reader reader) {
+            JSObject ret = new JSObject();
+            ret.put("reader", TerminalUtils.serializeReader(reader));
+            call.resolve(ret);
+          }
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage(), e);
+          }
+        }
+      );
+  }
+
+  @PluginMethod
+  public void connectBluetoothReader(final PluginCall call) {
+    Reader reader = getReaderFromDiscovered(call);
+
+    if (reader == null) {
+      return;
+    }
+
+    String locationId = call.getString("locationId");
+
+    if (locationId == null) {
+      call.reject("Must provide a location ID");
+      return;
+    }
+
+    BluetoothConnectionConfiguration connectionConfig = new BluetoothConnectionConfiguration(
+      locationId
+    );
+
+    Terminal
+      .getInstance()
+      .connectBluetoothReader(
+        reader,
+        connectionConfig,
+        this,
+        new ReaderCallback() {
+          @Override
+          public void onSuccess(@NonNull Reader reader) {
+            JSObject ret = new JSObject();
+            ret.put("reader", TerminalUtils.serializeReader(reader));
+            call.resolve(ret);
+          }
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage(), e);
+          }
+        }
+      );
   }
 
   @PluginMethod
@@ -315,15 +382,14 @@ public class StripeTerminal
         .getInstance()
         .disconnectReader(
           new Callback() {
-
             @Override
             public void onSuccess() {
               call.resolve();
             }
 
             @Override
-            public void onFailure(@Nonnull TerminalException e) {
-              call.error(e.getErrorMessage(), e);
+            public void onFailure(@NonNull TerminalException e) {
+              call.reject(e.getErrorMessage(), e);
             }
           }
         );
@@ -358,9 +424,8 @@ public class StripeTerminal
         .retrievePaymentIntent(
           clientSecret,
           new PaymentIntentCallback() {
-
             @Override
-            public void onSuccess(@Nonnull PaymentIntent paymentIntent) {
+            public void onSuccess(@NonNull PaymentIntent paymentIntent) {
               currentPaymentIntent = paymentIntent;
               JSObject ret = new JSObject();
               ret.put(
@@ -371,9 +436,9 @@ public class StripeTerminal
             }
 
             @Override
-            public void onFailure(@Nonnull TerminalException e) {
+            public void onFailure(@NonNull TerminalException e) {
               currentPaymentIntent = null;
-              call.error(e.getErrorMessage(), e);
+              call.reject(e.getErrorMessage(), e);
             }
           }
         );
@@ -390,11 +455,9 @@ public class StripeTerminal
           .getInstance()
           .collectPaymentMethod(
             currentPaymentIntent,
-            this,
             new PaymentIntentCallback() {
-
               @Override
-              public void onSuccess(@Nonnull PaymentIntent paymentIntent) {
+              public void onSuccess(@NonNull PaymentIntent paymentIntent) {
                 pendingCollectPaymentMethod = null;
                 currentPaymentIntent = paymentIntent;
 
@@ -411,9 +474,13 @@ public class StripeTerminal
               }
 
               @Override
-              public void onFailure(@Nonnull TerminalException e) {
+              public void onFailure(@NonNull TerminalException e) {
                 pendingCollectPaymentMethod = null;
-                call.error(e.getErrorMessage(), e.getErrorCode().toString(), e);
+                call.reject(
+                  e.getErrorMessage(),
+                  e.getErrorCode().toString(),
+                  e
+                );
               }
             }
           );
@@ -425,14 +492,13 @@ public class StripeTerminal
   }
 
   @PluginMethod
-  public void abortCollectPaymentMethod(final PluginCall call) {
+  public void cancelCollectPaymentMethod(final PluginCall call) {
     if (
       pendingCollectPaymentMethod != null &&
       !pendingCollectPaymentMethod.isCompleted()
     ) {
       pendingCollectPaymentMethod.cancel(
         new Callback() {
-
           @Override
           public void onSuccess() {
             pendingCollectPaymentMethod = null;
@@ -440,11 +506,13 @@ public class StripeTerminal
           }
 
           @Override
-          public void onFailure(@Nonnull TerminalException e) {
-            call.error(e.getErrorMessage());
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage());
           }
         }
       );
+    } else {
+      call.resolve();
     }
   }
 
@@ -456,9 +524,8 @@ public class StripeTerminal
         .processPayment(
           currentPaymentIntent,
           new PaymentIntentCallback() {
-
             @Override
-            public void onSuccess(@Nonnull PaymentIntent paymentIntent) {
+            public void onSuccess(@NonNull PaymentIntent paymentIntent) {
               currentPaymentIntent = paymentIntent;
 
               JSObject ret = new JSObject();
@@ -473,8 +540,8 @@ public class StripeTerminal
             }
 
             @Override
-            public void onFailure(@Nonnull TerminalException e) {
-              call.error(e.getErrorMessage(), e.getErrorCode().toString(), e);
+            public void onFailure(@NonNull TerminalException e) {
+              call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
             }
           }
         );
@@ -486,72 +553,24 @@ public class StripeTerminal
   }
 
   @PluginMethod
-  public void clearCachedCredentials(PluginCall call) {
+  public void clearCachedCredentials(@NonNull PluginCall call) {
     Terminal.getInstance().clearCachedCredentials();
     call.resolve();
   }
 
   @PluginMethod
-  public void checkForUpdate(final PluginCall call) {
-    Terminal
-      .getInstance()
-      .checkForUpdate(
-        new ReaderSoftwareUpdateCallback() {
-
-          @Override
-          public void onSuccess(
-            @Nullable ReaderSoftwareUpdate readerSoftwareUpdate
-          ) {
-            StripeTerminal.this.readerSoftwareUpdate = readerSoftwareUpdate;
-
-            JSObject ret = new JSObject();
-            ret.put(
-              "update",
-              TerminalUtils.serializeUpdate(readerSoftwareUpdate)
-            );
-
-            call.resolve(ret);
-          }
-
-          @Override
-          public void onFailure(@Nonnull TerminalException e) {
-            call.error(e.getErrorMessage(), e);
-          }
-        }
-      );
+  public void installAvailableUpdate(final PluginCall call) {
+    if (currentUpdate != null) {
+      Terminal.getInstance().installAvailableUpdate();
+      call.resolve();
+    }
   }
 
   @PluginMethod
-  public void installUpdate(final PluginCall call) {
-    pendingInstallUpdate =
-      Terminal
-        .getInstance()
-        .installUpdate(
-          readerSoftwareUpdate,
-          this,
-          new Callback() {
-
-            @Override
-            public void onSuccess() {
-              readerSoftwareUpdate = null;
-              pendingInstallUpdate = null;
-              call.resolve();
-            }
-
-            @Override
-            public void onFailure(@Nonnull TerminalException e) {
-              call.error(e.getErrorMessage(), e);
-            }
-          }
-        );
-  }
-
-  @PluginMethod
-  public void abortInstallUpdate(final PluginCall call) {
+  public void cancelInstallUpdate(final PluginCall call) {
     if (pendingInstallUpdate != null && !pendingInstallUpdate.isCompleted()) {
       pendingInstallUpdate.cancel(
         new Callback() {
-
           @Override
           public void onSuccess() {
             pendingInstallUpdate = null;
@@ -559,8 +578,8 @@ public class StripeTerminal
           }
 
           @Override
-          public void onFailure(@Nonnull TerminalException e) {
-            call.error(e.getErrorMessage(), e);
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage(), e);
           }
         }
       );
@@ -569,26 +588,182 @@ public class StripeTerminal
     }
   }
 
-  public void abortInstallUpdate() {
+  public void cancelInstallUpdate() {
     if (pendingInstallUpdate != null && !pendingInstallUpdate.isCompleted()) {
       pendingInstallUpdate.cancel(
         new Callback() {
-
           @Override
           public void onSuccess() {
             pendingInstallUpdate = null;
           }
 
           @Override
-          public void onFailure(@Nonnull TerminalException e) {}
+          public void onFailure(@NonNull TerminalException e) {}
         }
       );
     }
   }
 
+  @PluginMethod
+  public void setReaderDisplay(@NonNull final PluginCall call) {
+    JSArray lineItems = call.getArray("lineItems");
+    String currency = call.getString("currency", "usd");
+    int tax = call.getInt("tax", 0);
+    int total = call.getInt("total", 0);
+
+    List<JSONObject> lineItemsList;
+    try {
+      lineItemsList = lineItems.toList();
+    } catch (JSONException e) {
+      e.printStackTrace();
+      call.reject(e.getLocalizedMessage(), null, e);
+      return;
+    }
+
+    List<CartLineItem> lineItemsArr = new ArrayList();
+    for (JSONObject item : lineItemsList) {
+      if (item != null) {
+        try {
+          JSObject obj = JSObject.fromJSONObject(item);
+          String displayName = obj.getString("displayName");
+          Integer quantity = obj.getInteger("quantity");
+          Integer amount = obj.getInteger("amount");
+
+          CartLineItem li = new CartLineItem(displayName, quantity, amount);
+          lineItemsArr.add(li);
+        } catch (JSONException e) {
+          e.printStackTrace();
+          call.reject(e.getLocalizedMessage(), null, e);
+          return;
+        }
+      }
+    }
+
+    Cart cart = new Cart(currency, tax, total, lineItemsArr);
+
+    Terminal
+      .getInstance()
+      .setReaderDisplay(
+        cart,
+        new Callback() {
+          @Override
+          public void onSuccess() {
+            call.resolve();
+          }
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+          }
+        }
+      );
+  }
+
+  @PluginMethod
+  public void clearReaderDisplay(final PluginCall call) {
+    Terminal
+      .getInstance()
+      .clearReaderDisplay(
+        new Callback() {
+          @Override
+          public void onSuccess() {
+            call.resolve();
+          }
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+          }
+        }
+      );
+  }
+
+  @PluginMethod
+  public void listLocations(@NonNull final PluginCall call) {
+    Integer limit = call.getInt("limit");
+    String endingBefore = call.getString("endingBefore");
+    String startingAfter = call.getString("startingAfter");
+
+    ListLocationsParameters params = new ListLocationsParameters();
+
+    if (limit != null || endingBefore != null || startingAfter != null) {
+      params = new ListLocationsParameters(limit, endingBefore, startingAfter);
+    }
+
+    Terminal
+      .getInstance()
+      .listLocations(
+        params,
+        new LocationListCallback() {
+          @Override
+          public void onSuccess(@NonNull List<Location> list, boolean hasMore) {
+            JSObject object = new JSObject();
+            JSArray locationsArray = new JSArray();
+            for (Location location : list) {
+              if (location != null) {
+                locationsArray.put(TerminalUtils.serializeLocation(location));
+              }
+            }
+
+            object.put("hasMore", hasMore);
+            object.put("locations", locationsArray);
+
+            call.resolve(object);
+          }
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+          }
+        }
+      );
+  }
+
+  @PluginMethod
+  public void getSimulatorConfiguration(@NonNull final PluginCall call) {
+    SimulatorConfiguration config = Terminal
+      .getInstance()
+      .getSimulatorConfiguration();
+    JSObject serialized = TerminalUtils.serializeSimulatorConfiguration(config);
+
+    call.resolve(serialized);
+  }
+
+  @PluginMethod
+  public void setSimulatorConfiguration(@NonNull final PluginCall call) {
+    Integer availableReaderUpdateInt = call.getInt("availableReaderUpdate");
+    Integer simulatedCardInt = call.getInt("simulatedCard");
+
+    SimulatorConfiguration currentConfig = Terminal
+      .getInstance()
+      .getSimulatorConfiguration();
+
+    SimulateReaderUpdate availableReaderUpdate = currentConfig.getUpdate();
+    SimulatedCard simulatedCard = currentConfig.getSimulatedCard();
+
+    if (availableReaderUpdateInt != null) {
+      availableReaderUpdate =
+        SimulateReaderUpdate.values()[availableReaderUpdateInt];
+    }
+
+    if (simulatedCardInt != null) {
+      SimulatedCardType type = SimulatedCardType.values()[simulatedCardInt];
+      simulatedCard = new SimulatedCard(type);
+    }
+
+    SimulatorConfiguration newConfig = new SimulatorConfiguration(
+      availableReaderUpdate,
+      simulatedCard
+    );
+
+    Terminal.getInstance().setSimulatorConfiguration(newConfig);
+
+    getSimulatorConfiguration(call);
+  }
+
   @Override
   public void fetchConnectionToken(
-    @NotNull ConnectionTokenCallback connectionTokenCallback
+    @NonNull ConnectionTokenCallback connectionTokenCallback
   ) {
     pendingConnectionTokenCallback = connectionTokenCallback;
 
@@ -598,7 +773,7 @@ public class StripeTerminal
 
   @Override
   public void onConnectionStatusChange(
-    @NotNull ConnectionStatus connectionStatus
+    @NonNull ConnectionStatus connectionStatus
   ) {
     JSObject ret = new JSObject();
     ret.put("status", connectionStatus.ordinal());
@@ -607,7 +782,7 @@ public class StripeTerminal
   }
 
   @Override
-  public void onPaymentStatusChange(@NotNull PaymentStatus paymentStatus) {
+  public void onPaymentStatusChange(@NonNull PaymentStatus paymentStatus) {
     JSObject ret = new JSObject();
     ret.put("status", paymentStatus.ordinal());
 
@@ -620,7 +795,7 @@ public class StripeTerminal
   }
 
   @Override
-  public void onReportReaderEvent(@NotNull ReaderEvent readerEvent) {
+  public void onReportReaderEvent(@NonNull ReaderEvent readerEvent) {
     lastReaderEvent = readerEvent;
     JSObject ret = new JSObject();
     ret.put("event", readerEvent.ordinal());
@@ -628,14 +803,14 @@ public class StripeTerminal
   }
 
   @Override
-  public void onUnexpectedReaderDisconnect(@NotNull Reader reader) {
+  public void onUnexpectedReaderDisconnect(@NonNull Reader reader) {
     JSObject ret = new JSObject();
     ret.put("reader", TerminalUtils.serializeReader(reader));
     notifyListeners("didReportUnexpectedReaderDisconnect", ret);
   }
 
   @Override
-  public void onUpdateDiscoveredReaders(@NotNull List<? extends Reader> list) {
+  public void onUpdateDiscoveredReaders(@NonNull List<Reader> list) {
     discoveredReadersList = list;
 
     JSArray readersDiscoveredArr = new JSArray();
@@ -647,13 +822,14 @@ public class StripeTerminal
 
     JSObject ret = new JSObject();
     ret.put("readers", readersDiscoveredArr);
+    ret.put("platform", "android");
 
     notifyListeners("readersDiscovered", ret);
   }
 
   @Override
   public void onRequestReaderDisplayMessage(
-    @NotNull ReaderDisplayMessage readerDisplayMessage
+    @NonNull ReaderDisplayMessage readerDisplayMessage
   ) {
     JSObject ret = new JSObject();
     ret.put("value", readerDisplayMessage.ordinal());
@@ -664,7 +840,7 @@ public class StripeTerminal
 
   @Override
   public void onRequestReaderInput(
-    @NotNull ReaderInputOptions readerInputOptions
+    @NonNull ReaderInputOptions readerInputOptions
   ) {
     JSObject ret = new JSObject();
     ret.put("value", readerInputOptions.toString());
@@ -679,5 +855,45 @@ public class StripeTerminal
     ret.put("progress", v);
 
     notifyListeners("didReportReaderSoftwareUpdateProgress", ret);
+  }
+
+  @Override
+  public void onFinishInstallingUpdate(
+    ReaderSoftwareUpdate readerSoftwareUpdate,
+    TerminalException e
+  ) {
+    JSObject ret = new JSObject();
+    if (e != null) {
+      ret.put("error", e.getErrorMessage());
+    } else if (readerSoftwareUpdate != null) {
+      ret.put("update", TerminalUtils.serializeUpdate(readerSoftwareUpdate));
+      currentUpdate = null;
+      pendingInstallUpdate = null;
+    }
+    notifyListeners("didFinishInstallingUpdate", ret);
+  }
+
+  @Override
+  public void onReportAvailableUpdate(
+    @NonNull ReaderSoftwareUpdate readerSoftwareUpdate
+  ) {
+    currentUpdate = readerSoftwareUpdate;
+
+    JSObject ret = new JSObject();
+    ret.put("update", TerminalUtils.serializeUpdate(readerSoftwareUpdate));
+    notifyListeners("didReportAvailableUpdate", ret);
+  }
+
+  @Override
+  public void onStartInstallingUpdate(
+    @NonNull ReaderSoftwareUpdate readerSoftwareUpdate,
+    Cancelable cancelable
+  ) {
+    pendingInstallUpdate = cancelable;
+    currentUpdate = readerSoftwareUpdate;
+
+    JSObject ret = new JSObject();
+    ret.put("update", TerminalUtils.serializeUpdate(readerSoftwareUpdate));
+    notifyListeners("didStartInstallingUpdate", ret);
   }
 }
