@@ -433,6 +433,18 @@ public class StripeTerminal
   }
 
   @PluginMethod
+  public void getPaymentStatus(PluginCall call) {
+    PaymentStatus status = Terminal.getInstance().getPaymentStatus();
+
+    JSObject ret = new JSObject();
+    ret.put(
+      "status",
+      TerminalUtils.translatePaymentStatusToJS(status.ordinal())
+    );
+    call.resolve(ret);
+  }
+
+  @PluginMethod
   public void retrievePaymentIntent(final PluginCall call) {
     String clientSecret = call.getString("clientSecret");
 

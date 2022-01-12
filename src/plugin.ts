@@ -8,6 +8,7 @@ import {
   BluetoothConnectionConfiguration,
   Reader,
   ConnectionStatus,
+  PaymentStatus,
   ReaderDisplayMessage,
   ReaderInputOptions,
   PaymentIntent,
@@ -307,6 +308,14 @@ export class StripeTerminalPlugin {
     const data = await StripeTerminal.getConnectionStatus()
 
     return this.translateConnectionStatus(data)
+  }
+
+  public async getPaymentStatus(): Promise<PaymentStatus> {
+    this.ensureInitialized()
+
+    const data = await StripeTerminal.getPaymentStatus()
+
+    return data?.status
   }
 
   public async disconnectReader(): Promise<void> {

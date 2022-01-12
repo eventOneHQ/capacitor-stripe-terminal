@@ -233,6 +233,10 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         call.resolve(["status": Terminal.shared.connectionStatus.rawValue])
     }
 
+    @objc func getPaymentStatus(_ call: CAPPluginCall) {
+        call.resolve(["status": Terminal.shared.paymentStatus.rawValue])
+    }
+
     @objc func getConnectedReader(_ call: CAPPluginCall) {
         if let reader = Terminal.shared.connectedReader {
             let reader = StripeTerminalUtils.serializeReader(reader: reader)
