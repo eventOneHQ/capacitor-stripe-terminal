@@ -24,6 +24,28 @@ export enum ConnectionStatus {
 }
 
 /**
+ * The possible payment statuses for the SDK.
+ */
+export enum PaymentStatus {
+  /**
+   * The SDK is not ready to start a payment. It may be busy with another command, or a reader may not be connected.
+   */
+  NotReady = 0,
+  /**
+   * The SDK is ready to start a payment.
+   */
+  Ready = 1,
+  /**
+   * The SDK is waiting for input from the customer (e.g., for a card to be presented to the reader)
+   */
+  WaitingForInput = 2,
+  /**
+   * The SDK is processing a payment.
+   */
+  Processing = 3
+}
+
+/**
  * The possible device types for a reader.
  *
  * @category Reader
@@ -708,6 +730,8 @@ export interface StripeTerminalInterface {
     status: ConnectionStatus
     isAndroid?: boolean
   }>
+
+  getPaymentStatus(): Promise<{ status: PaymentStatus }>
 
   disconnectReader(): Promise<void>
 
