@@ -2,6 +2,7 @@ package io.event1.capacitorstripeterminal;
 
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
+import android.os.Build;
 import androidx.annotation.NonNull;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -101,7 +102,10 @@ public class StripeTerminal
   public void initialize(PluginCall call) {
     if (getPermissionState("location") != PermissionState.GRANTED) {
       requestPermissionForAlias("location", call, "locationPermsCallback");
-    } else if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+    } else if (
+      getPermissionState("bluetooth") != PermissionState.GRANTED &&
+      Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    ) {
       requestPermissionForAlias("bluetooth", call, "bluetoothPermsCallback");
     } else {
       _initialize(call);
@@ -110,7 +114,10 @@ public class StripeTerminal
 
   @PermissionCallback
   private void bluetoothPermsCallback(PluginCall call) {
-    if (getPermissionState("bluetooth") == PermissionState.GRANTED) {
+    if (
+      getPermissionState("bluetooth") == PermissionState.GRANTED ||
+      Build.VERSION.SDK_INT < Build.VERSION_CODES.S
+    ) {
       _initialize(call);
     } else {
       call.reject("Bluetooth permissions are required.");
