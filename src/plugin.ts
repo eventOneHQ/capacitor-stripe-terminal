@@ -40,13 +40,13 @@ const AndroidConnectionStatusMap = {
 export class StripeTerminalPlugin {
   public isInitialized = false
 
-  private stripeTerminalWeb: StripeTerminalWeb
+  private stripeTerminalWeb?: StripeTerminalWeb
 
   private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
   private _onUnexpectedReaderDisconnect: () => void = () => {
     // reset the sdk type
-    this.sdkType = 'native'
+    this.selectedSdkType = 'native'
 
     return Promise.reject('You must initialize StripeTerminalPlugin first.')
   }
@@ -56,10 +56,23 @@ export class StripeTerminalPlugin {
 
   private simulatedCardType: SimulatedCardType
 
-  private sdkType: 'native' | 'js' = 'native'
+  private selectedSdkType: 'native' | 'js' = 'native'
+
+  private get activeSdkType(): 'native' | 'js' {
+    if (
+      this.selectedSdkType === 'js' &&
+      this.stripeTerminalWeb &&
+      this.isNative()
+    ) {
+      // only actually use the js sdk if its selected, initialized, and the app is running in a native environment
+      return 'js'
+    } else {
+      return 'native'
+    }
+  }
 
   private get sdk(): StripeTerminalInterface {
-    if (this.sdkType === 'js' && this.stripeTerminalWeb) {
+    if (this.activeSdkType === 'js') {
       return this.stripeTerminalWeb
     } else {
       return StripeTerminal
@@ -86,6 +99,10 @@ export class StripeTerminalPlugin {
 
   private requestConnectionToken(sdkType: string) {
     const sdk = sdkType === 'native' ? StripeTerminal : this.stripeTerminalWeb
+
+    if (!sdk) {
+      return
+    }
 
     this._fetchConnectionToken()
       .then(token => {
@@ -175,7 +192,7 @@ export class StripeTerminalPlugin {
 
       StripeTerminal.addListener(name, (data: any) => {
         // only send the event if the native sdk is in use
-        if (this.sdkType === 'native') {
+        if (this.activeSdkType === 'native') {
           if (transformFunc) {
             return subscriber.next(transformFunc(data))
           }
@@ -190,7 +207,7 @@ export class StripeTerminalPlugin {
         this.stripeTerminalWeb
           .addListener(name, (data: any) => {
             // only send the event if the js sdk is in use
-            if (this.sdkType === 'js') {
+            if (this.activeSdkType === 'js') {
               if (transformFunc) {
                 return subscriber.next(transformFunc(data))
               }
@@ -307,10 +324,10 @@ export class StripeTerminalPlugin {
       let jsReaderList: Reader[] = []
 
       // reset the sdk type
-      this.sdkType = 'native'
+      this.selectedSdkType = 'native'
 
       if (options.discoveryMethod === DiscoveryMethod.Internet) {
-        this.sdkType = 'js'
+        this.selectedSdkType = 'js'
       }
 
       this.sdk
@@ -365,7 +382,7 @@ export class StripeTerminalPlugin {
 
         const jsOptions: DiscoveryConfiguration = {
           ...options,
-          discoveryMethod: DiscoveryMethod.Internet
+          discoveryMethod: DiscoveryMethod.Internet // discovery method is always going to be internet for the js sdk, although, it really doesn't matter because it will be ignored anyway
         }
 
         // TODO: figure out what to do with errors and completion on this method. maybe just ignore them?
@@ -387,7 +404,7 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     // if connecting to an Bluetooth reader, make sure to switch to the native SDK
-    this.sdkType = 'native'
+    this.selectedSdkType = 'native'
 
     const data = await this.sdk.connectBluetoothReader({
       serialNumber: reader.serialNumber,
@@ -404,7 +421,7 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     // if connecting to an internet reader, make sure to switch to the JS SDK
-    this.sdkType = 'js'
+    this.selectedSdkType = 'js'
 
     const data = await this.sdk.connectInternetReader({
       serialNumber: reader.serialNumber,
@@ -482,7 +499,7 @@ export class StripeTerminalPlugin {
       // then listen for changes
       StripeTerminal.addListener('didChangeConnectionStatus', (status: any) => {
         // only send an event if we are currently on this sdk type
-        if (this.sdkType === 'native') {
+        if (this.activeSdkType === 'native') {
           hasSentEvent = true
           subscriber.next(this.translateConnectionStatus(status))
         }
@@ -492,9 +509,9 @@ export class StripeTerminalPlugin {
 
       // then listen for js changes
       this.stripeTerminalWeb
-        .addListener('didChangeConnectionStatus', (status: any) => {
+        ?.addListener('didChangeConnectionStatus', (status: any) => {
           // only send an event if we are currently on this sdk type
-          if (this.sdkType === 'js') {
+          if (this.activeSdkType === 'js') {
             hasSentEvent = true
             subscriber.next(this.translateConnectionStatus(status))
           }
