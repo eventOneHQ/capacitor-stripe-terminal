@@ -350,6 +350,11 @@ export class StripeTerminalPlugin {
             : options.discoveryMethod
       }
 
+      if (nativeOptions.discoveryMethod !== DiscoveryMethod.Internet) {
+        // remove locationId if the native discovery method is not internet
+        nativeOptions.locationId = null
+      }
+
       // start discovery
       this.isDiscovering = true
       this.sdk
