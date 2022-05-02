@@ -24,6 +24,7 @@ import com.stripe.stripeterminal.external.callable.LocationListCallback;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
 import com.stripe.stripeterminal.external.callable.ReaderCallback;
 import com.stripe.stripeterminal.external.callable.TerminalListener;
+import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.Cart;
 import com.stripe.stripeterminal.external.models.CartLineItem;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.BluetoothConnectionConfiguration;
@@ -919,6 +920,20 @@ public class StripeTerminal
     JSObject ret = new JSObject();
     ret.put("update", TerminalUtils.serializeUpdate(readerSoftwareUpdate));
     notifyListeners("didReportAvailableUpdate", ret);
+  }
+
+  @Override
+  public void onBatteryLevelUpdate(
+    float batteryLevel,
+    @NonNull BatteryStatus batteryStatus,
+    boolean isCharging
+  ) {
+    JSObject ret = new JSObject();
+    ret.put("batteryLevel", batteryLevel);
+    ret.put("batteryStatus", batteryStatus.ordinal());
+    ret.put("isCharging", isCharging);
+
+    notifyListeners("didReportBatteryLevel", ret);
   }
 
   @Override
