@@ -2,6 +2,7 @@ package io.event1.capacitorstripeterminal;
 
 import com.getcapacitor.JSObject;
 import com.stripe.stripeterminal.external.models.Address;
+import com.stripe.stripeterminal.external.models.DeviceType;
 import com.stripe.stripeterminal.external.models.DiscoveryMethod;
 import com.stripe.stripeterminal.external.models.Location;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
@@ -181,15 +182,15 @@ public class TerminalUtils {
 
   // translate the android device type enum to the JS device type enum
   public static Integer translateDeviceTypeToJS(int type) {
-    if (type == 0) {
+    if (type == DeviceType.CHIPPER_2X.ordinal()) {
       return 0;
-    } else if (type == 1) {
+    } else if (type == DeviceType.STRIPE_M2.ordinal()) {
       return 3;
-    } else if (type == 3) {
+    } else if (type == DeviceType.VERIFONE_P400.ordinal()) {
       return 1;
-    } else if (type == 4) {
+    } else if (type == DeviceType.WISEPAD_3.ordinal()) {
       return 2;
-    } else if (type == 5) {
+    } else if (type == DeviceType.WISEPOS_E.ordinal()) {
       return 4;
     } else {
       return 5;
