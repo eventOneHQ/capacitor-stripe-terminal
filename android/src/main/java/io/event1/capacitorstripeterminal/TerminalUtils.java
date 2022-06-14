@@ -2,11 +2,16 @@ package io.event1.capacitorstripeterminal;
 
 import com.getcapacitor.JSObject;
 import com.stripe.stripeterminal.external.models.Address;
+import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.DeviceType;
 import com.stripe.stripeterminal.external.models.DiscoveryMethod;
 import com.stripe.stripeterminal.external.models.Location;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
+import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
+import com.stripe.stripeterminal.external.models.PaymentStatus;
 import com.stripe.stripeterminal.external.models.Reader;
+import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
+import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 
@@ -199,41 +204,84 @@ public class TerminalUtils {
 
   // translate the android status enum to the JS status enum
   public static Integer translatePaymentIntentStatusToJS(int status) {
-    if (status == 0) {
-      return 4;
-    } else if (status == 1) {
-      return 2;
-    } else if (status == 2) {
-      return 1;
-    } else if (status == 3) {
+    if (status == PaymentIntentStatus.REQUIRES_PAYMENT_METHOD.ordinal()) {
       return 0;
-    } else if (status == 4) {
+    } else if (status == PaymentIntentStatus.REQUIRES_CONFIRMATION.ordinal()) {
+      return 1;
+    } else if (status == PaymentIntentStatus.REQUIRES_CAPTURE.ordinal()) {
+      return 2;
+    } else if (status == 5) { // PaymentIntentStatus seems to be missing a value for Processing??
+      return 3;
+    } else if (status == PaymentIntentStatus.CANCELED.ordinal()) {
+      return 4;
+    } else if (status == PaymentIntentStatus.SUCCEEDED.ordinal()) {
       return 5;
     } else {
-      return 5;
+      return 0;
     }
   }
 
   // translate the android status enum to the JS status enum
   public static Integer translatePaymentStatusToJS(int status) {
-    if (status == 0) {
-      return 3;
-    } else if (status == 1) {
-      return 2;
-    } else if (status == 2) {
+    if (status == PaymentStatus.NOT_READY.ordinal()) {
+      return 0;
+    } else if (status == PaymentStatus.READY.ordinal()) {
       return 1;
-    } else if (status == 3) {
+    } else if (status == PaymentStatus.WAITING_FOR_INPUT.ordinal()) {
+      return 2;
+    } else if (status == PaymentStatus.PROCESSING.ordinal()) {
+      return 3;
+    } else {
+      return PaymentStatus.NOT_READY.ordinal();
+    }
+  }
+
+  public static Integer translateNetworkStatusToJS(int status) {
+    if (status == Reader.NetworkStatus.ONLINE.ordinal()) {
+      return 1;
+    } else if (status == Reader.NetworkStatus.OFFLINE.ordinal()) {
       return 0;
     } else {
       return 0;
     }
   }
 
-  public static Integer translateNetworkStatusToJS(int status) {
-    if (status == 0) {
-      return 1; // online
+  public static Integer translateConnectionStatusToJS(int status) {
+    if (status == ConnectionStatus.NOT_CONNECTED.ordinal()) {
+      return 0;
+    } else if (status == ConnectionStatus.CONNECTED.ordinal()) {
+      return 1;
+    } else if (status == ConnectionStatus.CONNECTING.ordinal()) {
+      return 2;
     } else {
-      return 0; // offline
+      return 0;
+    }
+  }
+
+  public static Integer translateReaderDisplayMessageToJS(int message) {
+    if (message == ReaderDisplayMessage.RETRY_CARD.ordinal()) {
+      return 0;
+    } else if (message == ReaderDisplayMessage.INSERT_CARD.ordinal()) {
+      return 1;
+    } else if (message == ReaderDisplayMessage.INSERT_OR_SWIPE_CARD.ordinal()) {
+      return 2;
+    } else if (message == ReaderDisplayMessage.SWIPE_CARD.ordinal()) {
+      return 3;
+    } else if (message == ReaderDisplayMessage.REMOVE_CARD.ordinal()) {
+      return 4;
+    } else if (
+      message ==
+      ReaderDisplayMessage.MULTIPLE_CONTACTLESS_CARDS_DETECTED.ordinal()
+    ) {
+      return 5;
+    } else if (
+      message == ReaderDisplayMessage.TRY_ANOTHER_READ_METHOD.ordinal()
+    ) {
+      return 6;
+    } else if (message == ReaderDisplayMessage.TRY_ANOTHER_CARD.ordinal()) {
+      return 7;
+    } else {
+      return 0;
     }
   }
 }
