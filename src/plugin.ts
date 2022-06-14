@@ -27,16 +27,6 @@ import {
 import { StripeTerminal } from './plugin-registration'
 import { StripeTerminalWeb } from './web'
 
-/**
- * The Android connection status enum is different from iOS, this maps Android to iOS
- * @ignore
- */
-const AndroidConnectionStatusMap = {
-  0: ConnectionStatus.NotConnected,
-  1: ConnectionStatus.Connecting,
-  2: ConnectionStatus.Connected
-}
-
 export class StripeTerminalPlugin {
   public isInitialized = false
 
@@ -52,6 +42,7 @@ export class StripeTerminalPlugin {
   }
 
   private isDiscovering = false
+  private isCollectingPaymentMethod = false
   private listeners: { [key: string]: PluginListenerHandle } = {}
 
   private simulatedCardType: SimulatedCardType
@@ -162,18 +153,61 @@ export class StripeTerminalPlugin {
     this.isInitialized = true
   }
 
-  private translateConnectionStatus(data: {
-    status: ConnectionStatus
+  private translateAndroidReaderInput(data: {
+    value: string
     isAndroid?: boolean
-  }): ConnectionStatus {
-    let status: ConnectionStatus = data.status
-
+  }): ReaderInputOptions {
     if (data.isAndroid) {
-      // the connection status on android is different than on iOS so we have to translate it
-      status = AndroidConnectionStatusMap[data.status]
+      const options = data.value.split('/').map((o: string) => o.trim())
+
+      if (
+        options.includes('Swipe') &&
+        options.includes('Tap') &&
+        options.includes('Insert')
+      ) {
+        return 7
+      } else if (
+        !options.includes('Swipe') &&
+        options.includes('Tap') &&
+        options.includes('Insert')
+      ) {
+        return 6
+      } else if (
+        options.includes('Swipe') &&
+        options.includes('Tap') &&
+        !options.includes('Insert')
+      ) {
+        return 5
+      } else if (
+        !options.includes('Swipe') &&
+        options.includes('Tap') &&
+        !options.includes('Insert')
+      ) {
+        return 4
+      } else if (
+        options.includes('Swipe') &&
+        !options.includes('Tap') &&
+        options.includes('Insert')
+      ) {
+        return 3
+      } else if (
+        !options.includes('Swipe') &&
+        !options.includes('Tap') &&
+        options.includes('Insert')
+      ) {
+        return 2
+      } else if (
+        options.includes('Swipe') &&
+        !options.includes('Tap') &&
+        !options.includes('Insert')
+      ) {
+        return 1
+      } else {
+        return 0
+      }
     }
 
-    return status
+    return parseFloat(data.value)
   }
 
   private _listenerToObservable(
@@ -462,7 +496,7 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.getConnectionStatus()
 
-    return this.translateConnectionStatus(data)
+    return data?.status
   }
 
   public async getPaymentStatus(): Promise<PaymentStatus> {
@@ -488,10 +522,10 @@ export class StripeTerminalPlugin {
       // get current value
       this.sdk
         .getConnectionStatus()
-        .then((status: any) => {
+        .then(data => {
           // only send the initial value if the event listener hasn't already
           if (!hasSentEvent) {
-            subscriber.next(this.translateConnectionStatus(status))
+            subscriber.next(data.status)
           }
         })
         .catch((err: any) => {
@@ -502,11 +536,11 @@ export class StripeTerminalPlugin {
       let listenerJs: PluginListenerHandle
 
       // then listen for changes
-      StripeTerminal.addListener('didChangeConnectionStatus', (status: any) => {
+      StripeTerminal.addListener('didChangeConnectionStatus', (data: any) => {
         // only send an event if we are currently on this sdk type
         if (this.activeSdkType === 'native') {
           hasSentEvent = true
-          subscriber.next(this.translateConnectionStatus(status))
+          subscriber.next(data?.status)
         }
       }).then(l => {
         listenerNative = l
@@ -514,11 +548,11 @@ export class StripeTerminalPlugin {
 
       // then listen for js changes
       this.stripeTerminalWeb
-        ?.addListener('didChangeConnectionStatus', (status: any) => {
+        ?.addListener('didChangeConnectionStatus', (data: any) => {
           // only send an event if we are currently on this sdk type
           if (this.activeSdkType === 'js') {
             hasSentEvent = true
-            subscriber.next(this.translateConnectionStatus(status))
+            subscriber.next(data?.status)
           }
         })
         .then(l => {
@@ -548,11 +582,7 @@ export class StripeTerminalPlugin {
 
   public didRequestReaderInput(): Observable<ReaderInputOptions> {
     return this._listenerToObservable('didRequestReaderInput', (data: any) => {
-      if (data.isAndroid) {
-        return data.value
-      }
-
-      return parseFloat(data.value)
+      return this.translateAndroidReaderInput(data)
     })
   }
 
@@ -615,11 +645,22 @@ export class StripeTerminalPlugin {
   }
 
   public async collectPaymentMethod(): Promise<PaymentIntent> {
-    this.ensureInitialized()
+    if (this.isCollectingPaymentMethod) {
+      return
+    }
 
-    const data = await this.sdk.collectPaymentMethod()
+    this.isCollectingPaymentMethod = true
+    try {
+      this.ensureInitialized()
 
-    return this.objectExists(data?.intent)
+      const data = await this.sdk.collectPaymentMethod()
+
+      return this.objectExists(data?.intent)
+    } catch (err) {
+      throw err
+    } finally {
+      this.isCollectingPaymentMethod = false
+    }
   }
 
   public async cancelCollectPaymentMethod(): Promise<void> {
@@ -645,11 +686,21 @@ export class StripeTerminalPlugin {
   public async setReaderDisplay(cart: Cart): Promise<void> {
     this.ensureInitialized()
 
+    // ignore if the sdk is currently collecting a payment method
+    if (this.isCollectingPaymentMethod) {
+      return
+    }
+
     return await this.sdk.setReaderDisplay(cart)
   }
 
   public async clearReaderDisplay(): Promise<void> {
     this.ensureInitialized()
+
+    // ignore if the sdk is currently collecting a payment method
+    if (this.isCollectingPaymentMethod) {
+      return
+    }
 
     return await this.sdk.clearReaderDisplay()
   }

@@ -435,7 +435,10 @@ public class StripeTerminal
     ConnectionStatus status = Terminal.getInstance().getConnectionStatus();
 
     JSObject ret = new JSObject();
-    ret.put("status", status.ordinal());
+    ret.put(
+      "status",
+      TerminalUtils.translateConnectionStatusToJS(status.ordinal())
+    );
     ret.put("isAndroid", true);
     call.resolve(ret);
   }
@@ -814,7 +817,10 @@ public class StripeTerminal
     @NonNull ConnectionStatus connectionStatus
   ) {
     JSObject ret = new JSObject();
-    ret.put("status", connectionStatus.ordinal());
+    ret.put(
+      "status",
+      TerminalUtils.translateConnectionStatusToJS(connectionStatus.ordinal())
+    );
     ret.put("isAndroid", true);
     notifyListeners("didChangeConnectionStatus", ret);
   }
@@ -870,7 +876,12 @@ public class StripeTerminal
     @NonNull ReaderDisplayMessage readerDisplayMessage
   ) {
     JSObject ret = new JSObject();
-    ret.put("value", readerDisplayMessage.ordinal());
+    ret.put(
+      "value",
+      TerminalUtils.translateReaderDisplayMessageToJS(
+        readerDisplayMessage.ordinal()
+      )
+    );
     ret.put("text", readerDisplayMessage.toString());
 
     notifyListeners("didRequestReaderDisplayMessage", ret);
