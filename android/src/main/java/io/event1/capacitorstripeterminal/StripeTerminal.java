@@ -2,6 +2,7 @@ package io.event1.capacitorstripeterminal;
 
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
+import android.os.Build;
 import androidx.annotation.NonNull;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -23,6 +24,7 @@ import com.stripe.stripeterminal.external.callable.LocationListCallback;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
 import com.stripe.stripeterminal.external.callable.ReaderCallback;
 import com.stripe.stripeterminal.external.callable.TerminalListener;
+import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.Cart;
 import com.stripe.stripeterminal.external.models.CartLineItem;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.BluetoothConnectionConfiguration;
@@ -57,6 +59,13 @@ import org.json.JSONObject;
     @Permission(
       strings = { Manifest.permission.ACCESS_FINE_LOCATION },
       alias = "location"
+    ),
+    @Permission(
+      strings = {
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.BLUETOOTH_SCAN
+      },
+      alias = "bluetooth"
     )
   }
 )
@@ -94,8 +103,25 @@ public class StripeTerminal
   public void initialize(PluginCall call) {
     if (getPermissionState("location") != PermissionState.GRANTED) {
       requestPermissionForAlias("location", call, "locationPermsCallback");
+    } else if (
+      getPermissionState("bluetooth") != PermissionState.GRANTED &&
+      Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    ) {
+      requestPermissionForAlias("bluetooth", call, "bluetoothPermsCallback");
     } else {
       _initialize(call);
+    }
+  }
+
+  @PermissionCallback
+  private void bluetoothPermsCallback(PluginCall call) {
+    if (
+      getPermissionState("bluetooth") == PermissionState.GRANTED ||
+      Build.VERSION.SDK_INT < Build.VERSION_CODES.S
+    ) {
+      _initialize(call);
+    } else {
+      call.reject("Bluetooth permissions are required.");
     }
   }
 
@@ -409,8 +435,23 @@ public class StripeTerminal
     ConnectionStatus status = Terminal.getInstance().getConnectionStatus();
 
     JSObject ret = new JSObject();
-    ret.put("status", status.ordinal());
+    ret.put(
+      "status",
+      TerminalUtils.translateConnectionStatusToJS(status.ordinal())
+    );
     ret.put("isAndroid", true);
+    call.resolve(ret);
+  }
+
+  @PluginMethod
+  public void getPaymentStatus(PluginCall call) {
+    PaymentStatus status = Terminal.getInstance().getPaymentStatus();
+
+    JSObject ret = new JSObject();
+    ret.put(
+      "status",
+      TerminalUtils.translatePaymentStatusToJS(status.ordinal())
+    );
     call.resolve(ret);
   }
 
@@ -776,7 +817,10 @@ public class StripeTerminal
     @NonNull ConnectionStatus connectionStatus
   ) {
     JSObject ret = new JSObject();
-    ret.put("status", connectionStatus.ordinal());
+    ret.put(
+      "status",
+      TerminalUtils.translateConnectionStatusToJS(connectionStatus.ordinal())
+    );
     ret.put("isAndroid", true);
     notifyListeners("didChangeConnectionStatus", ret);
   }
@@ -832,7 +876,12 @@ public class StripeTerminal
     @NonNull ReaderDisplayMessage readerDisplayMessage
   ) {
     JSObject ret = new JSObject();
-    ret.put("value", readerDisplayMessage.ordinal());
+    ret.put(
+      "value",
+      TerminalUtils.translateReaderDisplayMessageToJS(
+        readerDisplayMessage.ordinal()
+      )
+    );
     ret.put("text", readerDisplayMessage.toString());
 
     notifyListeners("didRequestReaderDisplayMessage", ret);
@@ -882,6 +931,20 @@ public class StripeTerminal
     JSObject ret = new JSObject();
     ret.put("update", TerminalUtils.serializeUpdate(readerSoftwareUpdate));
     notifyListeners("didReportAvailableUpdate", ret);
+  }
+
+  @Override
+  public void onBatteryLevelUpdate(
+    float batteryLevel,
+    @NonNull BatteryStatus batteryStatus,
+    boolean isCharging
+  ) {
+    JSObject ret = new JSObject();
+    ret.put("batteryLevel", batteryLevel);
+    ret.put("batteryStatus", batteryStatus.ordinal());
+    ret.put("isCharging", isCharging);
+
+    notifyListeners("didReportBatteryLevel", ret);
   }
 
   @Override

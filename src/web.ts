@@ -7,6 +7,7 @@ import {
   ConnectionStatus,
   PaymentIntent,
   PaymentIntentStatus,
+  PaymentStatus,
   DeviceType,
   ReaderNetworkStatus,
   BatteryStatus,
@@ -118,13 +119,23 @@ const testPaymentMethodMap: { [method: string]: SimulatedCardType } = {
 /**
  * @ignore
  */
-const paymentStatus: { [status: string]: PaymentIntentStatus } = {
+const paymentIntentStatus: { [status: string]: PaymentIntentStatus } = {
   requires_payment_method: PaymentIntentStatus.RequiresPaymentMethod,
   requires_confirmation: PaymentIntentStatus.RequiresConfirmation,
   requires_capture: PaymentIntentStatus.RequiresCapture,
   processing: PaymentIntentStatus.Processing,
   canceled: PaymentIntentStatus.Canceled,
   succeeded: PaymentIntentStatus.Succeeded
+}
+
+/**
+ * @ignore
+ */
+const paymentStatus: { [status: string]: PaymentStatus } = {
+  not_ready: PaymentStatus.NotReady,
+  ready: PaymentStatus.Ready,
+  waiting_for_input: PaymentStatus.WaitingForInput,
+  processing: PaymentStatus.Processing
 }
 
 /**
@@ -327,6 +338,14 @@ export class StripeTerminalWeb
     }
   }
 
+  async getPaymentStatus(): Promise<{ status: PaymentStatus }> {
+    const status = this.instance.getPaymentStatus()
+
+    return {
+      status: paymentStatus[status]
+    }
+  }
+
   async disconnectReader(): Promise<void> {
     await this.instance.disconnectReader()
   }
@@ -381,7 +400,7 @@ export class StripeTerminalWeb
       intent: {
         stripeId: json.id,
         created: json.created,
-        status: paymentStatus[json.status],
+        status: paymentIntentStatus[json.status],
         amount: json.amount,
         currency: json.currency
       }
@@ -403,7 +422,7 @@ export class StripeTerminalWeb
         intent: {
           stripeId: this.currentPaymentIntent.id,
           created: this.currentPaymentIntent.created,
-          status: paymentStatus[this.currentPaymentIntent.status],
+          status: paymentIntentStatus[this.currentPaymentIntent.status],
           amount: this.currentPaymentIntent.amount,
           currency: this.currentPaymentIntent.currency
         }
@@ -428,7 +447,7 @@ export class StripeTerminalWeb
         intent: {
           stripeId: res.paymentIntent.id,
           created: res.paymentIntent.created,
-          status: paymentStatus[res.paymentIntent.status],
+          status: paymentIntentStatus[res.paymentIntent.status],
           amount: res.paymentIntent.amount,
           currency: res.paymentIntent.currency
         }

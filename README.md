@@ -172,6 +172,20 @@ inputSubscription.unsubscribe()
 
 See the full API docs [here](https://oss.eventone.page/capacitor-stripe-terminal).
 
+## Sponsors
+
+<p>
+    <a href="https://event1.io/?utm_medium=opensource&utm_source=capacitor-stripe-terminal">
+        <img src="https://e1-com.eventone.page/brand/wordmark/wm.svg" width="200px">
+    </a>
+</p>
+
+<p>
+    <a href="https://tableneeds.com/?utm_medium=opensource&utm_source=capacitor-stripe-terminal">
+        <img src="https://tableneeds.com/wp-content/uploads/2021/08/tn-new.svg" width="200px">
+    </a>
+</p>
+
 ## Acknowledgements
 
 - Thanks [Stripe](https://stripe.com/terminal) for creating such an amazing product
