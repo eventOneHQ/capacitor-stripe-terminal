@@ -293,7 +293,7 @@ export interface Reader {
   /**
    * The Stripe unique identifier for the reader.
    */
-  stripeId?: string
+  stripeId: string | null
 
   /**
    * The ID of the reader’s [Location](https://stripe.com/docs/api/terminal/locations/object).
@@ -304,7 +304,7 @@ export interface Reader {
    *
    * @see https://stripe.com/docs/api/terminal/locations
    */
-  locationId?: string
+  locationId: string | null
 
   /**
    * Used to tell whether the `location` field has been set. Note that the Verifone P400 and simulated readers will always have an `unknown` `locationStatus`. (Chipper 2X BT and WisePad 3 only.)
@@ -319,7 +319,7 @@ export interface Reader {
   /**
    * The reader's current device software version, or `null` if this information is unavailable.
    */
-  deviceSoftwareVersion?: string
+  deviceSoftwareVersion: string | null
 
   /**
    * True if there is an available update.
@@ -329,7 +329,7 @@ export interface Reader {
   /**
    * The reader's battery level, represented as a boxed float in the range `[0, 1]`. If the reader does not have a battery, or the battery level is unknown, this value is `null`. (Bluetooth readers only.)
    */
-  batteryLevel?: number
+  batteryLevel: number | null
 
   /**
    * The reader's battery status. Usable as a general classification for the current battery state.
@@ -339,12 +339,12 @@ export interface Reader {
   /**
    * The reader's charging state, represented as a `boolean`. If the reader does not have a battery, or the battery level is unknown, this value is `null`. (Bluetooth readers only.)
    */
-  isCharging?: boolean
+  isCharging: boolean | null
 
   /**
    * The IP address of the reader. (Internet reader only.)
    */
-  ipAddress?: string
+  ipAddress: string | null
 
   /**
    * The networking status of the reader: either `offline` or `online`. Note that the Chipper 2X and the WisePad 3's statuses will always be `offline`. (Verifone P400 only.)
@@ -354,7 +354,7 @@ export interface Reader {
   /**
    * A custom label that may be given to a reader for easier identification. (Verifone P400 only.)
    */
-  label?: string
+  label: string | null
 
   /**
    * Has the value true if the object exists in live mode or the value false if the object exists in test mode.
@@ -708,7 +708,7 @@ export interface StripeTerminalInterface {
   setConnectionToken(
     options: {
       token?: string
-    },
+    } | null,
     errorMessage?: string
   ): Promise<void>
 
@@ -721,17 +721,16 @@ export interface StripeTerminalInterface {
   connectBluetoothReader(options: {
     serialNumber: string
     locationId: string
-  }): Promise<{ reader: Reader }>
+  }): Promise<{ reader: Reader | null }>
 
   connectInternetReader(options: {
     serialNumber: string
     ipAddress?: string
     stripeId?: string
     failIfInUse?: boolean
-    allowCustomerCancel?: boolean
-  }): Promise<{ reader: Reader }>
+  }): Promise<{ reader: Reader | null }>
 
-  getConnectedReader(): Promise<{ reader: Reader }>
+  getConnectedReader(): Promise<{ reader: Reader | null }>
 
   getConnectionStatus(): Promise<{
     status: ConnectionStatus
@@ -748,7 +747,7 @@ export interface StripeTerminalInterface {
 
   retrievePaymentIntent(options: {
     clientSecret: string
-  }): Promise<{ intent: PaymentIntent }>
+  }): Promise<{ intent: PaymentIntent | null }>
 
   collectPaymentMethod(): Promise<{ intent: PaymentIntent }>
 

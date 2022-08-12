@@ -426,7 +426,13 @@ public class StripeTerminal
   public void getConnectedReader(PluginCall call) {
     Reader reader = Terminal.getInstance().getConnectedReader();
     JSObject ret = new JSObject();
-    ret.put("reader", TerminalUtils.serializeReader(reader));
+
+    if (reader == null) {
+      ret.put("reader", JSObject.NULL);
+    } else {
+      ret.put("reader", TerminalUtils.serializeReader(reader));
+    }
+
     call.resolve(ret);
   }
 

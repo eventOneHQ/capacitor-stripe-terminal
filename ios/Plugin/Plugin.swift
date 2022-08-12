@@ -246,7 +246,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             let reader = StripeTerminalUtils.serializeReader(reader: reader)
             call.resolve(["reader": reader])
         } else {
-            call.resolve()
+            call.resolve(["reader": nil])
         }
     }
 
