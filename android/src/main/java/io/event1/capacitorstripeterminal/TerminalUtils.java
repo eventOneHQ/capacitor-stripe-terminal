@@ -190,6 +190,14 @@ public class TerminalUtils {
       return DiscoveryMethod.BLUETOOTH_SCAN;
     } else if (method == 2) {
       return DiscoveryMethod.INTERNET;
+    } else if (method == 4) {
+      return DiscoveryMethod.USB;
+    } else if (method == 5) {
+      return DiscoveryMethod.EMBEDDED;
+    } else if (method == 6) {
+      return DiscoveryMethod.HANDOFF;
+    } else if (method == 7) {
+      return DiscoveryMethod.LOCAL_MOBILE;
     } else {
       return DiscoveryMethod.BLUETOOTH_SCAN;
     }

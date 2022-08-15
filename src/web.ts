@@ -340,9 +340,41 @@ export class StripeTerminalWeb
     locationId: string
   }): Promise<{ reader: Reader | null }> {
     // no equivalent
+    console.warn('connectBluetoothReader is only available on iOS and Android.')
+    return { reader: null }
+  }
+  async connectUsbReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }> {
+    // no equivalent
+    console.warn('connectUsbReader is only available on Android.')
+    return { reader: null }
+  }
+  async connectEmbeddedReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }> {
+    // no equivalent
+    console.warn('connectEmbeddedReader is only available on Android.')
+    return { reader: null }
+  }
+  async connectLocalMobileReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }> {
+    // no equivalent
     console.warn(
-      'connectBluetoothReader is only available for on iOS and Android.'
+      'connectLocalMobileReader is only available on iOS and Android.'
     )
+    return { reader: null }
+  }
+  async connectHandoffReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }> {
+    // no equivalent
+    console.warn('connectHandoffReader is only available on Android.')
     return { reader: null }
   }
 

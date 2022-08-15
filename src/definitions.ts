@@ -133,7 +133,27 @@ export enum DiscoveryMethod {
    *
    * This mode is custom to the `capacitor-stripe-terminal` plugin and uses the native SDK for the BluetoothScan method while simultaneously using the JS SDK for the Internet method.
    */
-  Both
+  Both,
+
+  /**
+   * The USB discovery method allows the user to use the device's usb input(s) to interact with Stripe Terminal's usb-capable readers.
+   */
+  USB,
+
+  /**
+   * The Embedded discovery method allows the user to collect payments using the reader upon which the Application is currently running.
+   */
+  Embedded,
+
+  /**
+   * The Handoff discovery method is only supported when running directly on a reader. It allows the user to delegate the collecting of payments to a separate application that is responsible for collecting payments.
+   */
+  Handoff,
+
+  /**
+   * The LocalMobile discovery method allows the user to use the phone's or tablet's NFC reader as a payment terminal for NFC (tap) payments only.
+   */
+  LocalMobile
 }
 
 /**
@@ -237,11 +257,10 @@ export interface DiscoveryConfiguration {
    */
   locationId?: string
 }
-
 /**
  * @category Reader
  */
-export interface BluetoothConnectionConfiguration {
+export interface ConnectionConfiguration {
   /**
    * The ID of the [Location](https://stripe.com/docs/api/terminal/locations) which the reader should be registered to during connection.
    *
@@ -252,18 +271,48 @@ export interface BluetoothConnectionConfiguration {
    * @see https://stripe.com/docs/terminal/readers/fleet-management#bbpos-wisepad3-discovery
    */
   locationId: string
-}
 
-/**
- * @category Reader
- */
-export interface InternetConnectionConfiguration {
   /**
    * When set to true, the connection will automatically error if the reader is already connected to a device and collecting payment. When set to false, this will allow you to connect to a reader already connected to another device, and will break the existing reader-to-SDK connection on the other device when it attempts to collect payment.
    * @default false
    */
   failIfInUse?: boolean
+}
 
+/**
+ * @category Reader
+ */
+export interface BluetoothConnectionConfiguration
+  extends ConnectionConfiguration {}
+
+/**
+ * @category Reader
+ */
+export interface UsbConnectionConfiguration extends ConnectionConfiguration {}
+
+/**
+ * @category Reader
+ */
+export interface EmbeddedConnectionConfiguration
+  extends ConnectionConfiguration {}
+
+/**
+ * @category Reader
+ */
+export interface HandoffConnectionConfiguration
+  extends ConnectionConfiguration {}
+
+/**
+ * @category Reader
+ */
+export interface LocalMobileConnectionConfiguration
+  extends ConnectionConfiguration {}
+
+/**
+ * @category Reader
+ */
+export interface InternetConnectionConfiguration
+  extends ConnectionConfiguration {
   /**
    * If set to true, the customer will be able to press the red X button on the Verifone P400 to cancel a `collectPaymentMethod`, `collectReusableCard`, or `collectRefundPaymentMethod` command.
    *
@@ -728,6 +777,26 @@ export interface StripeTerminalInterface {
     ipAddress?: string
     stripeId?: string
     failIfInUse?: boolean
+  }): Promise<{ reader: Reader | null }>
+
+  connectUsbReader(options: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }>
+
+  connectLocalMobileReader(options: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }>
+
+  connectEmbeddedReader(options: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }>
+
+  connectHandoffReader(options: {
+    serialNumber: string
+    locationId: string
   }): Promise<{ reader: Reader | null }>
 
   getConnectedReader(): Promise<{ reader: Reader | null }>

@@ -8,6 +8,10 @@ import {
   DiscoveryMethod,
   InternetConnectionConfiguration,
   BluetoothConnectionConfiguration,
+  UsbConnectionConfiguration,
+  EmbeddedConnectionConfiguration,
+  HandoffConnectionConfiguration,
+  LocalMobileConnectionConfiguration,
   Reader,
   ConnectionStatus,
   PaymentStatus,
@@ -438,6 +442,11 @@ export class StripeTerminalPlugin {
     })
   }
 
+  /**
+   * Attempts to connect to the given bluetooth reader.
+   *
+   * @returns Reader
+   */
   public async connectBluetoothReader(
     reader: Reader,
     config: BluetoothConnectionConfiguration
@@ -455,6 +464,99 @@ export class StripeTerminalPlugin {
     return this.objectExists(data?.reader)
   }
 
+  /**
+   * Attempts to connect to the given reader via usb.
+   *
+   * @returns Reader
+   */
+  public async connectUsbReader(
+    reader: Reader,
+    config: UsbConnectionConfiguration
+  ): Promise<Reader | null> {
+    this.ensureInitialized()
+
+    // if connecting to a USB reader, make sure to switch to the native SDK
+    this.selectedSdkType = 'native'
+
+    const data = await this.sdk.connectUsbReader({
+      serialNumber: reader.serialNumber,
+      locationId: config.locationId
+    })
+
+    return this.objectExists(data?.reader)
+  }
+
+  /**
+   * Attempts to connect to the Reader upon which the Application is currently running.
+   *
+   * @returns Reader
+   */
+  public async connectEmbeddedReader(
+    reader: Reader,
+    config: EmbeddedConnectionConfiguration
+  ): Promise<Reader | null> {
+    this.ensureInitialized()
+
+    // if connecting to an embedded reader, make sure to switch to the native SDK
+    this.selectedSdkType = 'native'
+
+    const data = await this.sdk.connectEmbeddedReader({
+      serialNumber: reader.serialNumber,
+      locationId: config.locationId
+    })
+
+    return this.objectExists(data?.reader)
+  }
+
+  /**
+   * Attempts to connect to the given reader in handoff mode.
+   *
+   * @returns Reader
+   */
+  public async connectHandoffReader(
+    reader: Reader,
+    config: HandoffConnectionConfiguration
+  ): Promise<Reader | null> {
+    this.ensureInitialized()
+
+    // if connecting to a handoff reader, make sure to switch to the native SDK
+    this.selectedSdkType = 'native'
+
+    const data = await this.sdk.connectHandoffReader({
+      serialNumber: reader.serialNumber,
+      locationId: config.locationId
+    })
+
+    return this.objectExists(data?.reader)
+  }
+
+  /**
+   * Attempts to connect to the local device's NFC reader.
+   *
+   * @returns Reader
+   */
+  public async connectLocalMobileReader(
+    reader: Reader,
+    config: LocalMobileConnectionConfiguration
+  ): Promise<Reader | null> {
+    this.ensureInitialized()
+
+    // if connecting to a local reader, make sure to switch to the native SDK
+    this.selectedSdkType = 'native'
+
+    const data = await this.sdk.connectLocalMobileReader({
+      serialNumber: reader.serialNumber,
+      locationId: config.locationId
+    })
+
+    return this.objectExists(data?.reader)
+  }
+
+  /**
+   * Attempts to connect to the given internet reader.
+   *
+   * @returns Reader
+   */
   public async connectInternetReader(
     reader: Reader,
     config?: InternetConnectionConfiguration
