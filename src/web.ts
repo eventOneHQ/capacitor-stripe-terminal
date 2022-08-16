@@ -146,17 +146,27 @@ export class StripeTerminalWeb
   implements StripeTerminalInterface
 {
   private STRIPE_API_BASE = 'https://api.stripe.com'
-  private instance: Terminal
+  private instance: Terminal | null = null
 
-  private simulated: boolean
-  private currentClientSecret: string = null
-  private currentPaymentIntent: ISdkManagedPaymentIntent = null
-  private currentConnectionToken: string = null
+  private simulated: boolean = false
+  private currentClientSecret: string | null = null
+  private currentPaymentIntent: ISdkManagedPaymentIntent | null = null
+  private currentConnectionToken: string | null = null
 
   private connectionTokenCompletionSubject = new Subject<TokenResponse>()
 
   constructor() {
     super()
+  }
+
+  private ensureInitialized(): Terminal {
+    if (!this.instance) {
+      throw new Error(
+        'StripeTerminalPlugin must be initialized before you can use any methods.'
+      )
+    }
+
+    return this.instance
   }
 
   async getPermissions(): Promise<PermissionStatus> {
@@ -176,9 +186,13 @@ export class StripeTerminalWeb
   async setConnectionToken(
     options: {
       token?: string
-    },
+    } | null,
     errorMessage?: string
   ): Promise<void> {
+    if (!options?.token) {
+      return
+    }
+
     this.currentConnectionToken = options.token
     this.connectionTokenCompletionSubject.next({
       token: options.token,
@@ -189,6 +203,10 @@ export class StripeTerminalWeb
   async initialize(): Promise<void> {
     const ST = await loadStripeTerminal()
 
+    if (!ST) {
+      throw new Error('Terminal failed to load')
+    }
+
     this.instance = ST.create({
       onFetchConnectionToken: async () => {
         return new Promise((resolve, reject) => {
@@ -196,12 +214,11 @@ export class StripeTerminalWeb
 
           const sub = this.connectionTokenCompletionSubject.subscribe(
             ({ token, errorMessage }) => {
-              if (errorMessage) {
+              if (errorMessage || !token) {
                 sub.unsubscribe()
-                return reject(new Error(errorMessage))
+                return reject(new Error(errorMessage ?? 'No token found'))
               }
 
-              sub.unsubscribe()
               return resolve(token)
             }
           )
@@ -233,15 +250,19 @@ export class StripeTerminalWeb
     return {
       stripeId: sdkReader.id,
       deviceType: deviceTypes[sdkReader.device_type],
-      status: readerStatuses[sdkReader.status],
+      status: sdkReader.status
+        ? readerStatuses[sdkReader.status]
+        : ReaderNetworkStatus.Offline,
       serialNumber: sdkReader.serial_number,
       ipAddress: sdkReader.ip_address,
       locationId: this.isInstanceOfLocation(sdkReader.location)
         ? sdkReader.location.id
-        : sdkReader.location,
+        : sdkReader.location ?? null,
       label: sdkReader.label,
       deviceSoftwareVersion: sdkReader.device_sw_version,
       batteryStatus: BatteryStatus.Unknown,
+      batteryLevel: null,
+      isCharging: null,
       locationStatus: LocationStatus.Unknown,
       livemode: sdkReader.livemode,
       simulated: this.simulated
@@ -249,13 +270,15 @@ export class StripeTerminalWeb
   }
 
   async discoverReaders(options: DiscoveryConfiguration): Promise<void> {
+    const sdk = this.ensureInitialized()
+
     this.simulated = !!options.simulated
     const discoveryConfig: InternetMethodConfiguration = {
       simulated: options.simulated,
       location: options.locationId
     }
 
-    const discoverResult = await this.instance.discoverReaders(discoveryConfig)
+    const discoverResult = await sdk.discoverReaders(discoveryConfig)
 
     if ((discoverResult as DiscoverResult).discoveredReaders) {
       const discover: DiscoverResult = discoverResult as DiscoverResult
@@ -275,26 +298,30 @@ export class StripeTerminalWeb
 
   async cancelDiscoverReaders(): Promise<void> {}
 
-  async connectInternetReader(reader: Reader): Promise<{ reader: Reader }> {
-    const readerOpts: DiscoverReader = {
-      id: reader.stripeId,
-      object: 'terminal.reader',
-      device_type:
-        reader.deviceType === DeviceType.WisePosE
-          ? 'bbpos_wisepos_e'
-          : 'verifone_P400', // device type will always be one of these two and never the chipper2x
-      ip_address: reader.ipAddress,
-      serial_number: reader.serialNumber,
-      device_sw_version: reader.deviceSoftwareVersion,
-      label: reader.label,
-      livemode: reader.livemode,
-      location: reader.locationId,
-      metadata: {},
-      status:
-        reader.status === ReaderNetworkStatus.Offline ? 'offline' : 'online'
+  async connectInternetReader(options: {
+    serialNumber: string
+    ipAddress?: string
+    stripeId?: string
+    failIfInUse?: boolean
+    allowCustomerCancel?: boolean
+  }): Promise<{ reader: Reader }> {
+    const sdk = this.ensureInitialized()
+
+    if (!options.stripeId) {
+      throw new Error('Reader ID missing')
     }
 
-    const connectResult = await this.instance.connectReader(readerOpts)
+    // use any here since we don't have all the reader details and don't actually need them all
+    const readerOpts: any = {
+      id: options.stripeId,
+      object: 'terminal.reader',
+      ip_address: options.ipAddress ?? null,
+      serial_number: options.serialNumber
+    }
+
+    const connectResult = await sdk.connectReader(readerOpts, {
+      fail_if_in_use: options.failIfInUse
+    })
 
     if ((connectResult as ConnectResult).reader) {
       const result: ConnectResult = connectResult as ConnectResult
@@ -311,16 +338,50 @@ export class StripeTerminalWeb
   async connectBluetoothReader(_config: {
     serialNumber: string
     locationId: string
-  }): Promise<{ reader: Reader }> {
+  }): Promise<{ reader: Reader | null }> {
+    // no equivalent
+    console.warn('connectBluetoothReader is only available on iOS and Android.')
+    return { reader: null }
+  }
+  async connectUsbReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }> {
+    // no equivalent
+    console.warn('connectUsbReader is only available on Android.')
+    return { reader: null }
+  }
+  async connectEmbeddedReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }> {
+    // no equivalent
+    console.warn('connectEmbeddedReader is only available on Android.')
+    return { reader: null }
+  }
+  async connectLocalMobileReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }> {
     // no equivalent
     console.warn(
-      'connectBluetoothReader is only available for on iOS and Android.'
+      'connectLocalMobileReader is only available on iOS and Android.'
     )
     return { reader: null }
   }
+  async connectHandoffReader(_config: {
+    serialNumber: string
+    locationId: string
+  }): Promise<{ reader: Reader | null }> {
+    // no equivalent
+    console.warn('connectHandoffReader is only available on Android.')
+    return { reader: null }
+  }
 
-  async getConnectedReader(): Promise<{ reader: Reader }> {
-    const reader = this.instance.getConnectedReader()
+  async getConnectedReader(): Promise<{ reader: Reader | null }> {
+    const sdk = this.ensureInitialized()
+
+    const reader = sdk.getConnectedReader()
 
     if (!reader) {
       return { reader: null }
@@ -332,14 +393,18 @@ export class StripeTerminalWeb
   }
 
   async getConnectionStatus(): Promise<{ status: ConnectionStatus }> {
-    const status = this.instance.getConnectionStatus()
+    const sdk = this.ensureInitialized()
+
+    const status = sdk.getConnectionStatus()
     return {
       status: connectionStatus[status]
     }
   }
 
   async getPaymentStatus(): Promise<{ status: PaymentStatus }> {
-    const status = this.instance.getPaymentStatus()
+    const sdk = this.ensureInitialized()
+
+    const status = sdk.getPaymentStatus()
 
     return {
       status: paymentStatus[status]
@@ -347,7 +412,9 @@ export class StripeTerminalWeb
   }
 
   async disconnectReader(): Promise<void> {
-    await this.instance.disconnectReader()
+    const sdk = this.ensureInitialized()
+
+    await sdk.disconnectReader()
   }
 
   async installAvailableUpdate(): Promise<void> {
@@ -362,7 +429,7 @@ export class StripeTerminalWeb
 
   async retrievePaymentIntent(options: {
     clientSecret: string
-  }): Promise<{ intent: PaymentIntent }> {
+  }): Promise<{ intent: PaymentIntent | null }> {
     this.currentClientSecret = options.clientSecret
 
     // make sure fetch is supported
@@ -408,9 +475,14 @@ export class StripeTerminalWeb
   }
 
   async collectPaymentMethod(): Promise<{ intent: PaymentIntent }> {
-    const result = await this.instance.collectPaymentMethod(
-      this.currentClientSecret
-    )
+    const sdk = this.ensureInitialized()
+
+    if (!this.currentClientSecret) {
+      throw new Error(
+        'No `clientSecret` was found. Make sure to run `retrievePaymentIntent` before running this method.'
+      )
+    }
+    const result = await sdk.collectPaymentMethod(this.currentClientSecret)
 
     if ((result as CollectPaymentMethodResult).paymentIntent) {
       const res: CollectPaymentMethodResult =
@@ -434,11 +506,20 @@ export class StripeTerminalWeb
   }
 
   async cancelCollectPaymentMethod(): Promise<void> {
-    await this.instance.cancelCollectPaymentMethod()
+    const sdk = this.ensureInitialized()
+
+    await sdk.cancelCollectPaymentMethod()
   }
 
   async processPayment(): Promise<{ intent: PaymentIntent }> {
-    const result = await this.instance.processPayment(this.currentPaymentIntent)
+    const sdk = this.ensureInitialized()
+
+    if (!this.currentPaymentIntent) {
+      throw new Error(
+        'No `paymentIntent` was found. Make sure to run `collectPaymentMethod` before running this method.'
+      )
+    }
+    const result = await sdk.processPayment(this.currentPaymentIntent)
 
     if ((result as ProcessPaymentResult).paymentIntent) {
       const res: ProcessPaymentResult = result as ProcessPaymentResult
@@ -459,10 +540,14 @@ export class StripeTerminalWeb
   }
 
   async clearCachedCredentials(): Promise<void> {
-    await this.instance.clearCachedCredentials()
+    const sdk = this.ensureInitialized()
+
+    await sdk.clearCachedCredentials()
   }
 
   async setReaderDisplay(cart: Cart): Promise<void> {
+    const sdk = this.ensureInitialized()
+
     const readerDisplay: ISetReaderDisplayRequest = {
       cart: {
         line_items: cart.lineItems.map(li => ({
@@ -477,11 +562,13 @@ export class StripeTerminalWeb
       type: 'cart'
     }
 
-    await this.instance.setReaderDisplay(readerDisplay)
+    await sdk.setReaderDisplay(readerDisplay)
   }
 
   async clearReaderDisplay(): Promise<void> {
-    await this.instance.clearReaderDisplay()
+    const sdk = this.ensureInitialized()
+
+    await sdk.clearReaderDisplay()
   }
 
   async listLocations(
@@ -540,17 +627,23 @@ export class StripeTerminalWeb
   }
 
   async getSimulatorConfiguration(): Promise<SimulatorConfiguration> {
-    const config = this.instance.getSimulatorConfiguration()
+    const sdk = this.ensureInitialized()
+
+    const config = sdk.getSimulatorConfiguration()
 
     return {
-      simulatedCard: testPaymentMethodMap[config.testPaymentMethod]
+      simulatedCard: config.testPaymentMethod
+        ? testPaymentMethodMap[config.testPaymentMethod]
+        : undefined
     }
   }
 
   async setSimulatorConfiguration(
     config: SimulatorConfiguration
   ): Promise<SimulatorConfiguration> {
-    let testPaymentMethod: string
+    const sdk = this.ensureInitialized()
+
+    let testPaymentMethod: string | null = null
 
     for (const key in testPaymentMethodMap) {
       if (Object.prototype.hasOwnProperty.call(testPaymentMethodMap, key)) {
@@ -562,7 +655,7 @@ export class StripeTerminalWeb
       }
     }
 
-    this.instance.setSimulatorConfiguration({
+    sdk.setSimulatorConfiguration({
       testPaymentMethod
     })
 

@@ -17,74 +17,80 @@ import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 
 public class TerminalUtils {
 
-  public static JSObject serializeReader(Reader reader) {
+  public static Object serializeReader(Reader reader) {
+    if (reader == null) {
+      return JSObject.NULL;
+    }
+
     JSObject object = new JSObject();
 
-    if (reader != null) {
-      // device type
-      object.put(
-        "deviceType",
-        translateDeviceTypeToJS(reader.getDeviceType().ordinal())
-      );
+    // device type
+    object.put(
+      "deviceType",
+      translateDeviceTypeToJS(reader.getDeviceType().ordinal())
+    );
 
-      // simulated
-      object.put("simulated", reader.isSimulated());
+    // simulated
+    object.put("simulated", reader.isSimulated());
 
-      // stripe id
-      object.put("stripeId", reader.getId());
+    // stripe id
+    object.put("stripeId", reader.getId());
 
-      // location id
-      String locationId = null;
-      if (reader.getLocation() != null) locationId =
-        reader.getLocation().getId();
-      object.put("locationId", locationId);
+    // location id
+    String locationId = null;
+    if (reader.getLocation() != null) locationId = reader.getLocation().getId();
+    object.put("locationId", locationId);
 
-      // location status
-      object.put("locationStatus", reader.getLocationStatus().ordinal());
+    // location status
+    object.put("locationStatus", reader.getLocationStatus().ordinal());
 
-      // serial number
-      String serial = null;
-      if (reader.getSerialNumber() != null) serial = reader.getSerialNumber();
-      object.put("serialNumber", serial);
+    // serial number
+    String serial = null;
+    if (reader.getSerialNumber() != null) serial = reader.getSerialNumber();
+    object.put("serialNumber", serial);
 
-      //
-      // BLUETOOTH READER PROPS
-      //
+    //
+    // BLUETOOTH READER PROPS
+    //
 
-      // software version
-      object.put("deviceSoftwareVersion", reader.getSoftwareVersion());
+    // software version
+    object.put("deviceSoftwareVersion", reader.getSoftwareVersion());
 
-      // is update available
-      object.put("isAvailableUpdate", reader.getAvailableUpdate() != null);
+    // is update available
+    object.put("isAvailableUpdate", reader.getAvailableUpdate() != null);
 
-      // battery level
-      Float level = reader.getBatteryLevel();
-      double batteryLevel = 0;
-      if (level != null) batteryLevel = (double) level;
-      object.put("batteryLevel", batteryLevel);
+    // battery level
+    Float level = reader.getBatteryLevel();
+    double batteryLevel = 0;
+    if (level != null) batteryLevel = (double) level;
+    object.put("batteryLevel", batteryLevel);
 
-      //
-      // INTERNET READER PROPS
-      //
+    //
+    // INTERNET READER PROPS
+    //
 
-      // status
-      int status = Reader.NetworkStatus.OFFLINE.ordinal();
-      if (reader.getNetworkStatus() != null) status =
-        reader.getNetworkStatus().ordinal();
-      object.put("status", translateNetworkStatusToJS(status));
+    // status
+    int status = Reader.NetworkStatus.OFFLINE.ordinal();
+    if (reader.getNetworkStatus() != null) status =
+      reader.getNetworkStatus().ordinal();
+    object.put("status", translateNetworkStatusToJS(status));
 
-      // label
-      String label = null;
-      if (reader.getLabel() != null) label = reader.getLabel();
-      object.put("label", label);
-    }
+    // label
+    String label = null;
+    if (reader.getLabel() != null) label = reader.getLabel();
+    object.put("label", label);
+
     return object;
   }
 
-  public static JSObject serializePaymentIntent(
+  public static Object serializePaymentIntent(
     PaymentIntent paymentIntent,
     String currency
   ) {
+    if (paymentIntent == null) {
+      return JSObject.NULL;
+    }
+
     JSObject object = new JSObject();
 
     object.put("stripeId", paymentIntent.getId());
@@ -107,55 +113,61 @@ public class TerminalUtils {
     return object;
   }
 
-  public static JSObject serializeUpdate(
+  public static Object serializeUpdate(
     ReaderSoftwareUpdate readerSoftwareUpdate
   ) {
+    if (readerSoftwareUpdate == null) {
+      return JSObject.NULL;
+    }
+
     JSObject object = new JSObject();
 
-    if (readerSoftwareUpdate != null) {
-      ReaderSoftwareUpdate.UpdateTimeEstimate updateTimeEstimate = readerSoftwareUpdate.getTimeEstimate();
+    ReaderSoftwareUpdate.UpdateTimeEstimate updateTimeEstimate = readerSoftwareUpdate.getTimeEstimate();
 
-      object.put(
-        "estimatedUpdateTimeString",
-        updateTimeEstimate.getDescription()
-      );
-      object.put("estimatedUpdateTime", updateTimeEstimate.ordinal());
-      object.put("deviceSoftwareVersion", readerSoftwareUpdate.getVersion());
-      object.put("components", readerSoftwareUpdate.getComponents());
-      object.put("requiredAt", readerSoftwareUpdate.getRequiredAt().getTime());
-    }
+    object.put(
+      "estimatedUpdateTimeString",
+      updateTimeEstimate.getDescription()
+    );
+    object.put("estimatedUpdateTime", updateTimeEstimate.ordinal());
+    object.put("deviceSoftwareVersion", readerSoftwareUpdate.getVersion());
+    object.put("components", readerSoftwareUpdate.getComponents());
+    object.put("requiredAt", readerSoftwareUpdate.getRequiredAt().getTime());
 
     return object;
   }
 
-  public static JSObject serializeLocation(Location location) {
-    JSObject object = new JSObject();
-
-    if (location != null) {
-      object.put("stripeId", location.getId());
-      object.put("displayName", location.getDisplayName());
-      object.put("livemode", location.getLivemode());
-
-      Address address = location.getAddress();
-      if (address != null) {
-        object.put("address", serializeAddress(address));
-      }
+  public static Object serializeLocation(Location location) {
+    if (location == null) {
+      return JSObject.NULL;
     }
 
-    return object;
-  }
-
-  public static JSObject serializeAddress(Address address) {
     JSObject object = new JSObject();
 
+    object.put("stripeId", location.getId());
+    object.put("displayName", location.getDisplayName());
+    object.put("livemode", location.getLivemode());
+
+    Address address = location.getAddress();
     if (address != null) {
-      object.put("city", address.getCity());
-      object.put("country", address.getCountry());
-      object.put("line1", address.getLine1());
-      object.put("line2", address.getLine2());
-      object.put("postalCode", address.getPostalCode());
-      object.put("state", address.getState());
+      object.put("address", serializeAddress(address));
     }
+
+    return object;
+  }
+
+  public static Object serializeAddress(Address address) {
+    if (address == null) {
+      return JSObject.NULL;
+    }
+
+    JSObject object = new JSObject();
+
+    object.put("city", address.getCity());
+    object.put("country", address.getCountry());
+    object.put("line1", address.getLine1());
+    object.put("line2", address.getLine2());
+    object.put("postalCode", address.getPostalCode());
+    object.put("state", address.getState());
 
     return object;
   }
@@ -165,10 +177,8 @@ public class TerminalUtils {
   ) {
     JSObject object = new JSObject();
 
-    if (config != null) {
-      object.put("availableReaderUpdate", config.getUpdate().ordinal());
-      //      object.put("simulatedCard", config.getSimulatedCard().getEmvBlob().toString());
-    }
+    object.put("availableReaderUpdate", config.getUpdate().ordinal());
+    //      object.put("simulatedCard", config.getSimulatedCard().getEmvBlob().toString());
 
     return object;
   }
@@ -180,6 +190,14 @@ public class TerminalUtils {
       return DiscoveryMethod.BLUETOOTH_SCAN;
     } else if (method == 2) {
       return DiscoveryMethod.INTERNET;
+    } else if (method == 4) {
+      return DiscoveryMethod.USB;
+    } else if (method == 5) {
+      return DiscoveryMethod.EMBEDDED;
+    } else if (method == 6) {
+      return DiscoveryMethod.HANDOFF;
+    } else if (method == 7) {
+      return DiscoveryMethod.LOCAL_MOBILE;
     } else {
       return DiscoveryMethod.BLUETOOTH_SCAN;
     }
