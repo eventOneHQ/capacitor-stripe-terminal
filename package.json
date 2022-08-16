@@ -18,7 +18,7 @@
   "dependencies": {
     "@capacitor/core": "^3.2.3",
     "@stripe/terminal-js": "^0.10.1",
-    "rxjs": "^6.6.7"
+    "rxjs": "^7.5.6"
   },
   "devDependencies": {
     "@capacitor/android": "^3.2.3",
@@ -29,7 +29,7 @@
     "pretty-quick": "^3.1.1",
     "semantic-release": "^19.0.3",
     "typedoc": "^0.23.10",
-    "typescript": "^4.4.3"
+    "typescript": "^4.7.4"
   },
   "files": [
     "dist/",
