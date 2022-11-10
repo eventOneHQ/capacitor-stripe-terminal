@@ -69,8 +69,6 @@ export enum DeviceType {
   /**
    * The BBPOS WisePad 3 mobile reader.
    *
-   * Support for this reader is currently in beta.
-   *
    * @see https://stripe.com/docs/terminal/readers/bbpos-wisepad3
    */
   WisePad3,
@@ -78,20 +76,35 @@ export enum DeviceType {
   /**
    * The Stripe Reader M2 mobile reader.
    *
-   * Support for this reader is currently in beta.
+   * @see https://stripe.com/docs/terminal/readers/stripe-m2
    */
   StripeM2,
 
   /**
    * The BBPOS WisePOS E countertop reader.
    *
-   * Support for this reader is currently in beta.
-   *
    * @see https://stripe.com/docs/terminal/readers/bbpos-wisepos-e
    */
   WisePosE,
 
-  Unknown
+  /**
+   * The BBPOS WisePOS E DevKit countertop reader.
+   *
+   * @see https://stripe.com/docs/terminal/readers/bbpos-wisepos-e
+   */
+  WisePosEDevKit,
+
+  Unknown,
+
+  /**
+   * The Stripe S7 countertop reader.
+   */
+  StripeS700 = 9,
+
+  /**
+   * Apple Built-In reader.
+   */
+  AppleBuiltIn = 10
 }
 
 /**
@@ -750,6 +763,17 @@ export enum DeviceStyle {
   Bluetooth
 }
 
+export interface TippingConfig {
+  // Calculate percentage-based tips based on this amount.
+  // For more information, see the official Stripe docs: [On Reader Tipping](https://stripe.com/docs/terminal/features/collecting-tips/on-reader)
+  eligibleAmount?: number | null
+}
+
+export interface CollectConfig {
+  skipTipping?: boolean
+  tipping?: TippingConfig | null
+}
+
 /**
  * @ignore
  */
@@ -818,7 +842,9 @@ export interface StripeTerminalInterface {
     clientSecret: string
   }): Promise<{ intent: PaymentIntent | null }>
 
-  collectPaymentMethod(): Promise<{ intent: PaymentIntent }>
+  collectPaymentMethod(configOverride?: CollectConfig): Promise<{
+    intent: PaymentIntent
+  }>
 
   cancelCollectPaymentMethod(): Promise<void>
 

@@ -17,7 +17,8 @@ import {
   SimulatedCardType,
   SimulatorConfiguration,
   PermissionStatus,
-  Cart
+  Cart,
+  CollectConfig
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -67,7 +68,8 @@ interface ProcessPaymentResult {
 const deviceTypes: { [type: string]: DeviceType } = {
   ['chipper_2X']: DeviceType.Chipper2X,
   ['verifone_P400']: DeviceType.VerifoneP400,
-  ['bbpos_wisepos_e']: DeviceType.WisePosE
+  ['bbpos_wisepos_e']: DeviceType.WisePosE,
+  ['stripe_s700']: DeviceType.StripeS700
 }
 
 /**
@@ -474,7 +476,9 @@ export class StripeTerminalWeb
     }
   }
 
-  async collectPaymentMethod(): Promise<{ intent: PaymentIntent }> {
+  async collectPaymentMethod(
+    collectConfig?: CollectConfig
+  ): Promise<{ intent: PaymentIntent }> {
     const sdk = this.ensureInitialized()
 
     if (!this.currentClientSecret) {
@@ -482,7 +486,14 @@ export class StripeTerminalWeb
         'No `clientSecret` was found. Make sure to run `retrievePaymentIntent` before running this method.'
       )
     }
-    const result = await sdk.collectPaymentMethod(this.currentClientSecret)
+    const result = await sdk.collectPaymentMethod(this.currentClientSecret, {
+      config_override: {
+        skip_tipping: collectConfig?.skipTipping,
+        tipping: {
+          eligible_amount: collectConfig?.tipping?.eligibleAmount
+        }
+      }
+    })
 
     if ((result as CollectPaymentMethodResult).paymentIntent) {
       const res: CollectPaymentMethodResult =

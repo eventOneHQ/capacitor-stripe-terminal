@@ -25,7 +25,8 @@ import {
   DeviceType,
   DeviceStyle,
   PermissionStatus,
-  ReaderSoftwareUpdate
+  ReaderSoftwareUpdate,
+  CollectConfig
 } from './definitions'
 
 import { StripeTerminal } from './plugin-registration'
@@ -747,7 +748,9 @@ export class StripeTerminalPlugin {
     return this.objectExists(data?.intent)
   }
 
-  public async collectPaymentMethod(): Promise<PaymentIntent | null> {
+  public async collectPaymentMethod(
+    collectConfig?: CollectConfig
+  ): Promise<PaymentIntent | null> {
     if (this.isCollectingPaymentMethod) {
       return null
     }
@@ -756,7 +759,7 @@ export class StripeTerminalPlugin {
     try {
       this.ensureInitialized()
 
-      const data = await this.sdk.collectPaymentMethod()
+      const data = await this.sdk.collectPaymentMethod(collectConfig)
 
       return this.objectExists(data?.intent)
     } catch (err) {
@@ -868,6 +871,10 @@ export class StripeTerminalPlugin {
   }
 
   public getDeviceStyleFromDeviceType(type: DeviceType): DeviceStyle {
+    return StripeTerminalPlugin.getDeviceStyleFromDeviceType(type)
+  }
+
+  public static getDeviceStyleFromDeviceType(type: DeviceType): DeviceStyle {
     if (
       type === DeviceType.Chipper2X ||
       type === DeviceType.StripeM2 ||
@@ -876,6 +883,8 @@ export class StripeTerminalPlugin {
       return DeviceStyle.Bluetooth
     } else if (
       type === DeviceType.WisePosE ||
+      type === DeviceType.WisePosEDevKit ||
+      type === DeviceType.StripeS700 ||
       type === DeviceType.VerifoneP400
     ) {
       return DeviceStyle.Internet
