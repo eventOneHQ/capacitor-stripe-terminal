@@ -215,8 +215,10 @@ public class TerminalUtils {
       return 2;
     } else if (type == DeviceType.WISEPOS_E.ordinal()) {
       return 4;
+    } else if (type == DeviceType.STRIPE_S700.ordinal()) {
+      return 9;
     } else {
-      return 5;
+      return 6;
     }
   }
 
