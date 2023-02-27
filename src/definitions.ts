@@ -813,11 +813,6 @@ export interface StripeTerminalInterface {
     locationId: string
   }): Promise<{ reader: Reader | null }>
 
-  connectEmbeddedReader(options: {
-    serialNumber: string
-    locationId: string
-  }): Promise<{ reader: Reader | null }>
-
   connectHandoffReader(options: {
     serialNumber: string
     locationId: string

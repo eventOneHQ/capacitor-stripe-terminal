@@ -488,28 +488,6 @@ export class StripeTerminalPlugin {
   }
 
   /**
-   * Attempts to connect to the Reader upon which the Application is currently running.
-   *
-   * @returns Reader
-   */
-  public async connectEmbeddedReader(
-    reader: Reader,
-    config: EmbeddedConnectionConfiguration
-  ): Promise<Reader | null> {
-    this.ensureInitialized()
-
-    // if connecting to an embedded reader, make sure to switch to the native SDK
-    this.selectedSdkType = 'native'
-
-    const data = await this.sdk.connectEmbeddedReader({
-      serialNumber: reader.serialNumber,
-      locationId: config.locationId
-    })
-
-    return this.objectExists(data?.reader)
-  }
-
-  /**
    * Attempts to connect to the given reader in handoff mode.
    *
    * @returns Reader

@@ -30,7 +30,6 @@ import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.Cart;
 import com.stripe.stripeterminal.external.models.CartLineItem;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.BluetoothConnectionConfiguration;
-import com.stripe.stripeterminal.external.models.ConnectionConfiguration.EmbeddedConnectionConfiguration;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.HandoffConnectionConfiguration;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.InternetConnectionConfiguration;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.LocalMobileConnectionConfiguration;
@@ -450,34 +449,6 @@ public class StripeTerminal
     Terminal
       .getInstance()
       .connectLocalMobileReader(
-        reader,
-        connectionConfig,
-        this.createReaderCallback(call)
-      );
-  }
-
-  @PluginMethod
-  public void connectEmbeddedReader(final PluginCall call) {
-    Reader reader = getReaderFromDiscovered(call);
-
-    if (reader == null) {
-      return;
-    }
-
-    String locationId = call.getString("locationId");
-
-    if (locationId == null) {
-      call.reject("Must provide a location ID");
-      return;
-    }
-
-    EmbeddedConnectionConfiguration connectionConfig = new EmbeddedConnectionConfiguration(
-      locationId
-    );
-
-    Terminal
-      .getInstance()
-      .connectEmbeddedReader(
         reader,
         connectionConfig,
         this.createReaderCallback(call)
