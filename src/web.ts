@@ -666,4 +666,9 @@ export class StripeTerminalWeb
       simulatedCard: config.simulatedCard
     }
   }
+
+  async cancelAutoReconnect(): Promise<void> {
+    // no equivalent
+    console.warn('cancelAutoReconnect is only available for Bluetooth readers.')
+  }
 }

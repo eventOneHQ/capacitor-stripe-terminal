@@ -7,11 +7,12 @@ import StripeTerminal
  * here: https://capacitor.ionicframework.com/docs/plugins/ios
  */
 @objc(StripeTerminal)
-public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, BluetoothReaderDelegate {
+public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, BluetoothReaderDelegate, ReconnectionDelegate {
     private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
     private var pendingDiscoverReaders: Cancelable?
     private var pendingInstallUpdate: Cancelable?
     private var pendingCollectPaymentMethod: Cancelable?
+    private var pendingReaderAutoReconnect: Cancelable?
     private var currentUpdate: ReaderSoftwareUpdate?
     private var currentPaymentIntent: PaymentIntent?
     private var isInitialized: Bool = false
@@ -140,7 +141,13 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             return
         }
 
-        let connectionConfig = BluetoothConnectionConfiguration(locationId: locationId)
+        let autoReconnectOnUnexpectedDisconnect = call.getBool("autoReconnectOnUnexpectedDisconnect", false)
+
+        let connectionConfig = BluetoothConnectionConfiguration(
+            locationId: locationId,
+            autoReconnectOnUnexpectedDisconnect: autoReconnectOnUnexpectedDisconnect,
+            autoReconnectionDelegate: self
+        )
 
         // this must be run on the main thread
         // https://stackoverflow.com/questions/44767778/main-thread-checker-ui-api-called-on-a-background-thread-uiapplication-appli
@@ -439,6 +446,23 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
 
         return getSimulatorConfiguration(call)
     }
+    
+    @objc func cancelAutoReconnect(_ call: CAPPluginCall) {
+        if let cancelable = pendingReaderAutoReconnect {
+            cancelable.cancel { error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else {
+                    pendingReaderAutoReconnect = nil
+                    call.resolve()
+                }
+            }
+
+            return
+        }
+
+        call.resolve()
+    }
 
     // MARK: DiscoveryDelegate
 
@@ -500,5 +524,21 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
 
     public func reader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
         notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
+    }
+
+    // MARK: ReconnectionDelegate
+
+    public func terminal(_ terminal: Terminal, didStartReaderReconnect cancelable: Cancelable) {
+        pendingReaderAutoReconnect = cancelable
+        notifyListeners("didStartReaderReconnect", data: nil)
+    }
+
+    public func terminalDidSucceedReaderReconnect(_ terminal: Terminal) {
+        pendingReaderAutoReconnect = nil
+        notifyListeners("didSucceedReaderReconnect", data: nil)
+    }
+    public func terminalDidFailReaderReconnect(_ terminal: Terminal) {
+        pendingReaderAutoReconnect = nil
+        notifyListeners("didFailReaderReconnect", data: nil)
     }
 }

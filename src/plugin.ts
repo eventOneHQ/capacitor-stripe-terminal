@@ -9,7 +9,6 @@ import {
   InternetConnectionConfiguration,
   BluetoothConnectionConfiguration,
   UsbConnectionConfiguration,
-  EmbeddedConnectionConfiguration,
   HandoffConnectionConfiguration,
   LocalMobileConnectionConfiguration,
   Reader,
@@ -224,7 +223,10 @@ export class StripeTerminalPlugin {
       | 'didReportAvailableUpdate'
       | 'didStartInstallingUpdate'
       | 'didReportReaderSoftwareUpdateProgress'
-      | 'didFinishInstallingUpdate',
+      | 'didFinishInstallingUpdate'
+      | 'didStartReaderReconnect'
+      | 'didSucceedReaderReconnect'
+      | 'didFailReaderReconnect',
     transformFunc?: (data: any) => any
   ): Observable<any> {
     return new Observable(subscriber => {
@@ -459,7 +461,7 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.connectBluetoothReader({
       serialNumber: reader.serialNumber,
-      locationId: config.locationId
+      ...config
     })
 
     return this.objectExists(data?.reader)
@@ -846,6 +848,48 @@ export class StripeTerminalPlugin {
     }
 
     return this.objectExists(newConfig)
+  }
+
+  /**
+   * The reader has lost Bluetooth connection to the SDK and reconnection attempts have been started.
+   *
+   * In your implementation of this method, you should notify your user that the reader disconnected and that reconnection attempts are being made.
+   *
+   * Requires `autoReconnectOnUnexpectedDisconnect` is set to true in the `BluetoothConnectionConfiguration`
+   */
+  public didStartReaderReconnect(): Observable<void> {
+    return this._listenerToObservable('didStartReaderReconnect')
+  }
+
+  /**
+   * The SDK was able to reconnect to the previously connected Bluetooth reader.
+   *
+   * In your implementation of this method, you should notify your user that reader connection has been re-established.
+   *
+   * Requires `autoReconnectOnUnexpectedDisconnect` is set to true in the `BluetoothConnectionConfiguration`
+   */
+  public didSucceedReaderReconnect(): Observable<void> {
+    return this._listenerToObservable('didSucceedReaderReconnect')
+  }
+
+  /**
+   * The SDK was not able to reconnect to the previously connected bluetooth reader. The SDK is now disconnected from any readers.
+   *
+   * In your implementation of this method, you should notify your user that the reader has disconnected.
+   *
+   * Requires `autoReconnectOnUnexpectedDisconnect` is set to true in the `BluetoothConnectionConfiguration`
+   */
+  public didFailReaderReconnect(): Observable<void> {
+    return this._listenerToObservable('didFailReaderReconnect')
+  }
+
+  /**
+   * Cancel auto-reconnection
+   */
+  public async cancelAutoReconnect(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelAutoReconnect()
   }
 
   public getDeviceStyleFromDeviceType(type: DeviceType): DeviceStyle {

@@ -296,18 +296,21 @@ export interface ConnectionConfiguration {
  * @category Reader
  */
 export interface BluetoothConnectionConfiguration
-  extends ConnectionConfiguration {}
+  extends ConnectionConfiguration {
+  /**
+   * When set to true, the Terminal SDK will attempt a Bluetooth auto-reconnection on any unexpected disconnect.
+   *
+   * When set to false, we will immediately surface any disconnection through TerminalDelegate.
+   *
+   * @default false
+   */
+  autoReconnectOnUnexpectedDisconnect?: boolean
+}
 
 /**
  * @category Reader
  */
 export interface UsbConnectionConfiguration extends ConnectionConfiguration {}
-
-/**
- * @category Reader
- */
-export interface EmbeddedConnectionConfiguration
-  extends ConnectionConfiguration {}
 
 /**
  * @category Reader
@@ -794,6 +797,7 @@ export interface StripeTerminalInterface {
   connectBluetoothReader(options: {
     serialNumber: string
     locationId: string
+    autoReconnectOnUnexpectedDisconnect?: boolean
   }): Promise<{ reader: Reader | null }>
 
   connectInternetReader(options: {
@@ -861,6 +865,8 @@ export interface StripeTerminalInterface {
     config: SimulatorConfiguration
   ): Promise<SimulatorConfiguration>
 
+  cancelAutoReconnect(): Promise<void>
+
   /**
    * @deprecated use requestPermissions and checkPermissions
    */
@@ -910,6 +916,14 @@ export interface StripeTerminalInterface {
       update?: ReaderSoftwareUpdate
       error?: string
     }) => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName:
+      | 'didStartReaderReconnect'
+      | 'didSucceedReaderReconnect'
+      | 'didFailReaderReconnect',
+    listenerFunc: (data: null) => void
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(

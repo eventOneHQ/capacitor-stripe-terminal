@@ -15,6 +15,7 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import com.stripe.stripeterminal.Terminal;
 import com.stripe.stripeterminal.external.callable.BluetoothReaderListener;
+import com.stripe.stripeterminal.external.callable.BluetoothReaderReconnectionListener;
 import com.stripe.stripeterminal.external.callable.Callback;
 import com.stripe.stripeterminal.external.callable.Cancelable;
 import com.stripe.stripeterminal.external.callable.ConnectionTokenCallback;
@@ -82,7 +83,8 @@ public class StripeTerminal
     DiscoveryListener,
     UsbReaderListener,
     HandoffReaderListener,
-    BluetoothReaderListener {
+    BluetoothReaderListener,
+    BluetoothReaderReconnectionListener {
 
   Cancelable pendingDiscoverReaders = null;
   Cancelable pendingCollectPaymentMethod = null;
@@ -94,6 +96,7 @@ public class StripeTerminal
   ReaderEvent lastReaderEvent = ReaderEvent.CARD_REMOVED;
   List<? extends Reader> discoveredReadersList = null;
   Cancelable pendingInstallUpdate = null;
+  Cancelable pendingReaderAutoReconnect = null;
 
   @PluginMethod
   public void getPermissions(PluginCall call) {
@@ -384,8 +387,15 @@ public class StripeTerminal
       return;
     }
 
+    Boolean autoReconnectOnUnexpectedDisconnect = call.getBoolean(
+      "autoReconnectOnUnexpectedDisconnect",
+      false
+    );
+
     BluetoothConnectionConfiguration connectionConfig = new BluetoothConnectionConfiguration(
-      locationId
+      locationId,
+      autoReconnectOnUnexpectedDisconnect,
+      this
     );
 
     Terminal
@@ -893,6 +903,31 @@ public class StripeTerminal
     getSimulatorConfiguration(call);
   }
 
+  @PluginMethod
+  public void cancelAutoReconnect(final PluginCall call) {
+    if (
+      pendingReaderAutoReconnect != null &&
+      !pendingReaderAutoReconnect.isCompleted()
+    ) {
+      pendingReaderAutoReconnect.cancel(
+        new Callback() {
+          @Override
+          public void onSuccess() {
+            pendingReaderAutoReconnect = null;
+            call.resolve();
+          }
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage(), e);
+          }
+        }
+      );
+    } else {
+      call.resolve();
+    }
+  }
+
   @Override
   public void fetchConnectionToken(
     @NonNull ConnectionTokenCallback connectionTokenCallback
@@ -1049,5 +1084,23 @@ public class StripeTerminal
     JSObject ret = new JSObject();
     ret.put("update", TerminalUtils.serializeUpdate(readerSoftwareUpdate));
     notifyListeners("didStartInstallingUpdate", ret);
+  }
+
+  @Override
+  public void onReaderReconnectStarted(@NonNull Cancelable cancelReconnect) {
+    pendingReaderAutoReconnect = cancelReconnect;
+    notifyListeners("didStartReaderReconnect", null);
+  }
+
+  @Override
+  public void onReaderReconnectSucceeded() {
+    pendingReaderAutoReconnect = null;
+    notifyListeners("didSucceedReaderReconnect", null);
+  }
+
+  @Override
+  public void onReaderReconnectFailed(@NonNull Reader reader) {
+    pendingReaderAutoReconnect = null;
+    notifyListeners("didFailReaderReconnect", null);
   }
 }
