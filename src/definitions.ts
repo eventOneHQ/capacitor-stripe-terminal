@@ -284,12 +284,6 @@ export interface ConnectionConfiguration {
    * @see https://stripe.com/docs/terminal/readers/fleet-management#bbpos-wisepad3-discovery
    */
   locationId: string
-
-  /**
-   * When set to true, the connection will automatically error if the reader is already connected to a device and collecting payment. When set to false, this will allow you to connect to a reader already connected to another device, and will break the existing reader-to-SDK connection on the other device when it attempts to collect payment.
-   * @default false
-   */
-  failIfInUse?: boolean
 }
 
 /**
@@ -330,9 +324,16 @@ export interface LocalMobileConnectionConfiguration
 export interface InternetConnectionConfiguration
   extends ConnectionConfiguration {
   /**
+   * When set to true, the connection will automatically error if the reader is already connected to a device and collecting payment. When set to false, this will allow you to connect to a reader already connected to another device, and will break the existing reader-to-SDK connection on the other device when it attempts to collect payment.
+   *
+   * @default false
+   */
+  failIfInUse?: boolean
+
+  /**
    * If set to true, the customer will be able to press the red X button on the Verifone P400 to cancel a `collectPaymentMethod`, `collectReusableCard`, or `collectRefundPaymentMethod` command.
    *
-   * This behavior is part of a private beta. Setting this property will have no effect if you are not part of the allowCustomerCancel beta program.
+   * @note This behavior is part of a private beta. Setting this property will have no effect if you are not part of the allowCustomerCancel beta program.
    *
    * @default false
    */

@@ -453,7 +453,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
                 if let error = error {
                     call.reject(error.localizedDescription, nil, error)
                 } else {
-                    pendingReaderAutoReconnect = nil
+                    self.pendingReaderAutoReconnect = nil
                     call.resolve()
                 }
             }
