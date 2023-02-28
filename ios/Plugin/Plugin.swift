@@ -7,7 +7,7 @@ import StripeTerminal
  * here: https://capacitor.ionicframework.com/docs/plugins/ios
  */
 @objc(StripeTerminal)
-public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, BluetoothReaderDelegate, ReconnectionDelegate {
+public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, BluetoothReaderDelegate, ReconnectionDelegate, LocalMobileReaderDelegate {
     private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
     private var pendingDiscoverReaders: Cancelable?
     private var pendingInstallUpdate: Cancelable?
@@ -91,7 +91,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         let method = UInt(call.getInt("discoveryMethod") ?? 0)
         let locationId = call.getString("locationId") ?? nil
 
-        let discoveryMethod = DiscoveryMethod(rawValue: method) ?? DiscoveryMethod.bluetoothProximity
+        let discoveryMethod = StripeTerminalUtils.translateDiscoveryMethod(method: method)
 
         pendingDiscoverReaders = nil
 
@@ -185,6 +185,48 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         // https://stackoverflow.com/questions/44767778/main-thread-checker-ui-api-called-on-a-background-thread-uiapplication-appli
         DispatchQueue.main.async {
             Terminal.shared.connectInternetReader(reader, connectionConfig: config, completion: { reader, error in
+                if let reader = reader {
+                    call.resolve([
+                        "reader": StripeTerminalUtils.serializeReader(reader: reader),
+                    ])
+                } else if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                }
+            })
+        }
+    }
+
+    @objc func connectLocalMobileReader(_ call: CAPPluginCall) {
+        guard let serialNumber = call.getString("serialNumber") else {
+            call.reject("Must provide a serial number")
+            return
+        }
+
+        guard let locationId = call.getString("locationId") else {
+            call.reject("Must provide a location ID")
+            return
+        }
+
+        guard let reader = readers?.first(where: { $0.serialNumber == serialNumber }) else {
+            call.reject("No reader found")
+            return
+        }
+        
+        let onBehalfOf = call.getString("onBehalfOf")
+        let merchantDisplayName = call.getString("merchantDisplayName")
+        let tosAcceptancePermitted = call.getBool("tosAcceptancePermitted", false)
+
+        let connectionConfig = LocalMobileConnectionConfiguration(
+            locationId: locationId,
+            merchantDisplayName: merchantDisplayName,
+            onBehalfOf: onBehalfOf,
+            tosAcceptancePermitted: tosAcceptancePermitted
+        )
+
+        // this must be run on the main thread
+        // https://stackoverflow.com/questions/44767778/main-thread-checker-ui-api-called-on-a-background-thread-uiapplication-appli
+        DispatchQueue.main.async {
+            Terminal.shared.connectLocalMobileReader(reader, delegate: self, connectionConfig: connectionConfig, completion: { reader, error in
                 if let reader = reader {
                     call.resolve([
                         "reader": StripeTerminalUtils.serializeReader(reader: reader),
@@ -524,6 +566,39 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
 
     public func reader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
         notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
+    }
+        
+    // MARK: LocalMobileReaderDelegate
+
+    public func localMobileReader(_ reader: Reader, didStartInstallingUpdate update: ReaderSoftwareUpdate, cancelable: Cancelable?) {
+        pendingInstallUpdate = cancelable
+        currentUpdate = update
+        notifyListeners("didStartInstallingUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
+    }
+
+    public func localMobileReader(_ reader: Reader, didReportReaderSoftwareUpdateProgress progress: Float) {
+        notifyListeners("didReportReaderSoftwareUpdateProgress", data: ["progress": progress])
+    }
+
+    public func localMobileReader(_ reader: Reader, didFinishInstallingUpdate update: ReaderSoftwareUpdate?, error: Error?) {
+        if let error = error {
+            notifyListeners("didFinishInstallingUpdate", data: ["error": error.localizedDescription as Any])
+        } else if let update = update {
+            notifyListeners("didFinishInstallingUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
+            currentUpdate = nil
+        }
+    }
+    
+    public func localMobileReader(_: Reader, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
+        notifyListeners("didRequestReaderInput", data: ["value": inputOptions.rawValue])
+    }
+
+    public func localMobileReader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
+        notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
+    }
+    
+    public func localMobileReaderDidAcceptTermsOfService(_: Reader) {
+        notifyListeners("localMobileReaderDidAcceptTermsOfService", data: nil)
     }
 
     // MARK: ReconnectionDelegate

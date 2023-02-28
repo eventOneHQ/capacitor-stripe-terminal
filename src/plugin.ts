@@ -527,7 +527,7 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.connectLocalMobileReader({
       serialNumber: reader.serialNumber,
-      locationId: config.locationId
+      ...config
     })
 
     return this.objectExists(data?.reader)

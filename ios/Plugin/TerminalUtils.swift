@@ -94,4 +94,18 @@ public class StripeTerminalUtils {
                 
         return jsonObject
     }
+    
+    static func translateDiscoveryMethod(method: UInt) -> DiscoveryMethod {
+        if (method == 0) {
+            return DiscoveryMethod.bluetoothScan
+        } else if (method == 1) {
+            return DiscoveryMethod.bluetoothProximity
+        } else if (method == 2) {
+            return DiscoveryMethod.internet
+        } else if (method == 7) {
+            return DiscoveryMethod.localMobile
+        } else {
+            return DiscoveryMethod.bluetoothProximity
+        }
+    }
 }
