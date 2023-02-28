@@ -480,6 +480,7 @@ export class StripeTerminalWeb
     }
     const result = await sdk.collectPaymentMethod(this.currentClientSecret, {
       config_override: {
+        update_payment_intent: collectConfig?.updatePaymentIntent,
         skip_tipping: collectConfig?.skipTipping,
         tipping: {
           eligible_amount: collectConfig?.tipping?.eligibleAmount

@@ -795,8 +795,26 @@ export interface TippingConfig {
 }
 
 export interface CollectConfig {
+  /**
+   * Bypass tipping selection if it would have otherwise been shown.
+   *
+   * @default false
+   */
   skipTipping?: boolean
+
+  /**
+   * The tipping configuration for this payment collection.
+   *
+   * @see https://stripe.com/docs/terminal/features/collecting-tips/on-reader#tip-eligible
+   */
   tipping?: TippingConfig | null
+
+  /**
+   * Whether or not to update the PaymentIntent server side during collectPaymentMethod.
+   *
+   * @default false
+   */
+  updatePaymentIntent?: boolean
 }
 
 /**

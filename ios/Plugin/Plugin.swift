@@ -339,6 +339,10 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     }
 
     @objc func collectPaymentMethod(_ call: CAPPluginCall) {
+        let updatePaymentIntent = call.getBool("updatePaymentIntent", false)
+
+        let collectConfig = CollectConfiguration(updatePaymentIntent: updatePaymentIntent)
+
         if let intent = currentPaymentIntent {
             pendingCollectPaymentMethod = Terminal.shared.collectPaymentMethod(intent) { collectResult, collectError in
                 self.pendingCollectPaymentMethod = nil

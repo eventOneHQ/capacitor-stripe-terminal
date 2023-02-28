@@ -591,6 +591,12 @@ public class StripeTerminal
 
   @PluginMethod
   public void collectPaymentMethod(final PluginCall call) {
+    Boolean updatePaymentIntent = call.getBoolean("updatePaymentIntent", false);
+
+    CollectConfiguration collectConfig = new CollectConfiguration.Builder()
+      .updatePaymentIntent(updatePaymentIntent)
+      .build();
+
     if (currentPaymentIntent != null) {
       pendingCollectPaymentMethod =
         Terminal
@@ -624,7 +630,8 @@ public class StripeTerminal
                   e
                 );
               }
-            }
+            },
+            collectConfig
           );
     } else {
       call.reject(
