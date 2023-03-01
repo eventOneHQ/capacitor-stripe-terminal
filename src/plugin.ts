@@ -417,7 +417,6 @@ export class StripeTerminalPlugin {
       })
     }
 
-    console.log('CST normalizedIntent', paymentIntent)
     return paymentIntent
   }
 
