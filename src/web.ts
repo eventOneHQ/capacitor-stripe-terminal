@@ -32,6 +32,7 @@ import {
   IPaymentIntent,
   ISetReaderDisplayRequest
 } from '@stripe/terminal-js'
+import { Stripe } from 'stripe'
 
 /**
  * @ignore
@@ -353,14 +354,6 @@ export class StripeTerminalWeb
     console.warn('connectUsbReader is only available on Android.')
     return { reader: null }
   }
-  async connectEmbeddedReader(_config: {
-    serialNumber: string
-    locationId: string
-  }): Promise<{ reader: Reader | null }> {
-    // no equivalent
-    console.warn('connectEmbeddedReader is only available on Android.')
-    return { reader: null }
-  }
   async connectLocalMobileReader(_config: {
     serialNumber: string
     locationId: string
@@ -462,16 +455,25 @@ export class StripeTerminalWeb
     const json = await response.json()
 
     if (!response.ok) {
-      throw new Error(json)
+      throw new Error(json?.error?.message ?? json)
     }
+
+    const paymentIntent = json as Stripe.PaymentIntent
 
     return {
       intent: {
-        stripeId: json.id,
-        created: json.created,
-        status: paymentIntentStatus[json.status],
-        amount: json.amount,
-        currency: json.currency
+        stripeId: paymentIntent.id,
+        created: paymentIntent.created,
+        status: paymentIntentStatus[paymentIntent.status],
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        paymentMethod:
+          typeof paymentIntent.payment_method === 'string'
+            ? null
+            : paymentIntent.payment_method,
+        amountDetails: paymentIntent.amount_details,
+        charges: paymentIntent.charges?.data ?? [],
+        metadata: paymentIntent.metadata
       }
     }
   }
@@ -488,6 +490,7 @@ export class StripeTerminalWeb
     }
     const result = await sdk.collectPaymentMethod(this.currentClientSecret, {
       config_override: {
+        update_payment_intent: collectConfig?.updatePaymentIntent,
         skip_tipping: collectConfig?.skipTipping,
         tipping: {
           eligible_amount: collectConfig?.tipping?.eligibleAmount
@@ -507,7 +510,12 @@ export class StripeTerminalWeb
           created: this.currentPaymentIntent.created,
           status: paymentIntentStatus[this.currentPaymentIntent.status],
           amount: this.currentPaymentIntent.amount,
-          currency: this.currentPaymentIntent.currency
+          currency: this.currentPaymentIntent.currency,
+          paymentMethod: this.currentPaymentIntent
+            .payment_method as Stripe.PaymentMethod,
+          amountDetails: this.currentPaymentIntent.amount_details,
+          charges: this.currentPaymentIntent.charges?.data ?? [],
+          metadata: this.currentPaymentIntent.metadata
         }
       }
     } else {
@@ -541,7 +549,12 @@ export class StripeTerminalWeb
           created: res.paymentIntent.created,
           status: paymentIntentStatus[res.paymentIntent.status],
           amount: res.paymentIntent.amount,
-          currency: res.paymentIntent.currency
+          currency: res.paymentIntent.currency,
+          paymentMethod: res.paymentIntent
+            .payment_method as Stripe.PaymentMethod,
+          amountDetails: res.paymentIntent.amount_details,
+          charges: res.paymentIntent.charges?.data ?? [],
+          metadata: res.paymentIntent.metadata
         }
       }
     } else {
@@ -673,5 +686,10 @@ export class StripeTerminalWeb
     return {
       simulatedCard: config.simulatedCard
     }
+  }
+
+  async cancelAutoReconnect(): Promise<void> {
+    // no equivalent
+    console.warn('cancelAutoReconnect is only available for Bluetooth readers.')
   }
 }

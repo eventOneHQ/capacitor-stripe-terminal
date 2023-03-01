@@ -1,5 +1,6 @@
 import { Capacitor, PluginListenerHandle } from '@capacitor/core'
 import { Observable } from 'rxjs'
+import { transform, isObject, isArray, snakeCase } from 'lodash'
 
 import {
   StripeTerminalInterface,
@@ -9,7 +10,6 @@ import {
   InternetConnectionConfiguration,
   BluetoothConnectionConfiguration,
   UsbConnectionConfiguration,
-  EmbeddedConnectionConfiguration,
   HandoffConnectionConfiguration,
   LocalMobileConnectionConfiguration,
   Reader,
@@ -224,7 +224,10 @@ export class StripeTerminalPlugin {
       | 'didReportAvailableUpdate'
       | 'didStartInstallingUpdate'
       | 'didReportReaderSoftwareUpdateProgress'
-      | 'didFinishInstallingUpdate',
+      | 'didFinishInstallingUpdate'
+      | 'didStartReaderReconnect'
+      | 'didSucceedReaderReconnect'
+      | 'didFailReaderReconnect',
     transformFunc?: (data: any) => any
   ): Observable<any> {
     return new Observable(subscriber => {
@@ -355,6 +358,68 @@ export class StripeTerminalPlugin {
     return reader
   }
 
+  private snakeCaseRecursively(obj: any) {
+    return transform(obj, (acc: any, value, key: any, target) => {
+      const snakeKey = isArray(target) ? key : snakeCase(key)
+
+      // don't touch metadata objects
+      if (key === 'metadata') {
+        acc[snakeKey] = value
+      } else {
+        acc[snakeKey] = isObject(value)
+          ? this.snakeCaseRecursively(value)
+          : value
+      }
+    })
+  }
+
+  private parseJson(json: string, name: string): any {
+    try {
+      const jsonObj = JSON.parse(json)
+
+      return this.snakeCaseRecursively(jsonObj)
+    } catch (err) {
+      console.error(`Error parsing ${name} JSON`, err)
+      return null
+    }
+  }
+
+  private normalizePaymentIntent(paymentIntent: any): PaymentIntent | null {
+    if (!paymentIntent) return null
+
+    if (
+      paymentIntent.amountDetails &&
+      typeof paymentIntent.amountDetails === 'string'
+    ) {
+      paymentIntent.amountDetails = this.parseJson(
+        paymentIntent.amountDetails,
+        'PaymentIntent.amountDetails'
+      )
+    }
+
+    if (
+      paymentIntent.paymentMethod &&
+      typeof paymentIntent.paymentMethod === 'string'
+    ) {
+      paymentIntent.paymentMethod = this.parseJson(
+        paymentIntent.paymentMethod,
+        'PaymentIntent.paymentMethod'
+      )
+    }
+
+    if (paymentIntent.charges) {
+      paymentIntent.charges = paymentIntent.charges.map((charge: any) => {
+        if (typeof charge === 'string') {
+          return this.parseJson(charge, 'PaymentIntent.charges')
+        }
+
+        return charge
+      })
+    }
+
+    return paymentIntent
+  }
+
   public discoverReaders(
     options: DiscoveryConfiguration
   ): Observable<Reader[]> {
@@ -459,7 +524,7 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.connectBluetoothReader({
       serialNumber: reader.serialNumber,
-      locationId: config.locationId
+      ...config
     })
 
     return this.objectExists(data?.reader)
@@ -480,28 +545,6 @@ export class StripeTerminalPlugin {
     this.selectedSdkType = 'native'
 
     const data = await this.sdk.connectUsbReader({
-      serialNumber: reader.serialNumber,
-      locationId: config.locationId
-    })
-
-    return this.objectExists(data?.reader)
-  }
-
-  /**
-   * Attempts to connect to the Reader upon which the Application is currently running.
-   *
-   * @returns Reader
-   */
-  public async connectEmbeddedReader(
-    reader: Reader,
-    config: EmbeddedConnectionConfiguration
-  ): Promise<Reader | null> {
-    this.ensureInitialized()
-
-    // if connecting to an embedded reader, make sure to switch to the native SDK
-    this.selectedSdkType = 'native'
-
-    const data = await this.sdk.connectEmbeddedReader({
       serialNumber: reader.serialNumber,
       locationId: config.locationId
     })
@@ -547,7 +590,7 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.connectLocalMobileReader({
       serialNumber: reader.serialNumber,
-      locationId: config.locationId
+      ...config
     })
 
     return this.objectExists(data?.reader)
@@ -745,7 +788,9 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.retrievePaymentIntent({ clientSecret })
 
-    return this.objectExists(data?.intent)
+    const pi = this.objectExists(data?.intent)
+
+    return this.normalizePaymentIntent(pi)
   }
 
   public async collectPaymentMethod(
@@ -761,7 +806,9 @@ export class StripeTerminalPlugin {
 
       const data = await this.sdk.collectPaymentMethod(collectConfig)
 
-      return this.objectExists(data?.intent)
+      const pi = this.objectExists(data?.intent)
+
+      return this.normalizePaymentIntent(pi)
     } catch (err) {
       throw err
     } finally {
@@ -780,7 +827,9 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.processPayment()
 
-    return this.objectExists(data?.intent)
+    const pi = this.objectExists(data?.intent)
+
+    return this.normalizePaymentIntent(pi)
   }
 
   public async clearCachedCredentials(): Promise<void> {
@@ -868,6 +917,48 @@ export class StripeTerminalPlugin {
     }
 
     return this.objectExists(newConfig)
+  }
+
+  /**
+   * The reader has lost Bluetooth connection to the SDK and reconnection attempts have been started.
+   *
+   * In your implementation of this method, you should notify your user that the reader disconnected and that reconnection attempts are being made.
+   *
+   * Requires `autoReconnectOnUnexpectedDisconnect` is set to true in the `BluetoothConnectionConfiguration`
+   */
+  public didStartReaderReconnect(): Observable<void> {
+    return this._listenerToObservable('didStartReaderReconnect')
+  }
+
+  /**
+   * The SDK was able to reconnect to the previously connected Bluetooth reader.
+   *
+   * In your implementation of this method, you should notify your user that reader connection has been re-established.
+   *
+   * Requires `autoReconnectOnUnexpectedDisconnect` is set to true in the `BluetoothConnectionConfiguration`
+   */
+  public didSucceedReaderReconnect(): Observable<void> {
+    return this._listenerToObservable('didSucceedReaderReconnect')
+  }
+
+  /**
+   * The SDK was not able to reconnect to the previously connected bluetooth reader. The SDK is now disconnected from any readers.
+   *
+   * In your implementation of this method, you should notify your user that the reader has disconnected.
+   *
+   * Requires `autoReconnectOnUnexpectedDisconnect` is set to true in the `BluetoothConnectionConfiguration`
+   */
+  public didFailReaderReconnect(): Observable<void> {
+    return this._listenerToObservable('didFailReaderReconnect')
+  }
+
+  /**
+   * Cancel auto-reconnection
+   */
+  public async cancelAutoReconnect(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelAutoReconnect()
   }
 
   public getDeviceStyleFromDeviceType(type: DeviceType): DeviceStyle {

@@ -1,4 +1,5 @@
 import type { PluginListenerHandle, PermissionState } from '@capacitor/core'
+import { Stripe } from 'stripe'
 
 export interface PermissionStatus {
   location: PermissionState
@@ -284,30 +285,27 @@ export interface ConnectionConfiguration {
    * @see https://stripe.com/docs/terminal/readers/fleet-management#bbpos-wisepad3-discovery
    */
   locationId: string
-
-  /**
-   * When set to true, the connection will automatically error if the reader is already connected to a device and collecting payment. When set to false, this will allow you to connect to a reader already connected to another device, and will break the existing reader-to-SDK connection on the other device when it attempts to collect payment.
-   * @default false
-   */
-  failIfInUse?: boolean
 }
 
 /**
  * @category Reader
  */
 export interface BluetoothConnectionConfiguration
-  extends ConnectionConfiguration {}
+  extends ConnectionConfiguration {
+  /**
+   * When set to true, the Terminal SDK will attempt a Bluetooth auto-reconnection on any unexpected disconnect.
+   *
+   * When set to false, we will immediately surface any disconnection through TerminalDelegate.
+   *
+   * @default false
+   */
+  autoReconnectOnUnexpectedDisconnect?: boolean
+}
 
 /**
  * @category Reader
  */
 export interface UsbConnectionConfiguration extends ConnectionConfiguration {}
-
-/**
- * @category Reader
- */
-export interface EmbeddedConnectionConfiguration
-  extends ConnectionConfiguration {}
 
 /**
  * @category Reader
@@ -319,7 +317,28 @@ export interface HandoffConnectionConfiguration
  * @category Reader
  */
 export interface LocalMobileConnectionConfiguration
-  extends ConnectionConfiguration {}
+  extends ConnectionConfiguration {
+  /**
+   * If your integration is creating destination charges and using `on_behalf_of`, you must provide the `connected_account_id` in the `onBehalfOf` parameter as part of the `LocalMobileConnectionConfiguration`. Unlike other reader types which require this information on a per-transaction basis, the Apple Built-In reader requires this on a per-connection basis as well in order to establish a reader connection.
+   *
+   * @see https://stripe.com/docs/terminal/features/connect#destination-payment-intents
+   */
+  onBehalfOf?: string
+
+  /**
+   * Optional cardholder facing merchant display name that will be used in the prompt for the cardholder to present their card. If this value is not provided, the merchant display name will be taken from the Terminal `Location.display_name` associated with the connection.
+   */
+  merchantDisplayName?: string
+
+  /**
+   * In order to connect to a reader, merchant-specific terms of service may need to be accepted. Presenting the flow requires iCloud sign-in and an authorized individual. This attribute determines how the connection process should proceed if this situation is encountered.
+   * - If YES, the terms the terms of service should be presented during connection. If accepted successfully, the connection process will resume. If not accepted successfully, the connection will fail with an error.
+   * - If NO, the terms of service will not be presented and the connection will fail with an error.
+   *
+   * @default false
+   */
+  tosAcceptancePermitted?: boolean
+}
 
 /**
  * @category Reader
@@ -327,9 +346,16 @@ export interface LocalMobileConnectionConfiguration
 export interface InternetConnectionConfiguration
   extends ConnectionConfiguration {
   /**
+   * When set to true, the connection will automatically error if the reader is already connected to a device and collecting payment. When set to false, this will allow you to connect to a reader already connected to another device, and will break the existing reader-to-SDK connection on the other device when it attempts to collect payment.
+   *
+   * @default false
+   */
+  failIfInUse?: boolean
+
+  /**
    * If set to true, the customer will be able to press the red X button on the Verifone P400 to cancel a `collectPaymentMethod`, `collectReusableCard`, or `collectRefundPaymentMethod` command.
    *
-   * This behavior is part of a private beta. Setting this property will have no effect if you are not part of the allowCustomerCancel beta program.
+   * @note This behavior is part of a private beta. Setting this property will have no effect if you are not part of the allowCustomerCancel beta program.
    *
    * @default false
    */
@@ -562,11 +588,68 @@ export enum PaymentIntentStatus {
  * @see https://stripe.com/docs/api/payment_intents
  */
 export interface PaymentIntent {
+  /**
+   * The unique identifier for the intent.
+   */
   stripeId: string
+  /**
+   * When the intent was created.
+   */
   created: number
+  /**
+   * The status of the PaymentIntent.
+   */
   status: PaymentIntentStatus
+  /**
+   * The amount to be collected by this PaymentIntent, provided in the currency’s smallest unit.
+   *
+   * @see https://stripe.com/docs/currencies#zero-decimal
+   */
   amount: number
+
+  /**
+   * The currency of the payment.
+   */
   currency: string
+
+  /**
+   * Set of key-value pairs attached to the object.
+   *
+   * @see https://stripe.com/docs/api#metadata
+   */
+  metadata: { [key: string]: string }
+
+  /**
+   * Charges that were created by this `PaymentIntent`, if any.
+   */
+  charges: Stripe.Charge[]
+
+  /**
+   * The payment method to be used in this `PaymentIntent`. Only valid in the intent returned during `collectPaymentMethod` when using the `updatePaymentIntent` option in the `CollectConfig`.
+   */
+  paymentMethod: Stripe.PaymentMethod | null
+
+  /**
+   * Details about items included in the amount after confirmation.
+   */
+  amountDetails?: Stripe.PaymentIntent.AmountDetails
+
+  /**
+   * Indicates how much the user intends to tip in addition to the amount by at confirmation time. This is only non-null in the `PaymentIntent` instance returned during collect when using `updatePaymentIntent` set to true in the `CollectConfig`.
+   *
+   * After `processPaymentIntent` the amount will have this tip `amount` added to it and the `amountDetails` will contain the breakdown of how much of the `amount` was a tip.
+   */
+  amountTip?: number
+
+  /**
+   * Extra information about a PaymentIntent. This will appear on your customer’s statement when this PaymentIntent succeeds in creating a charge.
+   */
+  statementDescriptor?: string
+
+  /**
+   * Extra dynamic information about a PaymentIntent. This will appear concatenated with the statementDescriptor on your customer’s statement when this PaymentIntent succeeds in creating a charge.
+   */
+  statementDescriptorSuffix?: string
 }
 
 /**
@@ -770,8 +853,26 @@ export interface TippingConfig {
 }
 
 export interface CollectConfig {
+  /**
+   * Bypass tipping selection if it would have otherwise been shown.
+   *
+   * @default false
+   */
   skipTipping?: boolean
+
+  /**
+   * The tipping configuration for this payment collection.
+   *
+   * @see https://stripe.com/docs/terminal/features/collecting-tips/on-reader#tip-eligible
+   */
   tipping?: TippingConfig | null
+
+  /**
+   * Whether or not to update the PaymentIntent server side during collectPaymentMethod.
+   *
+   * @default false
+   */
+  updatePaymentIntent?: boolean
 }
 
 /**
@@ -794,6 +895,7 @@ export interface StripeTerminalInterface {
   connectBluetoothReader(options: {
     serialNumber: string
     locationId: string
+    autoReconnectOnUnexpectedDisconnect?: boolean
   }): Promise<{ reader: Reader | null }>
 
   connectInternetReader(options: {
@@ -811,11 +913,9 @@ export interface StripeTerminalInterface {
   connectLocalMobileReader(options: {
     serialNumber: string
     locationId: string
-  }): Promise<{ reader: Reader | null }>
-
-  connectEmbeddedReader(options: {
-    serialNumber: string
-    locationId: string
+    onBehalfOf?: string
+    merchantDisplayName?: string
+    tosAcceptancePermitted?: boolean
   }): Promise<{ reader: Reader | null }>
 
   connectHandoffReader(options: {
@@ -866,6 +966,8 @@ export interface StripeTerminalInterface {
     config: SimulatorConfiguration
   ): Promise<SimulatorConfiguration>
 
+  cancelAutoReconnect(): Promise<void>
+
   /**
    * @deprecated use requestPermissions and checkPermissions
    */
@@ -915,6 +1017,14 @@ export interface StripeTerminalInterface {
       update?: ReaderSoftwareUpdate
       error?: string
     }) => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName:
+      | 'didStartReaderReconnect'
+      | 'didSucceedReaderReconnect'
+      | 'didFailReaderReconnect',
+    listenerFunc: (data: null) => void
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(

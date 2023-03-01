@@ -1,13 +1,21 @@
 package io.event1.capacitorstripeterminal;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.squareup.moshi.Moshi;
 import com.stripe.stripeterminal.external.models.Address;
+import com.stripe.stripeterminal.external.models.AmountDetails;
+import com.stripe.stripeterminal.external.models.AmountDetailsJsonAdapter;
+import com.stripe.stripeterminal.external.models.Charge;
+import com.stripe.stripeterminal.external.models.ChargeJsonAdapter;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.DeviceType;
 import com.stripe.stripeterminal.external.models.DiscoveryMethod;
 import com.stripe.stripeterminal.external.models.Location;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
+import com.stripe.stripeterminal.external.models.PaymentMethod;
+import com.stripe.stripeterminal.external.models.PaymentMethodJsonAdapter;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
@@ -101,6 +109,41 @@ public class TerminalUtils {
     );
     object.put("amount", paymentIntent.getAmount());
     object.put("currency", currency);
+    object.put("amountTip", paymentIntent.getAmountTip());
+    object.put("statementDescriptor", paymentIntent.getStatementDescriptor());
+    object.put(
+      "statementDescriptorSuffix",
+      paymentIntent.getStatementDescriptorSuffix()
+    );
+
+    Moshi moshi = new Moshi.Builder().build();
+
+    PaymentMethod paymentMethod = paymentIntent.getPaymentMethod();
+    AmountDetails amountDetails = paymentIntent.getAmountDetails();
+
+    if (amountDetails != null) {
+      AmountDetailsJsonAdapter adapter = new AmountDetailsJsonAdapter(moshi);
+      String amountDetailsString = adapter.toJson(amountDetails);
+      object.put("amountDetails", amountDetailsString);
+    }
+
+    if (paymentMethod != null) {
+      PaymentMethodJsonAdapter paymentMethodAdapter = new PaymentMethodJsonAdapter(
+        moshi
+      );
+      String paymentMethodString = paymentMethodAdapter.toJson(paymentMethod);
+      object.put("paymentMethod", paymentMethodString);
+    }
+
+    JSArray charges = new JSArray();
+    if (paymentIntent.getCharges() != null) {
+      ChargeJsonAdapter adapter = new ChargeJsonAdapter(moshi);
+
+      for (Charge charge : paymentIntent.getCharges()) {
+        charges.put(adapter.toJson(charge));
+      }
+    }
+    object.put("charges", charges);
 
     JSObject metaData = new JSObject();
     if (paymentIntent.getMetadata() != null) {
@@ -151,6 +194,13 @@ public class TerminalUtils {
     if (address != null) {
       object.put("address", serializeAddress(address));
     }
+    JSObject metaData = new JSObject();
+    if (location.getMetadata() != null) {
+      for (String key : location.getMetadata().keySet()) {
+        metaData.put(key, String.valueOf(location.getMetadata().get(key)));
+      }
+    }
+    object.put("metadata", metaData);
 
     return object;
   }

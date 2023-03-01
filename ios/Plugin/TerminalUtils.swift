@@ -46,14 +46,31 @@ public class StripeTerminalUtils {
     }
 
     static func serializePaymentIntent(intent: PaymentIntent) -> [String: Any] {
-        let jsonObject: [String: Any] = [
+        let chargesJson = intent.charges.map {
+            (charge: Charge) -> [AnyHashable: Any] in
+            charge.originalJSON
+        }
+
+        var jsonObject: [String: Any] = [
             "stripeId": intent.stripeId,
             "created": intent.created.timeIntervalSince1970,
             "status": intent.status.rawValue,
             "amount": intent.amount,
             "currency": intent.currency,
-            //            "metadata": intent.metadata as [String: Any],
+            "amountTip": intent.amountTip as Any,
+            "statementDescriptor": intent.statementDescriptor as Any,
+            "statementDescriptorSuffix": intent.statementDescriptorSuffix as Any,
+            "charges": chargesJson,
+            "metadata": intent.metadata as Any,
         ]
+        
+        if let amountDetails = intent.amountDetails {
+            jsonObject["amountDetails"] = amountDetails.originalJSON
+        }
+
+        if let paymentMethod = intent.paymentMethod {
+            jsonObject["paymentMethod"] = paymentMethod.originalJSON
+        }
 
         return jsonObject
     }
@@ -63,7 +80,7 @@ public class StripeTerminalUtils {
             "stripeId": location.stripeId,
             "displayName": location.displayName as Any,
             "livemode": location.livemode,
-//            "metadata": location.metadata as [String: Any],
+            "metadata": location.metadata as Any,
         ]
 
         if let address = location.address {
@@ -93,5 +110,19 @@ public class StripeTerminalUtils {
         ]
                 
         return jsonObject
+    }
+    
+    static func translateDiscoveryMethod(method: UInt) -> DiscoveryMethod {
+        if (method == 0) {
+            return DiscoveryMethod.bluetoothScan
+        } else if (method == 1) {
+            return DiscoveryMethod.bluetoothProximity
+        } else if (method == 2) {
+            return DiscoveryMethod.internet
+        } else if (method == 7) {
+            return DiscoveryMethod.localMobile
+        } else {
+            return DiscoveryMethod.bluetoothProximity
+        }
     }
 }
