@@ -1,4 +1,5 @@
 import type { PluginListenerHandle, PermissionState } from '@capacitor/core'
+import { Stripe } from 'stripe'
 
 export interface PermissionStatus {
   location: PermissionState
@@ -587,11 +588,68 @@ export enum PaymentIntentStatus {
  * @see https://stripe.com/docs/api/payment_intents
  */
 export interface PaymentIntent {
+  /**
+   * The unique identifier for the intent.
+   */
   stripeId: string
+  /**
+   * When the intent was created.
+   */
   created: number
+  /**
+   * The status of the PaymentIntent.
+   */
   status: PaymentIntentStatus
+  /**
+   * The amount to be collected by this PaymentIntent, provided in the currency’s smallest unit.
+   *
+   * @see https://stripe.com/docs/currencies#zero-decimal
+   */
   amount: number
+
+  /**
+   * The currency of the payment.
+   */
   currency: string
+
+  /**
+   * Set of key-value pairs attached to the object.
+   *
+   * @see https://stripe.com/docs/api#metadata
+   */
+  metadata: { [key: string]: string }
+
+  /**
+   * Charges that were created by this `PaymentIntent`, if any.
+   */
+  charges: Stripe.Charge[]
+
+  /**
+   * The payment method to be used in this `PaymentIntent`. Only valid in the intent returned during `collectPaymentMethod` when using the `updatePaymentIntent` option in the `CollectConfig`.
+   */
+  paymentMethod: Stripe.PaymentMethod | null
+
+  /**
+   * Details about items included in the amount after confirmation.
+   */
+  amountDetails?: Stripe.PaymentIntent.AmountDetails
+
+  /**
+   * Indicates how much the user intends to tip in addition to the amount by at confirmation time. This is only non-null in the `PaymentIntent` instance returned during collect when using `updatePaymentIntent` set to true in the `CollectConfig`.
+   *
+   * After `processPaymentIntent` the amount will have this tip `amount` added to it and the `amountDetails` will contain the breakdown of how much of the `amount` was a tip.
+   */
+  amountTip?: number
+
+  /**
+   * Extra information about a PaymentIntent. This will appear on your customer’s statement when this PaymentIntent succeeds in creating a charge.
+   */
+  statementDescriptor?: string
+
+  /**
+   * Extra dynamic information about a PaymentIntent. This will appear concatenated with the statementDescriptor on your customer’s statement when this PaymentIntent succeeds in creating a charge.
+   */
+  statementDescriptorSuffix?: string
 }
 
 /**

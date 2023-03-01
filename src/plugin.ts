@@ -357,6 +357,52 @@ export class StripeTerminalPlugin {
     return reader
   }
 
+  private parseJson(json: string, name: string): any {
+    try {
+      return JSON.parse(json)
+    } catch (err) {
+      console.error(`Error parsing ${name} JSON`, err)
+      return null
+    }
+  }
+
+  private normalizePaymentIntent(paymentIntent: any): PaymentIntent | null {
+    if (!paymentIntent) return null
+
+    if (
+      paymentIntent.amountDetails &&
+      typeof paymentIntent.amountDetails === 'string'
+    ) {
+      paymentIntent.amountDetails = this.parseJson(
+        paymentIntent.amountDetails,
+        'PaymentIntent.amountDetails'
+      )
+    }
+
+    if (
+      paymentIntent.paymentMethod &&
+      typeof paymentIntent.paymentMethod === 'string'
+    ) {
+      paymentIntent.paymentMethod = this.parseJson(
+        paymentIntent.paymentMethod,
+        'PaymentIntent.paymentMethod'
+      )
+    }
+
+    if (paymentIntent.charges) {
+      paymentIntent.charges = paymentIntent.charges.map((charge: any) => {
+        if (typeof charge === 'string') {
+          return this.parseJson(charge, 'PaymentIntent.charges')
+        }
+
+        return charge
+      })
+    }
+
+    console.log('CST normalizedIntent', paymentIntent)
+    return paymentIntent
+  }
+
   public discoverReaders(
     options: DiscoveryConfiguration
   ): Observable<Reader[]> {
@@ -725,7 +771,9 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.retrievePaymentIntent({ clientSecret })
 
-    return this.objectExists(data?.intent)
+    const pi = this.objectExists(data?.intent)
+
+    return this.normalizePaymentIntent(pi)
   }
 
   public async collectPaymentMethod(
@@ -741,7 +789,9 @@ export class StripeTerminalPlugin {
 
       const data = await this.sdk.collectPaymentMethod(collectConfig)
 
-      return this.objectExists(data?.intent)
+      const pi = this.objectExists(data?.intent)
+
+      return this.normalizePaymentIntent(pi)
     } catch (err) {
       throw err
     } finally {
@@ -760,7 +810,9 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.processPayment()
 
-    return this.objectExists(data?.intent)
+    const pi = this.objectExists(data?.intent)
+
+    return this.normalizePaymentIntent(pi)
   }
 
   public async clearCachedCredentials(): Promise<void> {
