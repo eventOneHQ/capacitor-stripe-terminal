@@ -1,5 +1,6 @@
 import { Capacitor, PluginListenerHandle } from '@capacitor/core'
 import { Observable } from 'rxjs'
+import { transform, isObject, isArray, snakeCase } from 'lodash'
 
 import {
   StripeTerminalInterface,
@@ -357,9 +358,26 @@ export class StripeTerminalPlugin {
     return reader
   }
 
+  private snakeCaseRecursively(obj: any) {
+    return transform(obj, (acc: any, value, key: any, target) => {
+      const snakeKey = isArray(target) ? key : snakeCase(key)
+
+      // don't touch metadata objects
+      if (key === 'metadata') {
+        acc[snakeKey] = value
+      } else {
+        acc[snakeKey] = isObject(value)
+          ? this.snakeCaseRecursively(value)
+          : value
+      }
+    })
+  }
+
   private parseJson(json: string, name: string): any {
     try {
-      return JSON.parse(json)
+      const jsonObj = JSON.parse(json)
+
+      return this.snakeCaseRecursively(jsonObj)
     } catch (err) {
       console.error(`Error parsing ${name} JSON`, err)
       return null
