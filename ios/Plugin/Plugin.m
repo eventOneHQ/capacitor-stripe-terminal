@@ -28,5 +28,7 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(listLocations, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getSimulatorConfiguration, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(setSimulatorConfiguration, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(connectLocalMobileReader, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(cancelAutoReconnect, CAPPluginReturnPromise);
 )
 
