@@ -972,6 +972,8 @@ export class StripeTerminalPlugin {
       type === DeviceType.WisePad3
     ) {
       return DeviceStyle.Bluetooth
+    } else if (type === DeviceType.AppleBuiltIn) {
+      return DeviceStyle.Local
     } else if (
       type === DeviceType.WisePosE ||
       type === DeviceType.WisePosEDevKit ||

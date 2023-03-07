@@ -105,7 +105,7 @@ export enum DeviceType {
   /**
    * Apple Built-In reader.
    */
-  AppleBuiltIn = 10
+  AppleBuiltIn = 11
 }
 
 /**
@@ -843,7 +843,8 @@ export enum SimulateReaderUpdate {
 
 export enum DeviceStyle {
   Internet,
-  Bluetooth
+  Bluetooth,
+  Local
 }
 
 export interface TippingConfig {
