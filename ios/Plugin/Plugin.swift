@@ -364,7 +364,10 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             if let intent = self.currentPaymentIntent {
                 Terminal.shared.processPayment(intent) { paymentIntent, error in
                     if let error = error {
-                        call.reject(error.localizedDescription, nil, error)
+                        call.reject(error.localizedDescription, nil, error, [
+                            "decline_code": error.declineCode as Any,
+                            "payment_intent": error.paymentIntent?.originalJSON as Any
+                        ])
                     } else if let paymentIntent = paymentIntent {
                         self.currentPaymentIntent = paymentIntent
                         call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])

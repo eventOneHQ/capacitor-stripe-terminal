@@ -1,6 +1,7 @@
 import { Capacitor, PluginListenerHandle } from '@capacitor/core'
 import { Observable } from 'rxjs'
 import { transform, isObject, isArray, snakeCase } from 'lodash'
+import { Stripe } from 'stripe'
 
 import {
   StripeTerminalInterface,
@@ -31,6 +32,18 @@ import {
 
 import { StripeTerminal } from './plugin-registration'
 import { StripeTerminalWeb } from './web'
+
+export class StripeTerminalError extends Error {
+  /**
+   * For card errors resulting from a card issuer decline, a short string indicating the [card issuer’s reason for the decline](https://stripe.com/docs/declines#issuer-declines) if they provide one.
+   */
+  decline_code?: string
+
+  /**
+   * The `PaymentIntent` object for errors returned on a request involving a `PaymentIntent`.
+   */
+  payment_intent?: Stripe.PaymentIntent
+}
 
 export class StripeTerminalPlugin {
   public isInitialized = false
@@ -823,13 +836,25 @@ export class StripeTerminalPlugin {
   }
 
   public async processPayment(): Promise<PaymentIntent | null> {
-    this.ensureInitialized()
+    try {
+      this.ensureInitialized()
 
-    const data = await this.sdk.processPayment()
+      const data = await this.sdk.processPayment()
 
-    const pi = this.objectExists(data?.intent)
+      const pi = this.objectExists(data?.intent)
 
-    return this.normalizePaymentIntent(pi)
+      return this.normalizePaymentIntent(pi)
+    } catch (err: any) {
+      if (!err?.message || !err?.data) {
+        throw err
+      }
+
+      const stripeError = new StripeTerminalError(err.message)
+      stripeError.decline_code = err.data.decline_code
+      stripeError.payment_intent = err.data.payment_intent
+
+      throw stripeError
+    }
   }
 
   public async clearCachedCredentials(): Promise<void> {
