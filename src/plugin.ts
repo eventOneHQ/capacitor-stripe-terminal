@@ -386,15 +386,10 @@ export class StripeTerminalPlugin {
     })
   }
 
-  private parseJson(json: string, name: string): any {
-    try {
-      const jsonObj = JSON.parse(json)
+  private parseJson(json: string): any {
+    const jsonObj = JSON.parse(json)
 
-      return this.snakeCaseRecursively(jsonObj)
-    } catch (err) {
-      console.error(`Error parsing ${name} JSON`, err)
-      return null
-    }
+    return this.snakeCaseRecursively(jsonObj)
   }
 
   private normalizePaymentIntent(paymentIntent: any): PaymentIntent | null {
@@ -404,26 +399,21 @@ export class StripeTerminalPlugin {
       paymentIntent.amountDetails &&
       typeof paymentIntent.amountDetails === 'string'
     ) {
-      paymentIntent.amountDetails = this.parseJson(
-        paymentIntent.amountDetails,
-        'PaymentIntent.amountDetails'
-      )
+      paymentIntent.amountDetails = this.parseJson(paymentIntent.amountDetails)
     }
 
     if (
       paymentIntent.paymentMethod &&
-      typeof paymentIntent.paymentMethod === 'string'
+      typeof paymentIntent.paymentMethod === 'string' &&
+      !paymentIntent.paymentMethod.startsWith('pm_') // if its just the ID, return the ID
     ) {
-      paymentIntent.paymentMethod = this.parseJson(
-        paymentIntent.paymentMethod,
-        'PaymentIntent.paymentMethod'
-      )
+      paymentIntent.paymentMethod = this.parseJson(paymentIntent.paymentMethod)
     }
 
     if (paymentIntent.charges) {
       paymentIntent.charges = paymentIntent.charges.map((charge: any) => {
         if (typeof charge === 'string') {
-          return this.parseJson(charge, 'PaymentIntent.charges')
+          return this.parseJson(charge)
         }
 
         return charge
