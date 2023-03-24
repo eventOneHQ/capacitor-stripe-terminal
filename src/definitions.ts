@@ -627,7 +627,7 @@ export interface PaymentIntent {
   /**
    * The payment method to be used in this `PaymentIntent`. Only valid in the intent returned during `collectPaymentMethod` when using the `updatePaymentIntent` option in the `CollectConfig`.
    */
-  paymentMethod: Stripe.PaymentMethod | null
+  paymentMethod: Stripe.PaymentMethod | string | null
 
   /**
    * Details about items included in the amount after confirmation.
