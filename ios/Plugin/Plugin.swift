@@ -15,6 +15,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     private var pendingReaderAutoReconnect: Cancelable?
     private var currentUpdate: ReaderSoftwareUpdate?
     private var currentPaymentIntent: PaymentIntent?
+    private var cancelDiscoverReadersCall: CAPPluginCall?
     private var isInitialized: Bool = false
     private var thread = DispatchQueue.init(label: "CapacitorStripeTerminal")
 
@@ -93,36 +94,48 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
 
         let discoveryMethod = StripeTerminalUtils.translateDiscoveryMethod(method: method)
 
-        pendingDiscoverReaders = nil
-
-        let config = DiscoveryConfiguration(discoveryMethod: discoveryMethod,
-                                            locationId: locationId,
-                                            simulated: simulated)
-        pendingDiscoverReaders = Terminal.shared.discoverReaders(config, delegate: self, completion: { error in
-            self.pendingDiscoverReaders = nil
-
+        let config = DiscoveryConfiguration(
+            discoveryMethod: discoveryMethod,
+            locationId: locationId,
+            simulated: simulated
+        )
+        
+        guard pendingDiscoverReaders == nil else {
+            call.reject("discoverReaders is busy")
+            return
+        }
+                
+        self.pendingDiscoverReaders = Terminal.shared.discoverReaders(config, delegate: self) { error in
             if let error = error {
                 call.reject(error.localizedDescription, nil, error)
+                self.pendingDiscoverReaders = nil
             } else {
                 call.resolve()
+                self.pendingDiscoverReaders = nil
+
+                // if cancelDiscoverReadersCall exists, resolve it since the discovery is complete now
+                self.cancelDiscoverReadersCall?.resolve()
+                self.cancelDiscoverReadersCall = nil
             }
-        })
+        }
     }
 
     @objc func cancelDiscoverReaders(_ call: CAPPluginCall? = nil) {
-        if let cancelable = pendingDiscoverReaders {
-            cancelable.cancel { error in
-                if let error = error {
-                    call?.reject(error.localizedDescription, nil, error)
-                } else {
-                    call?.resolve()
-                }
-            }
-
+        guard let cancelable = pendingDiscoverReaders else {
+            call?.resolve()
             return
         }
-
-        call?.resolve()
+        
+        cancelable.cancel() { error in
+            if let error = error as NSError? {
+                call?.reject(error.localizedDescription, nil, error)
+                self.pendingDiscoverReaders = nil
+            } else {
+                // do not call resolve, let discoverReaders call it when it is actually complete
+                self.cancelDiscoverReadersCall = call
+            }
+        }
+        
     }
 
     @objc func connectBluetoothReader(_ call: CAPPluginCall) {
