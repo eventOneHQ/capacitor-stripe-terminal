@@ -176,7 +176,7 @@ See the full API docs [here](https://oss.eventone.page/capacitor-stripe-terminal
 
 <p>
     <a href="https://event1.io/?utm_medium=opensource&utm_source=capacitor-stripe-terminal">
-        <img src="https://e1-com.eventone.page/brand/wordmark/wm.svg" width="200px">
+        <img src="https://brand.event1.io/wordmark/wm.svg" width="200px">
     </a>
 </p>
 
