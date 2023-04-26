@@ -903,7 +903,8 @@ public class StripeTerminal
 
     SimulatorConfiguration newConfig = new SimulatorConfiguration(
       availableReaderUpdate,
-      simulatedCard
+      simulatedCard,
+      null
     );
 
     Terminal.getInstance().setSimulatorConfiguration(newConfig);
