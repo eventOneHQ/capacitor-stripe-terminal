@@ -91,6 +91,7 @@ public class StripeTerminal
   Cancelable pendingCollectPaymentMethod = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
   String lastCurrency = null;
+  Boolean tapToPaySupported = null;
 
   ReaderSoftwareUpdate currentUpdate = null;
   PaymentIntent currentPaymentIntent = null;
@@ -942,31 +943,37 @@ public class StripeTerminal
 
   @PluginMethod
   public void tapToPaySupported(final PluginCall call) {
-    String locationId = call.getString("locationId");
     JSObject ret = new JSObject();
 
-    if (locationId == null) {
-      call.reject("Must provide a location ID");
+    if (tapToPaySupported != null) {
+      ret.put("supported", tapToPaySupported);
+      call.resolve(ret);
       return;
     }
-    DiscoveryConfiguration config = new DiscoveryConfiguration(0, DiscoveryMethod.LOCAL_MOBILE, false, locationId);
+
+    DiscoveryConfiguration config = new DiscoveryConfiguration(0, DiscoveryMethod.LOCAL_MOBILE, false);
+
+    // first attempt to cancel any pending discoverReaders calls
+    cancelDiscoverReaders();
+
     pendingDiscoverReaders = Terminal.getInstance().discoverReaders(config, readers -> {}, new Callback(){
-      @Override
-      public void onSuccess() {
+      private void returnValue(boolean supported) {
         if (pendingDiscoverReaders != null) {
           pendingDiscoverReaders.cancel(null);
+          pendingDiscoverReaders = null;
         }
-        ret.put("supported", true);
+        ret.put("supported", supported);
         call.resolve(ret);
       }
 
       @Override
+      public void onSuccess() {
+        returnValue(true);
+      }
+
+      @Override
       public void onFailure(@NonNull TerminalException e) {
-        if (pendingDiscoverReaders != null) {
-          pendingDiscoverReaders.cancel(null);
-        }
-        ret.put("supported", false);
-        call.resolve(ret);
+        returnValue(false);
       }
     })
 

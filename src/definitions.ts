@@ -978,7 +978,7 @@ export interface StripeTerminalInterface {
   checkPermissions(): Promise<PermissionStatus>
   requestPermissions(): Promise<PermissionStatus>
 
-  tapToPaySupported(locationId: string): Promise<boolean>
+  tapToPaySupported(): Promise<boolean>
 
   addListener(
     eventName: 'requestConnectionToken',
