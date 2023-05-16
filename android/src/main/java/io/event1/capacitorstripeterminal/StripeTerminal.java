@@ -938,6 +938,38 @@ public class StripeTerminal
     }
   }
 
+  @PluginMethod
+  public void tapToPaySupported(final PluginCall call) {
+    String locationId = call.getString("locationId");
+    JSObject ret = new JSObject();
+
+    if (locationId == null) {
+      call.reject("Must provide a location ID");
+      return;
+    }
+    DiscoveryConfiguration config = new DiscoveryConfiguration(0, DiscoveryMethod.LOCAL_MOBILE, false, locationId);
+    pendingDiscoverReaders = Terminal.getInstance().discoverReaders(config, readers -> {}, new Callback(){
+      @Override
+      public void onSuccess() {
+        if (pendingDiscoverReaders != null) {
+          pendingDiscoverReaders.cancel(null);
+        }
+        ret.put("supported", true);
+        call.resolve(ret);
+      }
+
+      @Override
+      public void onFailure(@NonNull TerminalException e) {
+        if (pendingDiscoverReaders != null) {
+          pendingDiscoverReaders.cancel(null);
+        }
+        ret.put("supported", false);
+        call.resolve(ret);
+      }
+    })
+
+  }
+
   @Override
   public void fetchConnectionToken(
     @NonNull ConnectionTokenCallback connectionTokenCallback
