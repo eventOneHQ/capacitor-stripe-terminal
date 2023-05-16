@@ -1150,9 +1150,6 @@ public class StripeTerminal
 
   @Override
   public void onStop() {
-    if ( pendingDiscoverReaders != null) {
-      pendingDiscoverReaders.cancel(null);
-      notifyListeners("didCancelDiscoverReaders", null);
-    }
+    cancelDiscoverReaders();
   }
 }
