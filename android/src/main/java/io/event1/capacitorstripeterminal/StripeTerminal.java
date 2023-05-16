@@ -1150,6 +1150,7 @@ public class StripeTerminal
   public void onStop() {
     if ( pendingDiscoverReaders != null) {
       pendingDiscoverReaders.cancel(null);
+      notifyListeners("didCancelDiscoverReaders", null);
     }
   }
 }

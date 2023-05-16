@@ -1033,4 +1033,9 @@ export interface StripeTerminalInterface {
     eventName: string,
     listenerFunc: Function
   ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didCancelDiscoverReaders',
+    listenerFunc: (data: null) => void
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
 }
