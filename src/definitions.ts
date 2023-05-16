@@ -798,6 +798,7 @@ export interface ListLocationsParameters {
 export interface SimulatorConfiguration {
   availableReaderUpdate?: SimulateReaderUpdate
   simulatedCard?: SimulatedCardType
+  simulatedTipAmount?: number
 }
 
 /**

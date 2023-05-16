@@ -883,6 +883,7 @@ public class StripeTerminal
   public void setSimulatorConfiguration(@NonNull final PluginCall call) {
     Integer availableReaderUpdateInt = call.getInt("availableReaderUpdate");
     Integer simulatedCardInt = call.getInt("simulatedCard");
+    Long simulatedTipAmount = call.getLong("simulatedTipAmount");
 
     SimulatorConfiguration currentConfig = Terminal
       .getInstance()
@@ -904,7 +905,7 @@ public class StripeTerminal
     SimulatorConfiguration newConfig = new SimulatorConfiguration(
       availableReaderUpdate,
       simulatedCard,
-      null
+      simulatedTipAmount
     );
 
     Terminal.getInstance().setSimulatorConfiguration(newConfig);
