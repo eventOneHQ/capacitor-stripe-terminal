@@ -1016,6 +1016,10 @@ export class StripeTerminalPlugin {
     return await StripeTerminal.requestPermissions()
   }
 
+  public static async tapToPaySupported(): Promise<boolean> {
+    return await StripeTerminal.tapToPaySupported()
+  }
+
   /**
    * This should not be used directly. It will not behave correctly when using `Internet` and `Both` discovery methods
    *

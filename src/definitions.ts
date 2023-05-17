@@ -798,6 +798,7 @@ export interface ListLocationsParameters {
 export interface SimulatorConfiguration {
   availableReaderUpdate?: SimulateReaderUpdate
   simulatedCard?: SimulatedCardType
+  simulatedTipAmount?: number
 }
 
 /**
@@ -977,6 +978,8 @@ export interface StripeTerminalInterface {
   checkPermissions(): Promise<PermissionStatus>
   requestPermissions(): Promise<PermissionStatus>
 
+  tapToPaySupported(): Promise<boolean>
+
   addListener(
     eventName: 'requestConnectionToken',
     listenerFunc: () => void
@@ -1031,5 +1034,10 @@ export interface StripeTerminalInterface {
   addListener(
     eventName: string,
     listenerFunc: Function
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didCancelDiscoverReaders',
+    listenerFunc: (data: null) => void
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 }

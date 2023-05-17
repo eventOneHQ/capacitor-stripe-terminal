@@ -91,6 +91,7 @@ public class StripeTerminal
   Cancelable pendingCollectPaymentMethod = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
   String lastCurrency = null;
+  Boolean tapToPaySupported = null;
 
   ReaderSoftwareUpdate currentUpdate = null;
   PaymentIntent currentPaymentIntent = null;
@@ -883,6 +884,7 @@ public class StripeTerminal
   public void setSimulatorConfiguration(@NonNull final PluginCall call) {
     Integer availableReaderUpdateInt = call.getInt("availableReaderUpdate");
     Integer simulatedCardInt = call.getInt("simulatedCard");
+    Long simulatedTipAmount = call.getLong("simulatedTipAmount");
 
     SimulatorConfiguration currentConfig = Terminal
       .getInstance()
@@ -903,7 +905,8 @@ public class StripeTerminal
 
     SimulatorConfiguration newConfig = new SimulatorConfiguration(
       availableReaderUpdate,
-      simulatedCard
+      simulatedCard,
+      simulatedTipAmount
     );
 
     Terminal.getInstance().setSimulatorConfiguration(newConfig);
@@ -934,6 +937,53 @@ public class StripeTerminal
     } else {
       call.resolve();
     }
+  }
+
+  @PluginMethod
+  public void tapToPaySupported(final PluginCall call) {
+    JSObject ret = new JSObject();
+
+    if (tapToPaySupported != null) {
+      ret.put("supported", tapToPaySupported);
+      call.resolve(ret);
+      return;
+    }
+
+    DiscoveryConfiguration config = new DiscoveryConfiguration(
+      0,
+      DiscoveryMethod.LOCAL_MOBILE,
+      false
+    );
+
+    // first attempt to cancel any pending discoverReaders calls
+    cancelDiscoverReaders();
+
+    pendingDiscoverReaders =
+      Terminal
+        .getInstance()
+        .discoverReaders(
+          config,
+          readers -> {},
+          new Callback() {
+            private void returnValue(boolean supported) {
+              if (pendingDiscoverReaders != null) {
+                pendingDiscoverReaders = null;
+              }
+              ret.put("supported", supported);
+              call.resolve(ret);
+            }
+
+            @Override
+            public void onSuccess() {
+              returnValue(true);
+            }
+
+            @Override
+            public void onFailure(@NonNull TerminalException e) {
+              returnValue(false);
+            }
+          }
+        );
   }
 
   @Override
@@ -1110,5 +1160,10 @@ public class StripeTerminal
   public void onReaderReconnectFailed(@NonNull Reader reader) {
     pendingReaderAutoReconnect = null;
     notifyListeners("didFailReaderReconnect", null);
+  }
+
+  @Override
+  public void onStop() {
+    cancelDiscoverReaders();
   }
 }
