@@ -951,32 +951,42 @@ public class StripeTerminal
       return;
     }
 
-    DiscoveryConfiguration config = new DiscoveryConfiguration(0, DiscoveryMethod.LOCAL_MOBILE, false);
+    DiscoveryConfiguration config = new DiscoveryConfiguration(
+      0,
+      DiscoveryMethod.LOCAL_MOBILE,
+      false
+    );
 
     // first attempt to cancel any pending discoverReaders calls
     cancelDiscoverReaders();
 
-    pendingDiscoverReaders = Terminal.getInstance().discoverReaders(config, readers -> {}, new Callback(){
-      private void returnValue(boolean supported) {
-        if (pendingDiscoverReaders != null) {
-          pendingDiscoverReaders.cancel(null);
-          pendingDiscoverReaders = null;
-        }
-        ret.put("supported", supported);
-        call.resolve(ret);
-      }
+    pendingDiscoverReaders =
+      Terminal
+        .getInstance()
+        .discoverReaders(
+          config,
+          readers -> {},
+          new Callback() {
+            private void returnValue(boolean supported) {
+              if (pendingDiscoverReaders != null) {
+                pendingDiscoverReaders.cancel(null);
+                pendingDiscoverReaders = null;
+              }
+              ret.put("supported", supported);
+              call.resolve(ret);
+            }
 
-      @Override
-      public void onSuccess() {
-        returnValue(true);
-      }
+            @Override
+            public void onSuccess() {
+              returnValue(true);
+            }
 
-      @Override
-      public void onFailure(@NonNull TerminalException e) {
-        returnValue(false);
-      }
-    })
-
+            @Override
+            public void onFailure(@NonNull TerminalException e) {
+              returnValue(false);
+            }
+          }
+        );
   }
 
   @Override
