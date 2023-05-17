@@ -692,4 +692,9 @@ export class StripeTerminalWeb
     // no equivalent
     console.warn('cancelAutoReconnect is only available for Bluetooth readers.')
   }
+
+  async tapToPaySupported(): Promise<boolean> {
+    const sdk = this.ensureInitialized()
+    return await sdk.tapToPaySupported()
+  }
 }
