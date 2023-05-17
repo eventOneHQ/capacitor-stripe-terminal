@@ -694,7 +694,6 @@ export class StripeTerminalWeb
   }
 
   async tapToPaySupported(): Promise<boolean> {
-    const sdk = this.ensureInitialized()
-    return await sdk.tapToPaySupported()
+    return await this.tapToPaySupported()
   }
 }
