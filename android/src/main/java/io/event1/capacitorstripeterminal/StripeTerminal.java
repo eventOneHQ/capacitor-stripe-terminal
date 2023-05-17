@@ -274,7 +274,6 @@ public class StripeTerminal
         new Callback() {
           @Override
           public void onSuccess() {
-            pendingDiscoverReaders.cancel(null);
             pendingDiscoverReaders = null;
             call.resolve();
           }
@@ -298,7 +297,6 @@ public class StripeTerminal
         new Callback() {
           @Override
           public void onSuccess() {
-            pendingDiscoverReaders.cancel(null);
             pendingDiscoverReaders = null;
           }
 
@@ -969,7 +967,6 @@ public class StripeTerminal
           new Callback() {
             private void returnValue(boolean supported) {
               if (pendingDiscoverReaders != null) {
-                pendingDiscoverReaders.cancel(null);
                 pendingDiscoverReaders = null;
               }
               ret.put("supported", supported);
