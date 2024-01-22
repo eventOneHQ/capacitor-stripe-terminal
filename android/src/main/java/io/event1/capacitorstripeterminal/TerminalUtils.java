@@ -280,7 +280,7 @@ public class TerminalUtils {
       return 1;
     } else if (status == PaymentIntentStatus.REQUIRES_CAPTURE.ordinal()) {
       return 2;
-    } else if (status == 5) { // PaymentIntentStatus seems to be missing a value for Processing??
+    } else if (status == PaymentIntentStatus.PROCESSING.ordinal()) {
       return 3;
     } else if (status == PaymentIntentStatus.CANCELED.ordinal()) {
       return 4;
