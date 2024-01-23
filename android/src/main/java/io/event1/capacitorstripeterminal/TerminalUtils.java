@@ -10,7 +10,7 @@ import com.stripe.stripeterminal.external.models.Charge;
 import com.stripe.stripeterminal.external.models.ChargeJsonAdapter;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.DeviceType;
-import com.stripe.stripeterminal.external.models.DiscoveryMethod;
+import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
 import com.stripe.stripeterminal.external.models.Location;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
@@ -233,23 +233,24 @@ public class TerminalUtils {
     return object;
   }
 
-  public static DiscoveryMethod translateDiscoveryMethod(Integer method) {
+  public static DiscoveryConfiguration translateDiscoveryConfiguration(
+          Integer method, Boolean simulated, Integer timeout, String locationId) {
     if (method == 0) {
-      return DiscoveryMethod.BLUETOOTH_SCAN;
+      return new DiscoveryConfiguration.BluetoothDiscoveryConfiguration(timeout, simulated);
     } else if (method == 1) {
-      return DiscoveryMethod.BLUETOOTH_SCAN;
+      return new DiscoveryConfiguration.BluetoothDiscoveryConfiguration(timeout, simulated);
     } else if (method == 2) {
-      return DiscoveryMethod.INTERNET;
+      return new DiscoveryConfiguration.InternetDiscoveryConfiguration(locationId, simulated);
     } else if (method == 4) {
-      return DiscoveryMethod.USB;
-    } else if (method == 5) {
-      return DiscoveryMethod.EMBEDDED;
+      return new DiscoveryConfiguration.UsbDiscoveryConfiguration(timeout, simulated);
+    // } else if (method == 5) {
+    //  return new DiscoveryConfiguration.EmbeddedDiscoveryConfiguration();
     } else if (method == 6) {
-      return DiscoveryMethod.HANDOFF;
+      return new DiscoveryConfiguration.HandoffDiscoveryConfiguration();
     } else if (method == 7) {
-      return DiscoveryMethod.LOCAL_MOBILE;
+      return new DiscoveryConfiguration.LocalMobileDiscoveryConfiguration(simulated);
     } else {
-      return DiscoveryMethod.BLUETOOTH_SCAN;
+      return new DiscoveryConfiguration.BluetoothDiscoveryConfiguration();
     }
   }
 
@@ -280,7 +281,7 @@ public class TerminalUtils {
       return 1;
     } else if (status == PaymentIntentStatus.REQUIRES_CAPTURE.ordinal()) {
       return 2;
-    } else if (status == 5) { // PaymentIntentStatus seems to be missing a value for Processing??
+    } else if (status == PaymentIntentStatus.PROCESSING.ordinal()) {
       return 3;
     } else if (status == PaymentIntentStatus.CANCELED.ordinal()) {
       return 4;

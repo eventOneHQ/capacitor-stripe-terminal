@@ -112,17 +112,29 @@ public class StripeTerminalUtils {
         return jsonObject
     }
     
-    static func translateDiscoveryMethod(method: UInt) -> DiscoveryMethod {
+    static func translateDiscoveryMethod(method: UInt, simulated: Bool, timeout: UInt, locationId: String?) throws -> DiscoveryConfiguration {
         if (method == 0) {
-            return DiscoveryMethod.bluetoothScan
+            return try BluetoothScanDiscoveryConfigurationBuilder()
+                .setSimulated(simulated)
+                .setTimeout(timeout)
+                .build()
         } else if (method == 1) {
-            return DiscoveryMethod.bluetoothProximity
+            return try BluetoothProximityDiscoveryConfigurationBuilder()
+                .setSimulated(simulated)
+                .build()
         } else if (method == 2) {
-            return DiscoveryMethod.internet
+            return try InternetDiscoveryConfigurationBuilder()
+                .setSimulated(simulated)
+                .setLocationId(locationId)
+                .build()
         } else if (method == 7) {
-            return DiscoveryMethod.localMobile
+            return try LocalMobileDiscoveryConfigurationBuilder()
+                .setSimulated(simulated)
+                .build()
         } else {
-            return DiscoveryMethod.bluetoothProximity
+            return try BluetoothProximityDiscoveryConfigurationBuilder()
+                .setSimulated(simulated)
+                .build()
         }
     }
 }
