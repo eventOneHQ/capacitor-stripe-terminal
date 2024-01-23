@@ -538,7 +538,16 @@ export enum ReaderInputOptions {
   /**
    * Tap a contactless card.
    */
-  TapCard = 1 << 2
+  TapCard = 1 << 2,
+
+  /**
+   * All the possible combination of previous options.
+   */
+
+  SwipeInsertCard = SwipeCard | InsertCard,
+  TapSwipeCard = TapCard | SwipeCard,
+  InsertTapCard = InsertCard | TapCard,
+  SwipeInsertTapCard = SwipeCard | InsertCard | TapCard
 }
 
 /**
