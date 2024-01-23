@@ -19,7 +19,7 @@ apply plugin: 'com.android.library'
 
 android {
     namespace "io.event1.capacitorstripeterminal.capacitorstripeterminal"
-    compileSdkVersion project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 33
+    compileSdk project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 33
     defaultConfig {
         minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 26
         targetSdkVersion project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 33
@@ -57,6 +57,9 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation "com.stripe:stripeterminal-localmobile:3.2.1"
     implementation "com.stripe:stripeterminal-core:3.2.1"
+    implementation("com.google.android.material:material") {
+        version {strictly "1.9.0"}
+    }
     implementation("com.squareup.moshi:moshi:1.15.0")
     implementation "com.google.code.gson:gson:2.10.1"
 }
