@@ -63,37 +63,37 @@ export enum DeviceType {
    *
    * @see https://stripe.com/docs/terminal/readers/bbpos-chipper2xbt
    */
-  Chipper2X,
+  Chipper2X = 0,
 
   /**
    * The BBPOS WisePad 3 mobile reader.
    *
    * @see https://stripe.com/docs/terminal/readers/bbpos-wisepad3
    */
-  WisePad3,
+  WisePad3 = 2,
 
   /**
    * The Stripe Reader M2 mobile reader.
    *
    * @see https://stripe.com/docs/terminal/readers/stripe-m2
    */
-  StripeM2,
+  StripeM2 = 3,
 
   /**
    * The BBPOS WisePOS E countertop reader.
    *
    * @see https://stripe.com/docs/terminal/readers/bbpos-wisepos-e
    */
-  WisePosE,
+  WisePosE = 4,
 
   /**
    * The BBPOS WisePOS E DevKit countertop reader.
    *
    * @see https://stripe.com/docs/terminal/readers/bbpos-wisepos-e
    */
-  WisePosEDevKit,
+  WisePosEDevKit = 5,
 
-  Unknown,
+  Unknown = 6,
 
   /**
    * The Stripe S7 countertop reader.
