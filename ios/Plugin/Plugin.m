@@ -10,6 +10,7 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(connectBluetoothReader, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(connectInternetReader, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getConnectionStatus, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(getPaymentStatus, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getConnectedReader, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(cancelDiscoverReaders, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(disconnectReader, CAPPluginReturnPromise);
