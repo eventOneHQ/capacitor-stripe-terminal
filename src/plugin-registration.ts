@@ -9,6 +9,6 @@ import type { StripeTerminalInterface } from './definitions'
 export const StripeTerminal = registerPlugin<StripeTerminalInterface>(
   'StripeTerminal',
   {
-    web: () => import('./web').then(m => new m.StripeTerminalWeb())
-  }
+    web: () => import('./web').then((m) => new m.StripeTerminalWeb()),
+  },
 )

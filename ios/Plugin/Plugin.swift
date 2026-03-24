@@ -7,7 +7,7 @@ import StripeTerminal
  * here: https://capacitor.ionicframework.com/docs/plugins/ios
  */
 @objc(StripeTerminal)
-public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, BluetoothReaderDelegate, ReconnectionDelegate, LocalMobileReaderDelegate {
+public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, MobileReaderDelegate, TapToPayReaderDelegate, InternetReaderDelegate {
     private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
     private var pendingDiscoverReaders: Cancelable?
     private var pendingInstallUpdate: Cancelable?
@@ -44,7 +44,9 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     @objc func initialize(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             if !self.isInitialized {
-                Terminal.setTokenProvider(self)
+                // In Stripe Terminal SDK v5, Terminal.setTokenProvider is replaced with Terminal.initWithTokenProvider
+                // This must be called before accessing Terminal.shared
+                Terminal.initWithTokenProvider(self)
                 Terminal.shared.delegate = self
 
                 Terminal.setLogListener { logline in
@@ -92,13 +94,26 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         let method = UInt(call.getInt("discoveryMethod") ?? 0)
         let locationId = call.getString("locationId") ?? nil
 
-        let discoveryMethod = StripeTerminalUtils.translateDiscoveryMethod(method: method)
-
-        let config = DiscoveryConfiguration(
-            discoveryMethod: discoveryMethod,
-            locationId: locationId,
-            simulated: simulated
-        )
+        let config: DiscoveryConfiguration
+        do {
+            switch method {
+            case 0: // BluetoothScan
+                config = try BluetoothScanDiscoveryConfigurationBuilder().setSimulated(simulated).build()
+            case 1: // BluetoothProximity
+                config = try BluetoothProximityDiscoveryConfigurationBuilder().setSimulated(simulated).build()
+            case 2: // Internet
+                let builder = InternetDiscoveryConfigurationBuilder().setSimulated(simulated)
+                if let locationId = locationId { _ = builder.setLocationId(locationId) }
+                config = try builder.build()
+            case 6: // TapToPay
+                config = try TapToPayDiscoveryConfigurationBuilder().setSimulated(simulated).build()
+            default:
+                config = try BluetoothScanDiscoveryConfigurationBuilder().setSimulated(simulated).build()
+            }
+        } catch {
+            call.reject("Failed to build discovery configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
         
         guard pendingDiscoverReaders == nil else {
             call.reject("discoverReaders is busy")
@@ -156,16 +171,20 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
 
         let autoReconnectOnUnexpectedDisconnect = call.getBool("autoReconnectOnUnexpectedDisconnect", false)
 
-        let connectionConfig = BluetoothConnectionConfiguration(
-            locationId: locationId,
-            autoReconnectOnUnexpectedDisconnect: autoReconnectOnUnexpectedDisconnect,
-            autoReconnectionDelegate: self
-        )
+        let connectionConfig: BluetoothConnectionConfiguration
+        do {
+            connectionConfig = try BluetoothConnectionConfigurationBuilder(delegate: self, locationId: locationId)
+                .setAutoReconnectOnUnexpectedDisconnect(autoReconnectOnUnexpectedDisconnect)
+                .build()
+        } catch {
+            call.reject("Failed to build connection configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
 
         // this must be run on the main thread
         // https://stackoverflow.com/questions/44767778/main-thread-checker-ui-api-called-on-a-background-thread-uiapplication-appli
         DispatchQueue.main.async {
-            Terminal.shared.connectBluetoothReader(reader, delegate: self, connectionConfig: connectionConfig, completion: { reader, error in
+            Terminal.shared.connectReader(reader, connectionConfig: connectionConfig, completion: { reader, error in
                 if let reader = reader {
                     call.resolve([
                         "reader": StripeTerminalUtils.serializeReader(reader: reader),
@@ -191,13 +210,21 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         let failIfInUse = call.getBool("failIfInUse") ?? false
         let allowCustomerCancel = call.getBool("allowCustomerCancel") ?? false
 
-        let config = InternetConnectionConfiguration(failIfInUse: failIfInUse,
-                                                     allowCustomerCancel: allowCustomerCancel)
+        let connectionConfig: InternetConnectionConfiguration
+        do {
+            connectionConfig = try InternetConnectionConfigurationBuilder(delegate: self)
+                .setFailIfInUse(failIfInUse)
+                .setAllowCustomerCancel(allowCustomerCancel)
+                .build()
+        } catch {
+            call.reject("Failed to build connection configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
 
         // this must be run on the main thread
         // https://stackoverflow.com/questions/44767778/main-thread-checker-ui-api-called-on-a-background-thread-uiapplication-appli
         DispatchQueue.main.async {
-            Terminal.shared.connectInternetReader(reader, connectionConfig: config, completion: { reader, error in
+            Terminal.shared.connectReader(reader, connectionConfig: connectionConfig, completion: { reader, error in
                 if let reader = reader {
                     call.resolve([
                         "reader": StripeTerminalUtils.serializeReader(reader: reader),
@@ -209,7 +236,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         }
     }
 
-    @objc func connectLocalMobileReader(_ call: CAPPluginCall) {
+    @objc func connectTapToPayReader(_ call: CAPPluginCall) {
         guard let serialNumber = call.getString("serialNumber") else {
             call.reject("Must provide a serial number")
             return
@@ -229,17 +256,22 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         let merchantDisplayName = call.getString("merchantDisplayName")
         let tosAcceptancePermitted = call.getBool("tosAcceptancePermitted", false)
 
-        let connectionConfig = LocalMobileConnectionConfiguration(
-            locationId: locationId,
-            merchantDisplayName: merchantDisplayName,
-            onBehalfOf: onBehalfOf,
-            tosAcceptancePermitted: tosAcceptancePermitted
-        )
+        let connectionConfig: TapToPayConnectionConfiguration
+        do {
+            let builder = TapToPayConnectionConfigurationBuilder(delegate: self, locationId: locationId)
+            if let onBehalfOf = onBehalfOf { _ = builder.setOnBehalfOf(onBehalfOf) }
+            if let merchantDisplayName = merchantDisplayName { _ = builder.setMerchantDisplayName(merchantDisplayName) }
+            _ = builder.setTosAcceptancePermitted(tosAcceptancePermitted)
+            connectionConfig = try builder.build()
+        } catch {
+            call.reject("Failed to build connection configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
 
         // this must be run on the main thread
         // https://stackoverflow.com/questions/44767778/main-thread-checker-ui-api-called-on-a-background-thread-uiapplication-appli
         DispatchQueue.main.async {
-            Terminal.shared.connectLocalMobileReader(reader, delegate: self, connectionConfig: connectionConfig, completion: { reader, error in
+            Terminal.shared.connectReader(reader, connectionConfig: connectionConfig, completion: { reader, error in
                 if let reader = reader {
                     call.resolve([
                         "reader": StripeTerminalUtils.serializeReader(reader: reader),
@@ -354,7 +386,15 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     @objc func collectPaymentMethod(_ call: CAPPluginCall) {
         let updatePaymentIntent = call.getBool("updatePaymentIntent", false)
 
-        let collectConfig = CollectConfiguration(updatePaymentIntent: updatePaymentIntent)
+        let collectConfig: CollectPaymentIntentConfiguration
+        do {
+            collectConfig = try CollectPaymentIntentConfigurationBuilder()
+                .setUpdatePaymentIntent(updatePaymentIntent)
+                .build()
+        } catch {
+            call.reject("Failed to build collect configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
 
         if let intent = currentPaymentIntent {
             pendingCollectPaymentMethod = Terminal.shared.collectPaymentMethod(intent, collectConfig: collectConfig) { collectResult, collectError in
@@ -372,15 +412,21 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         }
     }
 
-    @objc func processPayment(_ call: CAPPluginCall) {
+    @objc func confirmPaymentIntent(_ call: CAPPluginCall) {
         thread.async {
             if let intent = self.currentPaymentIntent {
-                Terminal.shared.processPayment(intent) { paymentIntent, error in
+                Terminal.shared.confirmPaymentIntent(intent) { paymentIntent, error in
                     if let error = error {
-                        call.reject(error.localizedDescription, nil, error, [
-                            "decline_code": error.declineCode as Any,
-                            "payment_intent": error.paymentIntent?.originalJSON as Any
-                        ])
+                        var data: PluginCallResultData = [:]
+                        if let confirmError = error as? ConfirmPaymentIntentError {
+                            if let failedIntent = confirmError.paymentIntent {
+                                data["payment_intent"] = StripeTerminalUtils.serializePaymentIntent(intent: failedIntent)
+                            }
+                            if let declineCode = confirmError.declineCode {
+                                data["decline_code"] = declineCode
+                            }
+                        }
+                        call.reject(error.localizedDescription, nil, error, data.isEmpty ? nil : data)
                     } else if let paymentIntent = paymentIntent {
                         self.currentPaymentIntent = paymentIntent
                         call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
@@ -393,9 +439,12 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     }
 
     @objc func clearCachedCredentials(_ call: CAPPluginCall) {
-        thread.async {
-            Terminal.shared.clearCachedCredentials()
+        let result = Terminal.shared.clearCachedCredentials()
+        switch result {
+        case .success:
             call.resolve()
+        case .failure(let error):
+            call.reject("Failed to clear cached credentials", nil, error)
         }
     }
 
@@ -405,18 +454,27 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         let tax = call.getInt("tax") ?? 0
         let total = call.getInt("total") ?? 0
 
-        let cart = Cart(currency: currency, tax: tax, total: total)
-        let lineItemsArray = NSMutableArray()
-
+        var lineItemObjects: [CartLineItem] = []
         for item in lineItems {
-            let lineItem = CartLineItem(displayName: item["displayName"] as! String,
-                                        quantity: item["quantity"] as! Int,
-                                        amount: item["amount"] as! Int)
-
-            lineItemsArray.add(lineItem)
+            if let displayName = item["displayName"] as? String,
+               let quantity = item["quantity"] as? Int,
+               let amount = item["amount"] as? Int,
+               let lineItem = try? CartLineItemBuilder(displayName: displayName).setQuantity(quantity).setAmount(amount).build() {
+                lineItemObjects.append(lineItem)
+            }
         }
 
-        cart.lineItems = lineItemsArray
+        let cart: Cart
+        do {
+            cart = try CartBuilder(currency: currency)
+                .setTax(tax)
+                .setTotal(total)
+                .setLineItems(lineItemObjects)
+                .build()
+        } catch {
+            call.reject("Failed to build cart: \(error.localizedDescription)", nil, error)
+            return
+        }
 
         let semaphore = DispatchSemaphore(value: 0)
         thread.async {
@@ -448,16 +506,18 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
     }
 
     @objc func listLocations(_ call: CAPPluginCall) {
-        let limit = call.getInt("limit") as NSNumber?
+        let limit = call.getInt("limit")
         let endingBefore = call.getString("endingBefore")
         let startingAfter = call.getString("startingAfter")
 
         var params: ListLocationsParameters?
 
         if limit != nil || endingBefore != nil || startingAfter != nil {
-            params = ListLocationsParameters(limit: limit,
-                                             endingBefore: endingBefore,
-                                             startingAfter: startingAfter)
+            let builder = ListLocationsParametersBuilder()
+            if let limit = limit { _ = builder.setLimit(UInt(limit)) }
+            if let endingBefore = endingBefore { _ = builder.setEndingBefore(endingBefore) }
+            if let startingAfter = startingAfter { _ = builder.setStartingAfter(startingAfter) }
+            params = try? builder.build()
         }
         
         let semaphore = DispatchSemaphore(value: 0)
@@ -554,7 +614,7 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         notifyListeners("didChangePaymentStatus", data: ["status": status.rawValue])
     }
 
-    // MARK: BluetoothReaderDelegate
+    // MARK: MobileReaderDelegate
 
     public func reader(_: Reader, didReportAvailableUpdate update: ReaderSoftwareUpdate) {
         currentUpdate = update
@@ -588,19 +648,19 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
     }
         
-    // MARK: LocalMobileReaderDelegate
+    // MARK: TapToPayReaderDelegate
 
-    public func localMobileReader(_ reader: Reader, didStartInstallingUpdate update: ReaderSoftwareUpdate, cancelable: Cancelable?) {
+    public func tapToPayReader(_ reader: Reader, didStartInstallingUpdate update: ReaderSoftwareUpdate, cancelable: Cancelable?) {
         pendingInstallUpdate = cancelable
         currentUpdate = update
         notifyListeners("didStartInstallingUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
     }
 
-    public func localMobileReader(_ reader: Reader, didReportReaderSoftwareUpdateProgress progress: Float) {
+    public func tapToPayReader(_ reader: Reader, didReportReaderSoftwareUpdateProgress progress: Float) {
         notifyListeners("didReportReaderSoftwareUpdateProgress", data: ["progress": progress])
     }
 
-    public func localMobileReader(_ reader: Reader, didFinishInstallingUpdate update: ReaderSoftwareUpdate?, error: Error?) {
+    public func tapToPayReader(_ reader: Reader, didFinishInstallingUpdate update: ReaderSoftwareUpdate?, error: Error?) {
         if let error = error {
             notifyListeners("didFinishInstallingUpdate", data: ["error": error.localizedDescription as Any])
         } else if let update = update {
@@ -608,31 +668,36 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             currentUpdate = nil
         }
     }
-    
-    public func localMobileReader(_: Reader, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
+
+    public func tapToPayReader(_: Reader, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
         notifyListeners("didRequestReaderInput", data: ["value": inputOptions.rawValue])
     }
 
-    public func localMobileReader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
+    public func tapToPayReader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
         notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
     }
-    
-    public func localMobileReaderDidAcceptTermsOfService(_: Reader) {
-        notifyListeners("localMobileReaderDidAcceptTermsOfService", data: nil)
+
+    public func tapToPayReaderDidAcceptTermsOfService(_: Reader) {
+        notifyListeners("tapToPayReaderDidAcceptTermsOfService", data: nil)
     }
 
-    // MARK: ReconnectionDelegate
+    // MARK: ReaderDelegate
 
-    public func terminal(_ terminal: Terminal, didStartReaderReconnect cancelable: Cancelable) {
+    public func reader(_: Reader, didDisconnect reason: DisconnectReason) {
+        // Handled by terminal(_:didReportUnexpectedReaderDisconnect:) for unexpected disconnects
+    }
+
+    public func reader(_ reader: Reader, didStartReconnect cancelable: Cancelable, disconnectReason reason: DisconnectReason) {
         pendingReaderAutoReconnect = cancelable
         notifyListeners("didStartReaderReconnect", data: nil)
     }
 
-    public func terminalDidSucceedReaderReconnect(_ terminal: Terminal) {
+    public func readerDidSucceedReconnect(_ reader: Reader) {
         pendingReaderAutoReconnect = nil
         notifyListeners("didSucceedReaderReconnect", data: nil)
     }
-    public func terminalDidFailReaderReconnect(_ terminal: Terminal) {
+
+    public func readerDidFailReconnect(_ reader: Reader) {
         pendingReaderAutoReconnect = nil
         notifyListeners("didFailReaderReconnect", data: nil)
     }

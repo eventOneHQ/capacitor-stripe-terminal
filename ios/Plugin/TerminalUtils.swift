@@ -10,9 +10,25 @@ import Foundation
 import StripeTerminal
 
 public class StripeTerminalUtils {
+    static func translateDeviceTypeToJS(_ deviceType: DeviceType) -> Int {
+        switch deviceType {
+        case .chipper2X: return 0
+        case .wisePad3: return 2
+        case .stripeM2: return 3
+        case .wisePosE: return 4
+        case .wisePosEDevKit: return 5
+        case .stripeS700: return 9
+        case .stripeS700DevKit: return 10
+        case .tapToPay: return 11
+        case .stripeS710: return 12
+        case .stripeS710DevKit: return 13
+        default: return 6
+        }
+    }
+
     static func serializeReader(reader: Reader) -> [String: Any] {
         let jsonObject: [String: Any] = [
-            "deviceType": reader.deviceType.rawValue,
+            "deviceType": translateDeviceTypeToJS(reader.deviceType),
             "simulated": reader.simulated,
             "stripeId": reader.stripeId as Any,
             "locationId": reader.locationId as Any,
@@ -35,8 +51,8 @@ public class StripeTerminalUtils {
 
     static func serializeUpdate(update: ReaderSoftwareUpdate) -> [String: Any] {
         let jsonObject: [String: Any] = [
-            "estimatedUpdateTimeString": ReaderSoftwareUpdate.string(from: update.estimatedUpdateTime),
-            "estimatedUpdateTime": update.estimatedUpdateTime.rawValue,
+            "estimatedUpdateTimeString": ReaderSoftwareUpdate.string(from: update.durationEstimate),
+            "estimatedUpdateTime": update.durationEstimate.rawValue,
             "deviceSoftwareVersion": update.deviceSoftwareVersion,
             "components": update.components.rawValue,
             "requiredAt": update.requiredAt.timeIntervalSince1970,
@@ -47,8 +63,29 @@ public class StripeTerminalUtils {
 
     static func serializePaymentIntent(intent: PaymentIntent) -> [String: Any] {
         let chargesJson = intent.charges.map {
-            (charge: Charge) -> [AnyHashable: Any] in
-            charge.originalJSON
+            (charge: Charge) -> [String: Any] in
+            return [
+                "stripeId": charge.stripeId,
+                "amount": charge.amount,
+                "currency": charge.currency,
+                "status": charge.status.rawValue,
+                "metadata": charge.metadata,
+                "stripeDescription": charge.stripeDescription as Any,
+                "statementDescriptorSuffix": charge.statementDescriptorSuffix as Any,
+                "calculatedStatementDescriptor": charge.calculatedStatementDescriptor as Any,
+                "authorizationCode": charge.authorizationCode as Any,
+                "amountRefunded": charge.amountRefunded,
+                "created": charge.created?.timeIntervalSince1970 as Any,
+                "captured": charge.captured,
+                "paid": charge.paid,
+                "refunded": charge.refunded,
+                "customer": charge.customer as Any,
+                "paymentIntentId": charge.paymentIntentId as Any,
+                "receiptEmail": charge.receiptEmail as Any,
+                "receiptNumber": charge.receiptNumber as Any,
+                "receiptUrl": charge.receiptUrl as Any,
+                "livemode": charge.livemode,
+            ]
         }
 
         var jsonObject: [String: Any] = [
@@ -65,11 +102,22 @@ public class StripeTerminalUtils {
         ]
         
         if let amountDetails = intent.amountDetails {
-            jsonObject["amountDetails"] = amountDetails.originalJSON
+            var amountDetailsJson: [String: Any] = [:]
+            if let tip = amountDetails.tip {
+                amountDetailsJson["tip"] = ["amount": tip.amount as Any]
+            }
+            jsonObject["amountDetails"] = amountDetailsJson
         }
 
         if let paymentMethod = intent.paymentMethod {
-            jsonObject["paymentMethod"] = paymentMethod.originalJSON
+            jsonObject["paymentMethod"] = [
+                "stripeId": paymentMethod.stripeId,
+                "type": paymentMethod.type.rawValue,
+                "customer": paymentMethod.customer as Any,
+                "metadata": paymentMethod.metadata,
+                "livemode": paymentMethod.livemode,
+                "created": paymentMethod.created?.timeIntervalSince1970 as Any,
+            ]
         }
 
         return jsonObject
@@ -110,19 +158,5 @@ public class StripeTerminalUtils {
         ]
                 
         return jsonObject
-    }
-    
-    static func translateDiscoveryMethod(method: UInt) -> DiscoveryMethod {
-        if (method == 0) {
-            return DiscoveryMethod.bluetoothScan
-        } else if (method == 1) {
-            return DiscoveryMethod.bluetoothProximity
-        } else if (method == 2) {
-            return DiscoveryMethod.internet
-        } else if (method == 7) {
-            return DiscoveryMethod.localMobile
-        } else {
-            return DiscoveryMethod.bluetoothProximity
-        }
     }
 }

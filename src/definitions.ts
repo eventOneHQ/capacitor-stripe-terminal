@@ -21,7 +21,12 @@ export enum ConnectionStatus {
   /**
    * The SDK is currently connecting to a reader.
    */
-  Connecting = 2
+  Connecting = 2,
+  /**
+   * The SDK is currently reconnecting to a reader (auto-reconnect in progress).
+   * Added in Stripe Terminal SDK v5.
+   */
+  Reconnecting = 3,
 }
 
 /**
@@ -43,7 +48,7 @@ export enum PaymentStatus {
   /**
    * The SDK is processing a payment.
    */
-  Processing = 3
+  Processing = 3,
 }
 
 /**
@@ -59,13 +64,6 @@ export enum DeviceType {
    * @see https://stripe.com/docs/terminal/readers/bbpos-chipper2xbt
    */
   Chipper2X,
-
-  /**
-   * The Verifone P400 countertop reader.
-   *
-   * @see https://stripe.com/docs/terminal/readers/verifone-p400
-   */
-  VerifoneP400,
 
   /**
    * The BBPOS WisePad 3 mobile reader.
@@ -103,9 +101,24 @@ export enum DeviceType {
   StripeS700 = 9,
 
   /**
-   * Apple Built-In reader.
+   * The Stripe S700 DevKit countertop reader.
    */
-  AppleBuiltIn = 11
+  StripeS700DevKit = 10,
+
+  /**
+   * Tap to Pay reader.
+   */
+  TapToPay = 11,
+
+  /**
+   * The Stripe S710 countertop reader.
+   */
+  StripeS710 = 12,
+
+  /**
+   * The Stripe S710 DevKit countertop reader.
+   */
+  StripeS710DevKit = 13,
 }
 
 /**
@@ -116,7 +129,7 @@ export enum DeviceType {
  */
 export enum DiscoveryMethod {
   /**
-   * When discovering a reader using this method, the `discoverReaders` Observable will be called multiple times as the Bluetooth scan proceeds.
+   * When discovering a reader using this method, the `discoverReaders` callback will be called multiple times as the Bluetooth scan proceeds.
    */
   BluetoothScan,
 
@@ -125,7 +138,7 @@ export enum DiscoveryMethod {
    *
    * After a reader has been discovered using this method, the LEDs located above the reader's power button will start flashing multiple colors. After discovering the reader, your app should prompt the user to confirm that the reader is flashing, and require a user action (e.g. tapping a button) to connect to the reader.
    *
-   * When discovering a reader using this method, the `discoverReaders` Observable will be called twice. It will be called for the first time when the reader is initially discovered. The reader's LEDs will begin flashing. After a short delay, `discoverReaders` will be called a second time with an updated reader object, populated with additional info about the device, like its battery level.
+   * When discovering a reader using this method, the `discoverReaders` callback will be called twice. It will be called for the first time when the reader is initially discovered. The reader's LEDs will begin flashing. After a short delay, `discoverReaders` will be called a second time with an updated reader object, populated with additional info about the device, like its battery level.
    *
    * _The Bluetooth Proximity discovery method can only discovery Chipper 2X BT readers._
    */
@@ -134,9 +147,9 @@ export enum DiscoveryMethod {
   /**
    * The Internet discovery method searches for internet-connected readers, such as the Verifone P400 or the BBPOS WisePOS E.
    *
-   * When discovering a reader with this method, the `discoverReaders` Observable will only be called once with a list of readers from `/v1/terminal/readers`. Note that this will include readers that are both online and offline.
+   * When discovering a reader with this method, the `discoverReaders` callback will only be called once with a list of readers from `/v1/terminal/readers`. Note that this will include readers that are both online and offline.
    *
-   * Because the discovery process continues if connecting to a discovered reader fails, the SDK will refresh the list of `Readers` and call your subscriber with the results.
+   * Because the discovery process continues if connecting to a discovered reader fails, the SDK will refresh the list of `Readers` and call your callback with the results.
    *
    * @see https://stripe.com/docs/api/terminal/readers/list
    */
@@ -155,19 +168,14 @@ export enum DiscoveryMethod {
   USB,
 
   /**
-   * The Embedded discovery method allows the user to collect payments using the reader upon which the Application is currently running.
+   * The AppsOnDevices discovery method is for Android apps running directly on a Stripe reader device (e.g. Stripe Reader S700). This is the Android-only replacement for the deprecated Embedded and Handoff discovery methods.
    */
-  Embedded,
+  AppsOnDevices,
 
   /**
-   * The Handoff discovery method is only supported when running directly on a reader. It allows the user to delegate the collecting of payments to a separate application that is responsible for collecting payments.
+   * The TapToPay discovery method allows the user to use the phone's or tablet's NFC reader as a payment terminal for NFC (tap) payments only.
    */
-  Handoff,
-
-  /**
-   * The LocalMobile discovery method allows the user to use the phone's or tablet's NFC reader as a payment terminal for NFC (tap) payments only.
-   */
-  LocalMobile
+  TapToPay,
 }
 
 /**
@@ -184,7 +192,7 @@ export enum ReaderNetworkStatus {
   /**
    * The reader is online.
    */
-  Online
+  Online,
 }
 
 /**
@@ -208,7 +216,7 @@ export enum BatteryStatus {
   /**
    * The device’s battery is greater than 20%.
    */
-  Nominal
+  Nominal,
 }
 
 /**
@@ -231,7 +239,7 @@ export enum LocationStatus {
   /**
    * This location is known to be not set. `location` will be null.
    */
-  NotSet
+  NotSet,
 }
 
 export interface StripeTerminalConfig {
@@ -290,8 +298,7 @@ export interface ConnectionConfiguration {
 /**
  * @category Reader
  */
-export interface BluetoothConnectionConfiguration
-  extends ConnectionConfiguration {
+export interface BluetoothConnectionConfiguration extends ConnectionConfiguration {
   /**
    * When set to true, the Terminal SDK will attempt a Bluetooth auto-reconnection on any unexpected disconnect.
    *
@@ -310,16 +317,14 @@ export interface UsbConnectionConfiguration extends ConnectionConfiguration {}
 /**
  * @category Reader
  */
-export interface HandoffConnectionConfiguration
-  extends ConnectionConfiguration {}
+export interface AppsOnDevicesConnectionConfiguration {}
 
 /**
  * @category Reader
  */
-export interface LocalMobileConnectionConfiguration
-  extends ConnectionConfiguration {
+export interface TapToPayConnectionConfiguration extends ConnectionConfiguration {
   /**
-   * If your integration is creating destination charges and using `on_behalf_of`, you must provide the `connected_account_id` in the `onBehalfOf` parameter as part of the `LocalMobileConnectionConfiguration`. Unlike other reader types which require this information on a per-transaction basis, the Apple Built-In reader requires this on a per-connection basis as well in order to establish a reader connection.
+   * If your integration is creating destination charges and using `on_behalf_of`, you must provide the `connected_account_id` in the `onBehalfOf` parameter as part of the `TapToPayConnectionConfiguration`. Unlike other reader types which require this information on a per-transaction basis, the Apple Built-In reader requires this on a per-connection basis as well in order to establish a reader connection.
    *
    * @see https://stripe.com/docs/terminal/features/connect#destination-payment-intents
    */
@@ -343,8 +348,7 @@ export interface LocalMobileConnectionConfiguration
 /**
  * @category Reader
  */
-export interface InternetConnectionConfiguration
-  extends ConnectionConfiguration {
+export interface InternetConnectionConfiguration extends ConnectionConfiguration {
   /**
    * When set to true, the connection will automatically error if the reader is already connected to a device and collecting payment. When set to false, this will allow you to connect to a reader already connected to another device, and will break the existing reader-to-SDK connection on the other device when it attempts to collect payment.
    *
@@ -510,7 +514,7 @@ export enum ReaderDisplayMessage {
   /**
    * The card is invalid. Try another card.
    */
-  TryAnotherCard
+  TryAnotherCard,
 }
 
 /**
@@ -538,7 +542,59 @@ export enum ReaderInputOptions {
   /**
    * Tap a contactless card.
    */
-  TapCard = 1 << 2
+  TapCard = 1 << 2,
+}
+
+/**
+ * The possible statuses for a Charge.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/charges/object#charge_object-status
+ */
+export enum ChargeStatus {
+  /**
+   * The charge succeeded.
+   */
+  Succeeded,
+
+  /**
+   * The charge is pending.
+   */
+  Pending,
+
+  /**
+   * The charge failed.
+   */
+  Failed,
+}
+
+/**
+ * A Stripe Charge object.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/charges/object
+ */
+export interface Charge {
+  stripeId: string
+  amount: number
+  currency: string
+  status: ChargeStatus
+  metadata: { [key: string]: string }
+  stripeDescription: string | null
+  statementDescriptorSuffix: string | null
+  calculatedStatementDescriptor: string | null
+  authorizationCode: string | null
+  amountRefunded: number
+  created: number | null
+  captured: boolean
+  paid: boolean
+  refunded: boolean
+  customer: string | null
+  paymentIntentId: string | null
+  receiptEmail: string | null
+  receiptNumber: string | null
+  receiptUrl: string | null
+  livemode: boolean
 }
 
 /**
@@ -554,7 +610,7 @@ export enum PaymentIntentStatus {
   RequiresPaymentMethod,
 
   /**
-   * Next step: process the payment by calling `processPayment`.
+   * Next step: process the payment by calling `confirmPaymentIntent`.
    */
   RequiresConfirmation,
 
@@ -576,7 +632,7 @@ export enum PaymentIntentStatus {
   /**
    * The PaymentIntent succeeded.
    */
-  Succeeded
+  Succeeded,
 }
 
 /**
@@ -622,7 +678,7 @@ export interface PaymentIntent {
   /**
    * Charges that were created by this `PaymentIntent`, if any.
    */
-  charges: Stripe.Charge[]
+  charges: Charge[]
 
   /**
    * The payment method to be used in this `PaymentIntent`. Only valid in the intent returned during `collectPaymentMethod` when using the `updatePaymentIntent` option in the `CollectConfig`.
@@ -825,7 +881,7 @@ export enum SimulatedCardType {
   ChargeDeclinedStolenCard,
   ChargeDeclinedExpiredCard,
   ChargeDeclinedProcessingError,
-  RefundFailed
+  RefundFailed,
 }
 
 export enum SimulateReaderUpdate {
@@ -838,13 +894,13 @@ export enum SimulateReaderUpdate {
   // A required update exists. When the SDK connects to the reader, the connection will fail because the reader's battery is too low for the update to begin.
   LowBattery,
   // Randomly picks a type of update for the reader to help exercise the various states.
-  Random
+  Random,
 }
 
 export enum DeviceStyle {
   Internet,
   Bluetooth,
-  Local
+  Local,
 }
 
 export interface TippingConfig {
@@ -884,7 +940,7 @@ export interface StripeTerminalInterface {
     options: {
       token?: string
     } | null,
-    errorMessage?: string
+    errorMessage?: string,
   ): Promise<void>
 
   initialize(): Promise<void>
@@ -911,17 +967,16 @@ export interface StripeTerminalInterface {
     locationId: string
   }): Promise<{ reader: Reader | null }>
 
-  connectLocalMobileReader(options: {
+  connectAppsOnDevicesReader(options: {
+    serialNumber: string
+  }): Promise<{ reader: Reader | null }>
+
+  connectTapToPayReader(options: {
     serialNumber: string
     locationId: string
     onBehalfOf?: string
     merchantDisplayName?: string
     tosAcceptancePermitted?: boolean
-  }): Promise<{ reader: Reader | null }>
-
-  connectHandoffReader(options: {
-    serialNumber: string
-    locationId: string
   }): Promise<{ reader: Reader | null }>
 
   getConnectedReader(): Promise<{ reader: Reader | null }>
@@ -949,7 +1004,7 @@ export interface StripeTerminalInterface {
 
   cancelCollectPaymentMethod(): Promise<void>
 
-  processPayment(): Promise<{ intent: PaymentIntent }>
+  confirmPaymentIntent(): Promise<{ intent: PaymentIntent }>
 
   clearCachedCredentials(): Promise<void>
 
@@ -958,13 +1013,13 @@ export interface StripeTerminalInterface {
   clearReaderDisplay(): Promise<void>
 
   listLocations(
-    parameters?: ListLocationsParameters
+    parameters?: ListLocationsParameters,
   ): Promise<{ locations?: Location[]; hasMore?: boolean }>
 
   getSimulatorConfiguration(): Promise<SimulatorConfiguration>
 
   setSimulatorConfiguration(
-    config: SimulatorConfiguration
+    config: SimulatorConfiguration,
   ): Promise<SimulatorConfiguration>
 
   cancelAutoReconnect(): Promise<void>
@@ -979,37 +1034,37 @@ export interface StripeTerminalInterface {
 
   addListener(
     eventName: 'requestConnectionToken',
-    listenerFunc: () => void
+    listenerFunc: () => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
     eventName: 'didReportUnexpectedReaderDisconnect',
-    listenerFunc: () => void
+    listenerFunc: () => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
     eventName: 'readersDiscovered',
-    listenerFunc: (event: { readers?: Reader[] }) => void
+    listenerFunc: (event: { readers?: Reader[] }) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
     eventName: 'didChangeConnectionStatus',
-    listenerFunc: (status: any) => void
+    listenerFunc: (status: any) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
     eventName: 'didReportReaderSoftwareUpdateProgress',
-    listenerFunc: (data: any) => void
+    listenerFunc: (data: any) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
     eventName: 'didRequestReaderDisplayMessage' | 'didRequestReaderInput',
-    listenerFunc: (data: any) => void
+    listenerFunc: (data: any) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
     eventName: 'didReportAvailableUpdate' | 'didStartInstallingUpdate',
-    listenerFunc: (data: any) => void
+    listenerFunc: (data: any) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
@@ -1017,7 +1072,7 @@ export interface StripeTerminalInterface {
     listenerFunc: (data: {
       update?: ReaderSoftwareUpdate
       error?: string
-    }) => void
+    }) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
@@ -1025,11 +1080,11 @@ export interface StripeTerminalInterface {
       | 'didStartReaderReconnect'
       | 'didSucceedReaderReconnect'
       | 'didFailReaderReconnect',
-    listenerFunc: (data: null) => void
+    listenerFunc: (data: null) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
     eventName: string,
-    listenerFunc: Function
+    listenerFunc: Function,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 }

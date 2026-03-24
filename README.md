@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/maintenance/yes/2021?style=flat-square" />
-  <a href="https://github.com/eventonehq/capacitor-stripe-terminal/actions?query=workflow%3A%22Release%22"><img src="https://img.shields.io/github/workflow/status/eventonehq/capacitor-stripe-terminal/Release?style=flat-square" /></a>
+  <img src="https://img.shields.io/maintenance/yes/2026?style=flat-square" />
+  <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/eventOneHQ/capacitor-stripe-terminal/release.yml?style=flat-square" /></a>
   <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/l/capacitor-stripe-terminal?style=flat-square" /></a>
 <br>
   <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/dw/capacitor-stripe-terminal?style=flat-square" /></a>
@@ -17,11 +17,14 @@
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 </p>
 
-**[Current project status](https://github.com/eventOneHQ/capacitor-stripe-terminal/discussions/42)**
+## Requirements
 
-**_WARNING_**
+- **Capacitor**: 8.x
+- **Stripe Terminal SDK**:
+  - iOS: 5.3.0 (requires iOS 15.0+)
+  - Android: 5.3.0 (requires Android API 23+)
 
-_These instructions are for v2 which is currently in beta. See the [`v1-support`](https://github.com/eventOneHQ/capacitor-stripe-terminal/tree/v1-support) branch for v1 instructions._
+> **📝 Upgrading from an earlier version?** See the [Migration Guide](MIGRATION_V5.md) for details on breaking changes and upgrade instructions.
 
 ## Maintainers
 
@@ -99,14 +102,15 @@ _Hint: If the user denies Location permission the first time you ask for it, And
 ```javascript
 import {
   StripeTerminalPlugin,
-  DiscoveryMethod
+  StripeTerminalError,
+  DiscoveryMethod,
 } from 'capacitor-stripe-terminal'
 
 // First, initialize the SDK
 const terminal = await StripeTerminalPlugin.create({
   fetchConnectionToken: async () => {
     const resp = await fetch('https://your-backend.dev/token', {
-      method: 'POST'
+      method: 'POST',
     })
     const data = await resp.json()
 
@@ -114,45 +118,46 @@ const terminal = await StripeTerminalPlugin.create({
   },
   onUnexpectedReaderDisconnect: () => {
     // handle reader disconnect
-  }
+  },
 })
 
 // Start scanning for readers
-// capacitor-stripe-terminal uses Observables for any data streams
-// To stop scanning, unsubscribe from the Observable.
+// To stop scanning, call handle.remove() on the returned handle.
 // You must connect to a reader while scanning
-terminal
-  .discoverReaders({
+const discoverHandle = await terminal.discoverReaders(
+  {
     simulated: false,
-    discoveryMethod: DiscoveryMethod.BluetoothProximity
-  })
-  .subscribe(readers => {
+    discoveryMethod: DiscoveryMethod.BluetoothScan,
+  },
+  (readers) => {
     if (readers.length) {
       const selectedReader = readers[0]
       const connectionConfig = {
-        locationId: '{{LOCATION_ID}}'
+        locationId: '{{LOCATION_ID}}',
       }
       terminal
         .connectBluetoothReader(selectedReader, connectionConfig)
-        .then(connectedReader => {
+        .then((connectedReader) => {
           // the reader is now connected and usable
         })
     }
-  })
+  },
+  (error) => {
+    console.error('discoverReaders error', error)
+  },
+)
 
 // Once the reader is connected, collect a payment intent!
 
-// subscribe to user instructions - these should be displayed to the user
-const displaySubscription = terminal
-  .didRequestReaderDisplayMessage()
-  .subscribe(displayMessage => {
+// listen to user instructions - these should be displayed to the user
+const displayHandle = await terminal.didRequestReaderDisplayMessage(
+  (displayMessage) => {
     console.log('displayMessage', displayMessage)
-  })
-const inputSubscription = terminal
-  .didRequestReaderInput()
-  .subscribe(inputOptions => {
-    console.log('inputOptions', inputOptions)
-  })
+  },
+)
+const inputHandle = await terminal.didRequestReaderInput((inputOptions) => {
+  console.log('inputOptions', inputOptions)
+})
 
 // retrieve the payment intent
 await terminal.retrievePaymentIntent('your client secret created server side')
@@ -160,12 +165,19 @@ await terminal.retrievePaymentIntent('your client secret created server side')
 // collect the payment method
 await terminal.collectPaymentMethod()
 
-// and finally, process the payment
-await terminal.processPayment()
+// and finally, confirm the payment intent
+try {
+  await terminal.confirmPaymentIntent()
+} catch (err) {
+  if (err instanceof StripeTerminalError) {
+    // structured decline data is available on card declines
+    console.error('decline_code', err.decline_code)
+  }
+  throw err
+}
 
-// once you are done, make sure to unsubscribe (e.g. in ngOnDestroy)
-displaySubscription.unsubscribe()
-inputSubscription.unsubscribe()
+// once you are done, call destroy() to remove all listeners and reset the plugin (e.g. in ngOnDestroy)
+await terminal.destroy()
 ```
 
 ## API Reference
@@ -176,13 +188,7 @@ See the full API docs [here](https://oss.eventone.page/capacitor-stripe-terminal
 
 <p>
     <a href="https://event1.io/?utm_medium=opensource&utm_source=capacitor-stripe-terminal">
-        <img src="https://e1-com.eventone.page/brand/wordmark/wm.svg" width="200px">
-    </a>
-</p>
-
-<p>
-    <a href="https://tableneeds.com/?utm_medium=opensource&utm_source=capacitor-stripe-terminal">
-        <img src="https://tableneeds.com/wp-content/uploads/2021/08/tn-new.svg" width="200px">
+        <img src="https://brand.event1.io/wordmark/wm-white.svg" width="200px">
     </a>
 </p>
 

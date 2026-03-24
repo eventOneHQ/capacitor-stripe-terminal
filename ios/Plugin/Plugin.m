@@ -18,7 +18,7 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(cancelCollectPaymentMethod, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(retrievePaymentIntent, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(collectPaymentMethod, CAPPluginReturnPromise);
-           CAP_PLUGIN_METHOD(processPayment, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(confirmPaymentIntent, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(clearCachedCredentials, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getPermissions, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(checkPermissions, CAPPluginReturnPromise);
@@ -28,7 +28,7 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(listLocations, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getSimulatorConfiguration, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(setSimulatorConfiguration, CAPPluginReturnPromise);
-           CAP_PLUGIN_METHOD(connectLocalMobileReader, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(connectTapToPayReader, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(cancelAutoReconnect, CAPPluginReturnPromise);
 )
 
