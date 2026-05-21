@@ -921,6 +921,26 @@ export class StripeTerminalPlugin {
   ): Promise<boolean> {
     this.ensureInitialized()
 
+    if (discoveryMethod === DiscoveryMethod.Both) {
+      // Both is a plugin-level concept combining BluetoothScan + Internet.
+      // Check each underlying method and return true if either is supported.
+      const [bluetoothResult, internetResult] = await Promise.all([
+        StripeTerminal.supportsReadersOfType({
+          deviceType,
+          discoveryMethod: DiscoveryMethod.BluetoothScan,
+          simulated,
+        }),
+        StripeTerminal.supportsReadersOfType({
+          deviceType,
+          discoveryMethod: DiscoveryMethod.Internet,
+          simulated,
+        }),
+      ])
+      return (
+        (bluetoothResult?.isSupported || internetResult?.isSupported) ?? false
+      )
+    }
+
     const data = await StripeTerminal.supportsReadersOfType({
       deviceType,
       discoveryMethod,

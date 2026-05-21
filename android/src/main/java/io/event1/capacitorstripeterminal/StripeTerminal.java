@@ -940,13 +940,19 @@ public class StripeTerminal
     Boolean simulated = call.getBoolean("simulated", false);
 
     if (deviceTypeInt == null) {
-      call.reject("Must provide a device type");
+      JSObject result = new JSObject();
+      result.put("isSupported", false);
+      result.put("error", "Must provide a device type");
+      call.resolve(result);
       return;
     }
 
     DeviceType deviceType = TerminalUtils.translateJSDeviceType(deviceTypeInt);
     if (deviceType == null) {
-      call.reject("Invalid device type: " + deviceTypeInt);
+      JSObject result = new JSObject();
+      result.put("isSupported", false);
+      result.put("error", "Invalid device type: " + deviceTypeInt);
+      call.resolve(result);
       return;
     }
 

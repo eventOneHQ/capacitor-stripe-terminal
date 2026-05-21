@@ -592,12 +592,12 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         let simulated = call.getBool("simulated") ?? false
 
         guard let deviceType = StripeTerminalUtils.translateJSDeviceType(deviceTypeInt) else {
-            call.reject("Invalid device type: \(deviceTypeInt)")
+            call.resolve(["isSupported": false, "error": "Invalid device type: \(deviceTypeInt)"])
             return
         }
 
         guard let discoveryMethod = StripeTerminalUtils.translateJSDiscoveryMethod(discoveryMethodInt) else {
-            call.reject("Invalid discovery method: \(discoveryMethodInt)")
+            call.resolve(["isSupported": false, "error": "Invalid discovery method: \(discoveryMethodInt)"])
             return
         }
 
@@ -606,11 +606,11 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
             switch result {
             case .success:
                 call.resolve(["isSupported": true])
-            case .failure:
-                call.resolve(["isSupported": false])
+            case .failure(let error):
+                call.resolve(["isSupported": false, "error": error.localizedDescription])
             }
         } catch {
-            call.reject(error.localizedDescription, nil, error)
+            call.resolve(["isSupported": false, "error": error.localizedDescription])
         }
     }
 

@@ -1025,9 +1025,9 @@ export interface StripeTerminalInterface {
   cancelAutoReconnect(): Promise<void>
 
   supportsReadersOfType(options: {
-    deviceType: number
-    discoveryMethod: number
-    simulated: boolean
+    deviceType: DeviceType
+    discoveryMethod: DiscoveryMethod
+    simulated?: boolean
   }): Promise<{ isSupported: boolean; error?: string }>
 
   /**
