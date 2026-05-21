@@ -10,6 +10,32 @@ import Foundation
 import StripeTerminal
 
 public class StripeTerminalUtils {
+    static func translateJSDeviceType(_ type: Int) -> DeviceType? {
+        switch type {
+        case 0: return .chipper2X
+        case 2: return .wisePad3
+        case 3: return .stripeM2
+        case 4: return .wisePosE
+        case 5: return .wisePosEDevKit
+        case 9: return .stripeS700
+        case 10: return .stripeS700DevKit
+        case 11: return .tapToPay
+        case 12: return .stripeS710
+        case 13: return .stripeS710DevKit
+        default: return nil
+        }
+    }
+
+    static func translateJSDiscoveryMethod(_ method: Int) -> DiscoveryMethod? {
+        switch method {
+        case 0: return .bluetoothScan
+        case 1: return .bluetoothProximity
+        case 2: return .internet
+        case 6: return .tapToPay
+        default: return nil
+        }
+    }
+
     static func translateDeviceTypeToJS(_ deviceType: DeviceType) -> Int {
         switch deviceType {
         case .chipper2X: return 0

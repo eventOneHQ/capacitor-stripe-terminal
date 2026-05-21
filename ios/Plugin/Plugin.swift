@@ -586,6 +586,34 @@ public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelega
         call.resolve()
     }
 
+    @objc func supportsReadersOfType(_ call: CAPPluginCall) {
+        let deviceTypeInt = call.getInt("deviceType") ?? -1
+        let discoveryMethodInt = call.getInt("discoveryMethod") ?? 0
+        let simulated = call.getBool("simulated") ?? false
+
+        guard let deviceType = StripeTerminalUtils.translateJSDeviceType(deviceTypeInt) else {
+            call.reject("Invalid device type: \(deviceTypeInt)")
+            return
+        }
+
+        guard let discoveryMethod = StripeTerminalUtils.translateJSDiscoveryMethod(discoveryMethodInt) else {
+            call.reject("Invalid discovery method: \(discoveryMethodInt)")
+            return
+        }
+
+        do {
+            let result = Terminal.shared.supportsReaders(of: deviceType, discoveryMethod: discoveryMethod, simulated: simulated)
+            switch result {
+            case .success:
+                call.resolve(["isSupported": true])
+            case .failure:
+                call.resolve(["isSupported": false])
+            }
+        } catch {
+            call.reject(error.localizedDescription, nil, error)
+        }
+    }
+
     // MARK: DiscoveryDelegate
 
     public func terminal(_: Terminal, didUpdateDiscoveredReaders readers: [Reader]) {
