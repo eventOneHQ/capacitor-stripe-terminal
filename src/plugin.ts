@@ -906,6 +906,50 @@ export class StripeTerminalPlugin {
     return await this.sdk.cancelAutoReconnect()
   }
 
+  /**
+   * Returns whether the current mobile device supports the given reader type using the
+   * given discovery method.
+   *
+   * @param deviceType The type of reader to check support for.
+   * @param discoveryMethod The discovery method to check support for.
+   * @param simulated Whether to check for simulated reader support.
+   */
+  public async supportsReadersOfType(
+    deviceType: DeviceType,
+    discoveryMethod: DiscoveryMethod,
+    simulated: boolean = false,
+  ): Promise<boolean> {
+    this.ensureInitialized()
+
+    if (discoveryMethod === DiscoveryMethod.Both) {
+      // Both is a plugin-level concept combining BluetoothScan + Internet.
+      // Check each underlying method and return true if either is supported.
+      const [bluetoothResult, internetResult] = await Promise.all([
+        StripeTerminal.supportsReadersOfType({
+          deviceType,
+          discoveryMethod: DiscoveryMethod.BluetoothScan,
+          simulated,
+        }),
+        StripeTerminal.supportsReadersOfType({
+          deviceType,
+          discoveryMethod: DiscoveryMethod.Internet,
+          simulated,
+        }),
+      ])
+      return (
+        (bluetoothResult?.isSupported || internetResult?.isSupported) ?? false
+      )
+    }
+
+    const data = await StripeTerminal.supportsReadersOfType({
+      deviceType,
+      discoveryMethod,
+      simulated,
+    })
+
+    return data?.isSupported ?? false
+  }
+
   public getDeviceStyleFromDeviceType(type: DeviceType): DeviceStyle {
     return StripeTerminalPlugin.getDeviceStyleFromDeviceType(type)
   }

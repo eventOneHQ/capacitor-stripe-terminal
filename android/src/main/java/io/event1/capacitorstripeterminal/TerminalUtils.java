@@ -316,7 +316,30 @@ public class TerminalUtils {
       );
     }
   }
-
+  // translate the JS device type enum ordinal to the Android DeviceType enum
+  public static DeviceType translateJSDeviceType(int type) {
+    if (type == 0) {
+      return DeviceType.CHIPPER_2X;
+    } else if (type == 2) {
+      return DeviceType.WISEPAD_3;
+    } else if (type == 3) {
+      return DeviceType.STRIPE_M2;
+    } else if (type == 4) {
+      return DeviceType.WISEPOS_E;
+    } else if (type == 9) {
+      return DeviceType.STRIPE_S700;
+    } else if (type == 10) {
+      return DeviceType.STRIPE_S700_DEVKIT;
+    } else if (type == 11) {
+      return DeviceType.TAP_TO_PAY_DEVICE;
+    } else if (type == 12) {
+      return DeviceType.STRIPE_S710;
+    } else if (type == 13) {
+      return DeviceType.STRIPE_S710_DEVKIT;
+    } else {
+      return null;
+    }
+  }
   // translate the android device type enum to the JS device type enum
   public static Integer translateDeviceTypeToJS(int type) {
     if (type == DeviceType.CHIPPER_2X.ordinal()) {

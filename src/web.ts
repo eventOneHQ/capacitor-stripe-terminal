@@ -730,4 +730,13 @@ export class StripeTerminalWeb extends WebPlugin {
     // no equivalent
     console.warn('cancelAutoReconnect is only available for Bluetooth readers.')
   }
+
+  async supportsReadersOfType(_options: {
+    deviceType: number
+    discoveryMethod: number
+    simulated: boolean
+  }): Promise<{ isSupported: boolean }> {
+    // not supported on web
+    return { isSupported: false }
+  }
 }

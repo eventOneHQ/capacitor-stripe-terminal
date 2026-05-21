@@ -31,5 +31,6 @@ CAP_PLUGIN(StripeTerminal, "StripeTerminal",
            CAP_PLUGIN_METHOD(setSimulatorConfiguration, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(connectTapToPayReader, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(cancelAutoReconnect, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(supportsReadersOfType, CAPPluginReturnPromise);
 )
 

@@ -37,6 +37,7 @@ import com.stripe.stripeterminal.external.models.ConnectionConfiguration.TapToPa
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.UsbConnectionConfiguration;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.ConnectionTokenException;
+import com.stripe.stripeterminal.external.models.DeviceType;
 import com.stripe.stripeterminal.external.models.DisconnectReason;
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
 import com.stripe.stripeterminal.external.models.ListLocationsParameters;
@@ -48,6 +49,7 @@ import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
 import com.stripe.stripeterminal.external.models.ReaderEvent;
 import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
+import com.stripe.stripeterminal.external.models.ReaderSupportResult;
 import com.stripe.stripeterminal.external.models.SimulateReaderUpdate;
 import com.stripe.stripeterminal.external.models.SimulatedCard;
 import com.stripe.stripeterminal.external.models.SimulatedCardType;
@@ -929,6 +931,49 @@ public class StripeTerminal
     } else {
       call.resolve();
     }
+  }
+
+  @PluginMethod
+  public void supportsReadersOfType(final PluginCall call) {
+    Integer deviceTypeInt = call.getInt("deviceType");
+    Integer discoveryMethodInt = call.getInt("discoveryMethod", 0);
+    Boolean simulated = call.getBoolean("simulated", false);
+
+    if (deviceTypeInt == null) {
+      JSObject result = new JSObject();
+      result.put("isSupported", false);
+      result.put("error", "Must provide a device type");
+      call.resolve(result);
+      return;
+    }
+
+    DeviceType deviceType = TerminalUtils.translateJSDeviceType(deviceTypeInt);
+    if (deviceType == null) {
+      JSObject result = new JSObject();
+      result.put("isSupported", false);
+      result.put("error", "Invalid device type: " + deviceTypeInt);
+      call.resolve(result);
+      return;
+    }
+
+    DiscoveryConfiguration discoveryConfiguration = TerminalUtils.translateDiscoveryMethod(
+      discoveryMethodInt,
+      simulated != null ? simulated : false,
+      null
+    );
+
+    ReaderSupportResult readerSupportResult = Terminal.getInstance().supportsReadersOfType(
+      deviceType,
+      discoveryConfiguration
+    );
+
+    JSObject result = new JSObject();
+    result.put("isSupported", readerSupportResult.isSupported());
+    Throwable error = readerSupportResult.getError();
+    if (error != null) {
+      result.put("error", error.getMessage());
+    }
+    call.resolve(result);
   }
 
   @Override
