@@ -11,6 +11,7 @@
     "prepublishOnly": "npm run build",
     "prepare": "husky",
     "pre-commit": "pretty-quick --staged",
+    "verify:ios": "xcodebuild -scheme CapacitorStripeTerminal -destination generic/platform=iOS",
     "docs": "typedoc --excludeExternals --out out src/index.ts"
   },
   "author": "eventOne Labs <opensource@event1.io>",
@@ -32,8 +33,10 @@
   },
   "files": [
     "dist/",
-    "ios/",
+    "ios/Sources",
+    "ios/Tests",
     "android/",
+    "Package.swift",
     "CapacitorStripeTerminal.podspec"
   ],
   "keywords": [

@@ -6,6 +6,9 @@ node_modules/
 Pods
 Build
 xcuserdata
+.build/
+.swiftpm/
+Package.resolved
 
 # macOS files
 .DS_Store

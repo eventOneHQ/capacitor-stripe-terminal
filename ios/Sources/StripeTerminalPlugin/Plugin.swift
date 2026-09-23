@@ -7,7 +7,40 @@ import StripeTerminal
  * here: https://capacitor.ionicframework.com/docs/plugins/ios
  */
 @objc(StripeTerminal)
-public class StripeTerminal: CAPPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, MobileReaderDelegate, TapToPayReaderDelegate, InternetReaderDelegate {
+public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, MobileReaderDelegate, TapToPayReaderDelegate, InternetReaderDelegate {
+    public let identifier = "StripeTerminal"
+    public let jsName = "StripeTerminal"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "initialize", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setConnectionToken", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "discoverReaders", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectBluetoothReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectInternetReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getConnectionStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getPaymentStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getConnectedReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelDiscoverReaders", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "disconnectReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "installAvailableUpdate", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelInstallUpdate", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelCollectPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "retrievePaymentIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "confirmPaymentIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearCachedCredentials", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "checkPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setReaderDisplay", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearReaderDisplay", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listLocations", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getSimulatorConfiguration", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setSimulatorConfiguration", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectTapToPayReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelAutoReconnect", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "supportsReadersOfType", returnType: CAPPluginReturnPromise)
+    ]
+
     private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
     private var pendingDiscoverReaders: Cancelable?
     private var pendingInstallUpdate: Cancelable?
