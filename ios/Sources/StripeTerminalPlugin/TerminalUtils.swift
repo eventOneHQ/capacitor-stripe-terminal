@@ -395,6 +395,14 @@ public class StripeTerminalUtils {
             "label": reader.label as Any,
         ]
 
+        if let availableUpdate = reader.availableUpdate {
+            jsonObject["availableUpdate"] = serializeUpdate(update: availableUpdate)
+        }
+
+        if let location = reader.location {
+            jsonObject["location"] = serializeLocation(location: location)
+        }
+
         return jsonObject
     }
 
@@ -424,6 +432,87 @@ public class StripeTerminalUtils {
         return jsonObject
     }
 
+    static func serializeCardFundingType(_ funding: CardFundingType) -> String {
+        switch funding {
+        case .debit: return "debit"
+        case .credit: return "credit"
+        case .prepaid: return "prepaid"
+        default: return "other"
+        }
+    }
+
+    static func serializeReceiptDetails(receipt: ReceiptDetails) -> [String: Any] {
+        return [
+            "accountType": receipt.accountType as Any,
+            "applicationCryptogram": receipt.applicationCryptogram,
+            "applicationPreferredName": receipt.applicationPreferredName,
+            "authorizationCode": receipt.authorizationCode as Any,
+            "authorizationResponseCode": receipt.authorizationResponseCode,
+            "cvm": receipt.cardholderVerificationMethod,
+            "dedicatedFileName": receipt.dedicatedFileName,
+            "terminalVerificationResult": receipt.terminalVerificationResults,
+            "transactionStatusInformation": receipt.transactionStatusInformation,
+        ]
+    }
+
+    static func serializeCardPresentDetails(details: CardPresentDetails) -> [String: Any] {
+        var jsonObject: [String: Any] = [
+            "last4": details.last4,
+            "expMonth": details.expMonth,
+            "expYear": details.expYear,
+            "cardholderName": details.cardholderName as Any,
+            "funding": serializeCardFundingType(details.funding),
+            "brand": Terminal.stringFromCardBrand(details.brand),
+            "generatedCard": details.generatedCard as Any,
+            "emvAuthData": details.emvAuthData as Any,
+            "country": details.country as Any,
+            "preferredLocales": details.preferredLocales as Any,
+            "issuer": details.issuer as Any,
+            "iin": details.iin as Any,
+            "description": details.stripeDescription as Any,
+            "location": details.location as Any,
+            "reader": details.reader as Any,
+            "readMethod": Terminal.stringFromReadMethod(details.readMethod),
+        ]
+
+        if let network = details.network {
+            jsonObject["network"] = "\(network)"
+        }
+        if let receipt = details.receipt {
+            jsonObject["receipt"] = serializeReceiptDetails(receipt: receipt)
+        }
+        if let wallet = details.wallet {
+            jsonObject["wallet"] = ["type": wallet.type as Any]
+        }
+
+        return jsonObject
+    }
+
+    static func serializePaymentMethodDetails(details: PaymentMethodDetails) -> [String: Any] {
+        var jsonObject: [String: Any] = [
+            "type": serializePaymentMethodType(details.type),
+        ]
+
+        if let cardPresent = details.cardPresent {
+            jsonObject["cardPresentDetails"] = serializeCardPresentDetails(details: cardPresent)
+        }
+        if let interacPresent = details.interacPresent {
+            jsonObject["interacPresentDetails"] = serializeCardPresentDetails(details: interacPresent)
+        }
+        if let card = details.card {
+            jsonObject["cardDetails"] = [
+                "brand": Terminal.stringFromCardBrand(card.brand),
+                "country": card.country as Any,
+                "expMonth": card.expMonth,
+                "expYear": card.expYear,
+                "funding": serializeCardFundingType(card.funding),
+                "last4": card.last4 as Any,
+            ]
+        }
+
+        return jsonObject
+    }
+
     static func serializePaymentIntent(intent: PaymentIntent) -> [String: Any] {
         let chargesJson = intent.charges.map {
             (charge: Charge) -> [String: Any] in
@@ -449,7 +538,16 @@ public class StripeTerminalUtils {
                 "receiptNumber": charge.receiptNumber as Any,
                 "receiptUrl": charge.receiptUrl as Any,
                 "livemode": charge.livemode,
+                "balanceTransaction": charge.balanceTransaction as Any,
+                "applicationFee": charge.applicationFee as Any,
+                "applicationFeeAmount": charge.applicationFeeAmount as Any,
+                "onBehalfOf": charge.onBehalfOf as Any,
             ]
+
+            if let paymentMethodDetails = charge.paymentMethodDetails {
+                chargeJson["paymentMethodDetails"] = serializePaymentMethodDetails(details: paymentMethodDetails)
+            }
+
             return chargeJson
         }
 
@@ -465,6 +563,26 @@ public class StripeTerminalUtils {
             "statementDescriptorSuffix": intent.statementDescriptorSuffix as Any,
             "charges": chargesJson,
             "metadata": intent.metadata as Any,
+            "amountCapturable": intent.amountCapturable as Any,
+            "amountReceived": intent.amountReceived as Any,
+            "amountRequested": intent.amountRequested as Any,
+            "applicationFeeAmount": intent.applicationFeeAmount as Any,
+            "canceledAt": intent.canceledAt?.timeIntervalSince1970 as Any,
+            "cancellationReason": intent.cancellationReason as Any,
+            "captureMethod": Terminal.stringFromCaptureMethod(intent.captureMethod),
+            "clientSecret": intent.clientSecret as Any,
+            "confirmationMethod": intent.confirmationMethod as Any,
+            "customer": intent.customer as Any,
+            "description": intent.stripeDescription as Any,
+            "livemode": intent.livemode,
+            "onBehalfOf": intent.onBehalfOf as Any,
+            "paymentMethodId": intent.paymentMethodId as Any,
+            "receiptEmail": intent.receiptEmail as Any,
+            "setupFutureUsage": intent.setupFutureUsage as Any,
+            "transferGroup": intent.transferGroup as Any,
+            "paymentMethodTypes": (intent.paymentMethodTypes ?? []).map {
+                serializePaymentMethodType(PaymentMethodType(rawValue: $0.uintValue) ?? .cardPresent)
+            },
         ]
         
         if let amountDetails = intent.amountDetails {

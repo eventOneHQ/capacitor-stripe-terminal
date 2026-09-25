@@ -19,6 +19,9 @@ import {
   CollectConfig,
   ChargeStatus,
   Charge,
+  CardPresentDetails,
+  PaymentMethodDetails,
+  PaymentMethodType,
   ReaderSettings,
   ReaderSettingsParameters,
   CollectDataConfig,
@@ -173,6 +176,96 @@ function serializeCharge(c: Stripe.Charge): Charge {
     receiptNumber: c.receipt_number ?? null,
     receiptUrl: c.receipt_url ?? null,
     livemode: c.livemode,
+    balanceTransaction:
+      typeof c.balance_transaction === 'string'
+        ? c.balance_transaction
+        : (c.balance_transaction?.id ?? null),
+    applicationFee:
+      typeof c.application_fee === 'string'
+        ? c.application_fee
+        : (c.application_fee?.id ?? null),
+    applicationFeeAmount: c.application_fee_amount ?? null,
+    onBehalfOf:
+      typeof c.on_behalf_of === 'string'
+        ? c.on_behalf_of
+        : (c.on_behalf_of?.id ?? null),
+    paymentMethodDetails: serializePaymentMethodDetails(
+      c.payment_method_details,
+    ),
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializePaymentMethodDetails(
+  details: Stripe.Charge.PaymentMethodDetails | null | undefined,
+): PaymentMethodDetails | null {
+  if (!details) return null
+
+  const cardPresent = (details as any).card_present
+  const interacPresent = (details as any).interac_present
+  const card = (details as any).card
+
+  return {
+    type: (details.type as PaymentMethodType) ?? null,
+    cardPresentDetails: serializeCardPresentDetails(cardPresent),
+    interacPresentDetails: serializeCardPresentDetails(interacPresent),
+    cardDetails: card
+      ? {
+          brand: card.brand ?? null,
+          country: card.country ?? null,
+          expMonth: card.exp_month ?? null,
+          expYear: card.exp_year ?? null,
+          funding: card.funding ?? null,
+          last4: card.last4 ?? null,
+        }
+      : null,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeCardPresentDetails(details: any): CardPresentDetails | null {
+  if (!details) return null
+
+  return {
+    last4: details.last4 ?? null,
+    expMonth: details.exp_month ?? null,
+    expYear: details.exp_year ?? null,
+    cardholderName: details.cardholder_name ?? null,
+    funding: details.funding ?? null,
+    brand: details.brand ?? null,
+    generatedCard: details.generated_card ?? null,
+    emvAuthData: details.emv_auth_data ?? null,
+    country: details.country ?? null,
+    preferredLocales: details.preferred_locales ?? undefined,
+    issuer: details.issuer ?? null,
+    iin: details.iin ?? null,
+    network: details.network ?? null,
+    description: details.description ?? null,
+    location: details.location ?? null,
+    reader: details.reader ?? null,
+    readMethod: details.read_method ?? null,
+    wallet: details.wallet ? { type: details.wallet.type ?? null } : null,
+    receipt: details.receipt
+      ? {
+          accountType: details.receipt.account_type ?? null,
+          applicationCryptogram: details.receipt.application_cryptogram ?? null,
+          applicationPreferredName:
+            details.receipt.application_preferred_name ?? null,
+          authorizationCode: details.receipt.authorization_code ?? null,
+          authorizationResponseCode:
+            details.receipt.authorization_response_code ?? null,
+          cvm: details.receipt.cardholder_verification_method ?? null,
+          dedicatedFileName: details.receipt.dedicated_file_name ?? null,
+          terminalVerificationResult:
+            details.receipt.terminal_verification_results ?? null,
+          transactionStatusInformation:
+            details.receipt.transaction_status_information ?? null,
+        }
+      : null,
   }
 }
 
@@ -314,6 +407,14 @@ export class StripeTerminalWeb extends WebPlugin {
       locationId: this.isInstanceOfLocation(sdkReader.location)
         ? sdkReader.location.id
         : (sdkReader.location ?? null),
+      location: this.isInstanceOfLocation(sdkReader.location)
+        ? {
+            id: sdkReader.location.id,
+            stripeId: sdkReader.location.id,
+            displayName: sdkReader.location.display_name,
+            livemode: sdkReader.livemode,
+          }
+        : null,
       label: sdkReader.label,
       deviceSoftwareVersion: sdkReader.device_sw_version,
       batteryStatus: BatteryStatus.Unknown,

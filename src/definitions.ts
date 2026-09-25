@@ -461,6 +461,16 @@ export interface Reader {
   isAvailableUpdate?: boolean
 
   /**
+   * The available update, if any.
+   */
+  availableUpdate?: ReaderSoftwareUpdate | null
+
+  /**
+   * The [Location](https://stripe.com/docs/api/terminal/locations/object) this reader is registered to, when the full object is available.
+   */
+  location?: Location | null
+
+  /**
    * The reader's battery level, represented as a boxed float in the range `[0, 1]`. If the reader does not have a battery, or the battery level is unknown, this value is `null`. (Bluetooth readers only.)
    */
   batteryLevel: number | null
@@ -494,6 +504,61 @@ export interface Reader {
    * Has the value true if the object exists in live mode or the value false if the object exists in test mode.
    */
   livemode?: boolean
+
+  /**
+   * The reader's current firmware version. (Android only.)
+   */
+  firmwareVersion?: string | null
+
+  /**
+   * The reader's current config version. (Android only.)
+   */
+  configVersion?: string | null
+
+  /**
+   * The reader's hardware version. (Android only.)
+   */
+  hardwareVersion?: string | null
+
+  /**
+   * The reader's bootloader version. (Android only.)
+   */
+  bootloaderVersion?: string | null
+
+  /**
+   * The reader's settings version. (Android only.)
+   */
+  settingsVersion?: string | null
+
+  /**
+   * The base URL the reader communicates with. (Android only.)
+   */
+  baseUrl?: string | null
+
+  /**
+   * The reader's EMV key profile ID. (Android only.)
+   */
+  emvKeyProfileId?: string | null
+
+  /**
+   * The reader's MAC key profile ID. (Android only.)
+   */
+  macKeyProfileId?: string | null
+
+  /**
+   * The reader's PIN key profile ID. (Android only.)
+   */
+  pinKeyProfileId?: string | null
+
+  /**
+   * The reader's track key profile ID. (Android only.)
+   */
+  trackKeyProfileId?: string | null
+
+  /**
+   * The reader's PIN keyset ID. (Android only.)
+   */
+  pinKeysetId?: string | null
 }
 
 /**
@@ -644,6 +709,92 @@ export enum ChargeStatus {
 }
 
 /**
+ * A digital wallet used to present a card.
+ *
+ * @category Payment
+ */
+export interface Wallet {
+  type?: string | null
+}
+
+/**
+ * EMV receipt data required for printed receipts.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/terminal/checkout/receipts
+ */
+export interface ReceiptDetails {
+  accountType?: string | null
+  applicationCryptogram?: string | null
+  applicationPreferredName?: string | null
+  authorizationCode?: string | null
+  authorizationResponseCode?: string | null
+  /**
+   * The cardholder verification method used for the transaction.
+   */
+  cvm?: string | null
+  dedicatedFileName?: string | null
+  terminalVerificationResult?: string | null
+  transactionStatusInformation?: string | null
+}
+
+/**
+ * Details of a card presented to a reader.
+ *
+ * @category Payment
+ */
+export interface CardPresentDetails {
+  last4?: string | null
+  expMonth?: number | null
+  expYear?: number | null
+  cardholderName?: string | null
+  funding?: string | null
+  brand?: string | null
+  generatedCard?: string | null
+  receipt?: ReceiptDetails | null
+  emvAuthData?: string | null
+  country?: string | null
+  preferredLocales?: string[]
+  issuer?: string | null
+  iin?: string | null
+  network?: string | null
+  description?: string | null
+  wallet?: Wallet | null
+  location?: string | null
+  reader?: string | null
+  /**
+   * How the card was read, e.g. `contactlessEmv`. (iOS only.)
+   */
+  readMethod?: string | null
+}
+
+/**
+ * Details of a card used for an online payment.
+ *
+ * @category Payment
+ */
+export interface CardDetails {
+  brand?: string | null
+  country?: string | null
+  expMonth?: number | null
+  expYear?: number | null
+  funding?: string | null
+  last4?: string | null
+}
+
+/**
+ * Details about the payment method used for a charge.
+ *
+ * @category Payment
+ */
+export interface PaymentMethodDetails {
+  type?: PaymentMethodType | null
+  cardPresentDetails?: CardPresentDetails | null
+  interacPresentDetails?: CardPresentDetails | null
+  cardDetails?: CardDetails | null
+}
+
+/**
  * A Stripe Charge object.
  *
  * @category Payment
@@ -670,6 +821,14 @@ export interface Charge {
   refunded: boolean
   customer: string | null
   paymentIntentId: string | null
+  balanceTransaction?: string | null
+  applicationFee?: string | null
+  applicationFeeAmount?: number | null
+  onBehalfOf?: string | null
+  /**
+   * Details about the payment method used for this charge, including the EMV data needed to print a receipt.
+   */
+  paymentMethodDetails?: PaymentMethodDetails | null
   receiptEmail: string | null
   receiptNumber: string | null
   receiptUrl: string | null
@@ -791,6 +950,96 @@ export interface PaymentIntent {
    * Extra dynamic information about a PaymentIntent. This will appear concatenated with the statementDescriptor on your customer’s statement when this PaymentIntent succeeds in creating a charge.
    */
   statementDescriptorSuffix?: string
+
+  /**
+   * The amount that can be captured with a later capture call, provided in the currency's smallest unit.
+   */
+  amountCapturable?: number | null
+
+  /**
+   * The amount received by the merchant, provided in the currency's smallest unit.
+   */
+  amountReceived?: number | null
+
+  /**
+   * The amount originally requested, provided in the currency's smallest unit.
+   */
+  amountRequested?: number | null
+
+  /**
+   * The amount of the application fee collected, provided in the currency's smallest unit.
+   */
+  applicationFeeAmount?: number | null
+
+  /**
+   * When the intent was canceled, in seconds since the Unix epoch.
+   */
+  canceledAt?: number | null
+
+  /**
+   * The reason the intent was canceled.
+   */
+  cancellationReason?: string | null
+
+  /**
+   * When the funds will be captured, e.g. `automatic` or `manual`.
+   */
+  captureMethod?: string | null
+
+  /**
+   * The client secret of this PaymentIntent.
+   */
+  clientSecret?: string | null
+
+  /**
+   * How the PaymentIntent is confirmed.
+   */
+  confirmationMethod?: string | null
+
+  /**
+   * The ID of the customer this intent belongs to.
+   */
+  customer?: string | null
+
+  /**
+   * An arbitrary string attached to the intent.
+   */
+  description?: string | null
+
+  /**
+   * Whether the intent exists in live mode.
+   */
+  livemode?: boolean
+
+  /**
+   * The Stripe account ID this payment is on behalf of.
+   */
+  onBehalfOf?: string | null
+
+  /**
+   * The ID of the payment method attached to this intent.
+   */
+  paymentMethodId?: string | null
+
+  /**
+   * The payment method types this intent may use.
+   */
+  paymentMethodTypes?: PaymentMethodType[]
+
+  /**
+   * The email the receipt for the resulting payment will be sent to.
+   */
+  receiptEmail?: string | null
+
+  /**
+   * Indicates that you intend to make future payments with this intent's payment method.
+   */
+  setupFutureUsage?: string | null
+
+  /**
+   * A string identifying the resulting payment as part of a group.
+   */
+  transferGroup?: string | null
 }
 
 /**

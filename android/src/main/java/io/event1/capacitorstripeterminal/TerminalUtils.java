@@ -6,6 +6,8 @@ import com.stripe.stripeterminal.external.models.Address;
 import com.stripe.stripeterminal.external.models.AllowRedisplay;
 import com.stripe.stripeterminal.external.models.AmountDetails;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
+import com.stripe.stripeterminal.external.models.CardDetails;
+import com.stripe.stripeterminal.external.models.CardPresentDetails;
 import com.stripe.stripeterminal.external.models.Charge;
 import com.stripe.stripeterminal.external.models.CollectDataType;
 import com.stripe.stripeterminal.external.models.CollectInputsParameters;
@@ -24,6 +26,7 @@ import com.stripe.stripeterminal.external.models.NumericResult;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
 import com.stripe.stripeterminal.external.models.PaymentMethod;
+import com.stripe.stripeterminal.external.models.PaymentMethodDetails;
 import com.stripe.stripeterminal.external.models.PaymentMethodType;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
 import com.stripe.stripeterminal.external.models.PhoneInput;
@@ -35,6 +38,7 @@ import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSettings;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.ReaderTextToSpeechStatus;
+import com.stripe.stripeterminal.external.models.ReceiptDetails;
 import com.stripe.stripeterminal.external.models.Refund;
 import com.stripe.stripeterminal.external.models.SelectionButton;
 import com.stripe.stripeterminal.external.models.SelectionButtonStyle;
@@ -55,6 +59,7 @@ import com.stripe.stripeterminal.external.models.Tip;
 import com.stripe.stripeterminal.external.models.Toggle;
 import com.stripe.stripeterminal.external.models.ToggleResult;
 import com.stripe.stripeterminal.external.models.ToggleValue;
+import com.stripe.stripeterminal.external.models.Wallet;
 import com.stripe.stripeterminal.log.LogLevel;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -665,6 +670,10 @@ public class TerminalUtils {
     if (reader.getLocation() != null) locationId = reader.getLocation().getId();
     object.put("locationId", locationId);
 
+    if (reader.getLocation() != null) {
+      object.put("location", serializeLocation(reader.getLocation()));
+    }
+
     // location status
     object.put("locationStatus", reader.getLocationStatus().ordinal());
 
@@ -682,6 +691,13 @@ public class TerminalUtils {
 
     // is update available
     object.put("isAvailableUpdate", reader.getAvailableUpdate() != null);
+
+    if (reader.getAvailableUpdate() != null) {
+      object.put(
+        "availableUpdate",
+        serializeUpdate(reader.getAvailableUpdate())
+      );
+    }
 
     // battery level
     Float level =
@@ -723,6 +739,137 @@ public class TerminalUtils {
     if (reader.getLabel() != null) label = reader.getLabel();
     object.put("label", label);
 
+    object.put("livemode", reader.getLivemode());
+
+    //
+    // ANDROID-ONLY HARDWARE PROPS
+    //
+
+    object.put("firmwareVersion", reader.getFirmwareVersion());
+    object.put("configVersion", reader.getConfigVersion());
+    object.put("hardwareVersion", reader.getHardwareVersion());
+    object.put("bootloaderVersion", reader.getBootloaderVersion());
+    object.put("settingsVersion", reader.getSettingsVersion());
+    object.put("baseUrl", reader.getBaseUrl());
+    object.put("emvKeyProfileId", reader.getEmvKeyProfileId());
+    object.put("macKeyProfileId", reader.getMacKeyProfileId());
+    object.put("pinKeyProfileId", reader.getPinKeyProfileId());
+    object.put("trackKeyProfileId", reader.getTrackKeyProfileId());
+    object.put("pinKeysetId", reader.getPinKeysetId());
+
+    return object;
+  }
+
+  private static JSObject serializeReceiptDetails(ReceiptDetails receipt) {
+    if (receipt == null) {
+      return null;
+    }
+
+    JSObject object = new JSObject();
+    object.put("accountType", receipt.getAccountType());
+    object.put("applicationCryptogram", receipt.getApplicationCryptogram());
+    object.put(
+      "applicationPreferredName",
+      receipt.getApplicationPreferredName()
+    );
+    object.put("authorizationCode", receipt.getAuthorizationCode());
+    object.put(
+      "authorizationResponseCode",
+      receipt.getAuthorizationResponseCode()
+    );
+    object.put("cvm", receipt.getCvm());
+    object.put("dedicatedFileName", receipt.getDedicatedFileName());
+    object.put("terminalVerificationResult", receipt.getTvr());
+    object.put("transactionStatusInformation", receipt.getTsi());
+
+    return object;
+  }
+
+  private static JSObject serializeCardPresentDetails(
+    CardPresentDetails details
+  ) {
+    if (details == null) {
+      return null;
+    }
+
+    JSObject object = new JSObject();
+    object.put("last4", details.getLast4());
+    object.put("expMonth", details.getExpMonth());
+    object.put("expYear", details.getExpYear());
+    object.put("cardholderName", details.getCardholderName());
+    object.put("funding", details.getFunding());
+    object.put("brand", details.getBrand());
+    object.put("generatedCard", details.getGeneratedCard());
+    object.put("emvAuthData", details.getEmvAuthData());
+    object.put("country", details.getCountry());
+    object.put("issuer", details.getIssuer());
+    object.put("iin", details.getIin());
+    object.put("network", details.getNetwork());
+    object.put("description", details.getDescription());
+    object.put("location", details.getLocation());
+    object.put("reader", details.getReader());
+    object.put("readMethod", details.getReadMethod());
+
+    List<String> preferredLocales = details.getPreferredLocales();
+    if (preferredLocales != null) {
+      JSArray locales = new JSArray();
+      for (String locale : preferredLocales) {
+        locales.put(locale);
+      }
+      object.put("preferredLocales", locales);
+    }
+
+    JSObject receipt = serializeReceiptDetails(details.getReceiptDetails());
+    if (receipt != null) {
+      object.put("receipt", receipt);
+    }
+
+    Wallet wallet = details.getWallet();
+    if (wallet != null) {
+      JSObject walletJson = new JSObject();
+      walletJson.put("type", wallet.getType());
+      object.put("wallet", walletJson);
+    }
+
+    return object;
+  }
+
+  private static JSObject serializePaymentMethodDetails(
+    PaymentMethodDetails details
+  ) {
+    if (details == null) {
+      return null;
+    }
+
+    JSObject object = new JSObject();
+    object.put("type", serializePaymentMethodType(details.getType()));
+
+    JSObject cardPresent = serializeCardPresentDetails(
+      details.getCardPresentDetails()
+    );
+    if (cardPresent != null) {
+      object.put("cardPresentDetails", cardPresent);
+    }
+
+    JSObject interacPresent = serializeCardPresentDetails(
+      details.getInteracPresentDetails()
+    );
+    if (interacPresent != null) {
+      object.put("interacPresentDetails", interacPresent);
+    }
+
+    CardDetails card = details.getCardDetails();
+    if (card != null) {
+      JSObject cardJson = new JSObject();
+      cardJson.put("brand", card.getBrand());
+      cardJson.put("country", card.getCountry());
+      cardJson.put("expMonth", card.getExpMonth());
+      cardJson.put("expYear", card.getExpYear());
+      cardJson.put("funding", card.getFunding());
+      cardJson.put("last4", card.getLast4());
+      object.put("cardDetails", cardJson);
+    }
+
     return object;
   }
 
@@ -751,6 +898,33 @@ public class TerminalUtils {
       "statementDescriptorSuffix",
       paymentIntent.getStatementDescriptorSuffix()
     );
+    object.put("amountCapturable", paymentIntent.getAmountCapturable());
+    object.put("amountReceived", paymentIntent.getAmountReceived());
+    object.put("amountRequested", paymentIntent.getAmountRequested());
+    object.put("applicationFeeAmount", paymentIntent.getApplicationFeeAmount());
+    object.put("canceledAt", paymentIntent.getCanceledAt());
+    object.put("cancellationReason", paymentIntent.getCancellationReason());
+    object.put("captureMethod", paymentIntent.getCaptureMethod());
+    object.put("clientSecret", paymentIntent.getClientSecret());
+    object.put("confirmationMethod", paymentIntent.getConfirmationMethod());
+    object.put("customer", paymentIntent.getCustomer());
+    object.put("description", paymentIntent.getDescription());
+    object.put("livemode", paymentIntent.getLivemode());
+    object.put("onBehalfOf", paymentIntent.getOnBehalfOf());
+    object.put("paymentMethodId", paymentIntent.getPaymentMethodId());
+    object.put("receiptEmail", paymentIntent.getReceiptEmail());
+    object.put("setupFutureUsage", paymentIntent.getSetupFutureUsage());
+    object.put("transferGroup", paymentIntent.getTransferGroup());
+
+    List<PaymentMethodType> intentPaymentMethodTypes =
+      paymentIntent.getPaymentMethodTypes();
+    if (intentPaymentMethodTypes != null) {
+      JSArray types = new JSArray();
+      for (PaymentMethodType type : intentPaymentMethodTypes) {
+        types.put(serializePaymentMethodType(type));
+      }
+      object.put("paymentMethodTypes", types);
+    }
 
     PaymentMethod paymentMethod = paymentIntent.getPaymentMethod();
     AmountDetails amountDetails = paymentIntent.getAmountDetails();
@@ -815,6 +989,21 @@ public class TerminalUtils {
         chargeJson.put("receiptNumber", charge.getReceiptNumber());
         chargeJson.put("receiptUrl", charge.getReceiptUrl());
         chargeJson.put("livemode", charge.getLivemode());
+        chargeJson.put("balanceTransaction", charge.getBalanceTransaction());
+        chargeJson.put("applicationFee", charge.getApplicationFee());
+        chargeJson.put(
+          "applicationFeeAmount",
+          charge.getApplicationFeeAmount()
+        );
+        chargeJson.put("onBehalfOf", charge.getOnBehalfOf());
+
+        JSObject paymentMethodDetails = serializePaymentMethodDetails(
+          charge.getPaymentMethodDetails()
+        );
+        if (paymentMethodDetails != null) {
+          chargeJson.put("paymentMethodDetails", paymentMethodDetails);
+        }
+
         charges.put(chargeJson);
       }
     }
