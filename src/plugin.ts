@@ -543,7 +543,7 @@ export class StripeTerminalPlugin {
     const data = await this.sdk.connectInternetReader({
       serialNumber: reader.serialNumber,
       ipAddress: reader.ipAddress ?? undefined,
-      stripeId: reader.stripeId ?? undefined,
+      id: reader.id ?? reader.stripeId ?? undefined,
       ...config,
     })
 

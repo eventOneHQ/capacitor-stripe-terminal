@@ -40,6 +40,7 @@ public class TerminalUtils {
     object.put("simulated", reader.isSimulated());
 
     // stripe id
+    object.put("id", reader.getId());
     object.put("stripeId", reader.getId());
 
     // location id
@@ -110,6 +111,7 @@ public class TerminalUtils {
 
     JSObject object = new JSObject();
 
+    object.put("id", paymentIntent.getId());
     object.put("stripeId", paymentIntent.getId());
     object.put("created", paymentIntent.getCreated());
     object.put(
@@ -141,6 +143,7 @@ public class TerminalUtils {
 
     if (paymentMethod != null) {
       JSObject paymentMethodJson = new JSObject();
+      paymentMethodJson.put("id", paymentMethod.getId());
       paymentMethodJson.put("stripeId", paymentMethod.getId());
       paymentMethodJson.put("type", paymentMethod.getType().ordinal());
       paymentMethodJson.put("customer", paymentMethod.getCustomer());
@@ -160,6 +163,7 @@ public class TerminalUtils {
     if (paymentIntent.getCharges() != null) {
       for (Charge charge : paymentIntent.getCharges()) {
         JSObject chargeJson = new JSObject();
+        chargeJson.put("id", charge.getId());
         chargeJson.put("stripeId", charge.getId());
         chargeJson.put("amount", charge.getAmount());
         chargeJson.put("currency", charge.getCurrency());
@@ -229,6 +233,7 @@ public class TerminalUtils {
 
     JSObject object = new JSObject();
 
+    object.put("id", location.getId());
     object.put("stripeId", location.getId());
     object.put("displayName", location.getDisplayName());
     object.put("livemode", location.getLivemode());

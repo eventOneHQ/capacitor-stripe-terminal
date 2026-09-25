@@ -373,6 +373,18 @@ Update your app's iOS deployment target in Xcode to **15.0** or higher (see [Upg
 
 This plugin upgrades the peer dependency from Capacitor v4 to Capacitor v8. Follow the [official Capacitor v8 migration guide](https://capacitorjs.com/docs/updating/8-0) to update your app.
 
+### 13. `stripeId` deprecated in favour of `id`
+
+`Reader`, `PaymentIntent`, `Charge`, `Location`, and `CollectedData` now expose an `id` field, matching the Stripe API and the JS/React Native SDKs. `stripeId` is still populated and will keep working for the whole of v5, but it is deprecated and **will be removed in v6**.
+
+```typescript
+// Before
+const id = paymentIntent.stripeId
+
+// After
+const id = paymentIntent.id
+```
+
 ## Testing Your Migration
 
 After upgrading, test the following scenarios:
@@ -410,3 +422,4 @@ This upgrade primarily updates the underlying SDKs while maintaining most API co
 - **Remove `rxjs` from your dependencies** and update all Observable-based call sites to use the new callback + `PluginListenerHandle` pattern (call `handle.remove()` instead of `subscription.unsubscribe()`)
 - Rename `processPayment()` → `confirmPaymentIntent()` (matches the native Stripe Terminal SDK function name)
 - `confirmPaymentIntent` errors are now always thrown as `StripeTerminalError`; `decline_code` and `payment_intent` fields are now populated on card declines (no action required, but you may now read these fields in your catch handler)
+- Switch `stripeId` reads to `id` — `stripeId` still works in v5 but will be removed in v6

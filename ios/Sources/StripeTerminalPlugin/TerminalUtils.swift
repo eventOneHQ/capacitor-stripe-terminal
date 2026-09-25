@@ -53,9 +53,10 @@ public class StripeTerminalUtils {
     }
 
     static func serializeReader(reader: Reader) -> [String: Any] {
-        let jsonObject: [String: Any] = [
+        var jsonObject: [String: Any] = [
             "deviceType": translateDeviceTypeToJS(reader.deviceType),
             "simulated": reader.simulated,
+            "id": reader.stripeId as Any,
             "stripeId": reader.stripeId as Any,
             "locationId": reader.locationId as Any,
             "locationStatus": reader.locationStatus.rawValue,
@@ -90,7 +91,8 @@ public class StripeTerminalUtils {
     static func serializePaymentIntent(intent: PaymentIntent) -> [String: Any] {
         let chargesJson = intent.charges.map {
             (charge: Charge) -> [String: Any] in
-            return [
+            var chargeJson: [String: Any] = [
+                "id": charge.stripeId,
                 "stripeId": charge.stripeId,
                 "amount": charge.amount,
                 "currency": charge.currency,
@@ -112,9 +114,11 @@ public class StripeTerminalUtils {
                 "receiptUrl": charge.receiptUrl as Any,
                 "livemode": charge.livemode,
             ]
+            return chargeJson
         }
 
         var jsonObject: [String: Any] = [
+            "id": intent.stripeId,
             "stripeId": intent.stripeId,
             "created": intent.created.timeIntervalSince1970,
             "status": intent.status.rawValue,
@@ -137,6 +141,7 @@ public class StripeTerminalUtils {
 
         if let paymentMethod = intent.paymentMethod {
             jsonObject["paymentMethod"] = [
+                "id": paymentMethod.stripeId,
                 "stripeId": paymentMethod.stripeId,
                 "type": paymentMethod.type.rawValue,
                 "customer": paymentMethod.customer as Any,
@@ -151,6 +156,7 @@ public class StripeTerminalUtils {
 
     static func serializeLocation(location: Location) -> [String: Any] {
         var jsonObject: [String: Any] = [
+            "id": location.stripeId,
             "stripeId": location.stripeId,
             "displayName": location.displayName as Any,
             "livemode": location.livemode,

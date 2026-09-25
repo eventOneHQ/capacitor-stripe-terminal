@@ -385,6 +385,13 @@ export interface Reader {
   /**
    * The Stripe unique identifier for the reader.
    */
+  id: string | null
+
+  /**
+   * The Stripe unique identifier for the reader.
+   *
+   * @deprecated Use `id` instead. This will be removed in v6.
+   */
   stripeId: string | null
 
   /**
@@ -575,6 +582,10 @@ export enum ChargeStatus {
  * @see https://stripe.com/docs/api/charges/object
  */
 export interface Charge {
+  id: string
+  /**
+   * @deprecated Use `id` instead. This will be removed in v6.
+   */
   stripeId: string
   amount: number
   currency: string
@@ -646,6 +657,12 @@ export enum PaymentIntentStatus {
 export interface PaymentIntent {
   /**
    * The unique identifier for the intent.
+   */
+  id: string
+  /**
+   * The unique identifier for the intent.
+   *
+   * @deprecated Use `id` instead. This will be removed in v6.
    */
   stripeId: string
   /**
@@ -806,6 +823,12 @@ export interface Location {
   /**
    * The ID of the Location
    */
+  id: string
+  /**
+   * The ID of the Location
+   *
+   * @deprecated Use `id` instead. This will be removed in v6.
+   */
   stripeId: string
   /**
    * The address of this Location
@@ -958,6 +981,10 @@ export interface StripeTerminalInterface {
   connectInternetReader(options: {
     serialNumber: string
     ipAddress?: string
+    id?: string
+    /**
+     * @deprecated Use `id` instead. This will be removed in v6.
+     */
     stripeId?: string
     failIfInUse?: boolean
   }): Promise<{ reader: Reader | null }>
