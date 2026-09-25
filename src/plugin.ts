@@ -21,6 +21,8 @@ import {
   ListLocationsParameters,
   LogLevel,
   BatteryLevel,
+  ReaderSettings,
+  ReaderSettingsParameters,
   SimulatedCardType,
   SimulatorConfiguration,
   DeviceType,
@@ -584,6 +586,37 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return await this.sdk.disconnectReader()
+  }
+
+  /**
+   * Reboots the connected reader.
+   *
+   * The reader will disconnect while it restarts.
+   */
+  public async rebootReader(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.rebootReader()
+  }
+
+  /**
+   * Retrieves the settings currently reported by the connected reader.
+   */
+  public async getReaderSettings(): Promise<ReaderSettings> {
+    this.ensureInitialized()
+
+    return await this.sdk.getReaderSettings()
+  }
+
+  /**
+   * Updates the settings on the connected reader and returns the resulting settings.
+   */
+  public async setReaderSettings(
+    settings: ReaderSettingsParameters,
+  ): Promise<ReaderSettings> {
+    this.ensureInitialized()
+
+    return await this.sdk.setReaderSettings(settings)
   }
 
   public async connectionStatus(

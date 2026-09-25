@@ -15,6 +15,23 @@ public class StripeTerminalUtils {
         return level == 0 ? .none : .verbose
     }
 
+    static func serializeReaderSettings(settings: ReaderSettings) -> [String: Any] {
+        var accessibility: [String: Any] = [:]
+
+        if let error = settings.accessibility.error {
+            accessibility["error"] = error.localizedDescription
+        } else {
+            switch settings.accessibility.textToSpeechStatus {
+            case .off: accessibility["textToSpeechStatus"] = "off"
+            case .headphones: accessibility["textToSpeechStatus"] = "headphones"
+            case .speakers: accessibility["textToSpeechStatus"] = "speakers"
+            default: accessibility["error"] = "Unknown text-to-speech status"
+            }
+        }
+
+        return ["accessibility": accessibility]
+    }
+
     static func translateJSDeviceType(_ type: Int) -> DeviceType? {
         switch type {
         case 0: return .chipper2X

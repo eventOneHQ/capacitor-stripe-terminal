@@ -25,6 +25,7 @@ import com.stripe.stripeterminal.external.callable.LocationListCallback;
 import com.stripe.stripeterminal.external.callable.MobileReaderListener;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
 import com.stripe.stripeterminal.external.callable.ReaderCallback;
+import com.stripe.stripeterminal.external.callable.ReaderSettingsCallback;
 import com.stripe.stripeterminal.external.callable.TapToPayReaderListener;
 import com.stripe.stripeterminal.external.callable.TerminalListener;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
@@ -49,6 +50,8 @@ import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
 import com.stripe.stripeterminal.external.models.ReaderEvent;
 import com.stripe.stripeterminal.external.models.ReaderInputOptions;
+import com.stripe.stripeterminal.external.models.ReaderSettings;
+import com.stripe.stripeterminal.external.models.ReaderSettingsParameters;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.ReaderSupportResult;
 import com.stripe.stripeterminal.external.models.SimulateReaderUpdate;
@@ -485,6 +488,59 @@ public class StripeTerminal
     Terminal
       .getInstance()
       .connectReader(reader, connectionConfig, this.createReaderCallback(call));
+  }
+
+  @PluginMethod
+  public void rebootReader(final PluginCall call) {
+    Terminal.getInstance().rebootReader(
+      new Callback() {
+        @Override
+        public void onSuccess() {
+          call.resolve();
+        }
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
+    );
+  }
+
+  @PluginMethod
+  public void getReaderSettings(final PluginCall call) {
+    Terminal.getInstance().getReaderSettings(
+      createReaderSettingsCallback(call)
+    );
+  }
+
+  @PluginMethod
+  public void setReaderSettings(final PluginCall call) {
+    ReaderSettingsParameters.AccessibilityParameters params =
+      new ReaderSettingsParameters.AccessibilityParameters(
+        Boolean.TRUE.equals(call.getBoolean("textToSpeechViaSpeakers", false))
+      );
+
+    Terminal.getInstance().setReaderSettings(
+      params,
+      createReaderSettingsCallback(call)
+    );
+  }
+
+  private ReaderSettingsCallback createReaderSettingsCallback(
+    final PluginCall call
+  ) {
+    return new ReaderSettingsCallback() {
+      @Override
+      public void onSuccess(@NonNull ReaderSettings readerSettings) {
+        call.resolve(TerminalUtils.serializeReaderSettings(readerSettings));
+      }
+
+      @Override
+      public void onFailure(@NonNull TerminalException e) {
+        call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+      }
+    };
   }
 
   @PluginMethod

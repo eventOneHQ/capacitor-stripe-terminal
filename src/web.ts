@@ -19,6 +19,8 @@ import {
   CollectConfig,
   ChargeStatus,
   Charge,
+  ReaderSettings,
+  ReaderSettingsParameters,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -412,6 +414,18 @@ export class StripeTerminalWeb extends WebPlugin {
     // no equivalent
     console.warn('connectTapToPayReader is only available on iOS and Android.')
     return { reader: null }
+  }
+  async rebootReader(): Promise<void> {
+    // no equivalent
+    console.warn('rebootReader is only available on iOS and Android.')
+  }
+  async getReaderSettings(): Promise<ReaderSettings> {
+    throw new Error('getReaderSettings is only available on iOS and Android.')
+  }
+  async setReaderSettings(
+    _options: ReaderSettingsParameters,
+  ): Promise<ReaderSettings> {
+    throw new Error('setReaderSettings is only available on iOS and Android.')
   }
   async getConnectedReader(): Promise<{ reader: Reader | null }> {
     const sdk = this.ensureInitialized()

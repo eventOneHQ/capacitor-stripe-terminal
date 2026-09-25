@@ -15,9 +15,12 @@ import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
 import com.stripe.stripeterminal.external.models.PaymentMethod;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
 import com.stripe.stripeterminal.external.models.Reader;
+import com.stripe.stripeterminal.external.models.ReaderAccessibility;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
 import com.stripe.stripeterminal.external.models.ReaderInputOptions;
+import com.stripe.stripeterminal.external.models.ReaderSettings;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
+import com.stripe.stripeterminal.external.models.ReaderTextToSpeechStatus;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.Tip;
 import com.stripe.stripeterminal.log.LogLevel;
@@ -43,6 +46,43 @@ public class TerminalUtils {
       default:
         return LogLevel.NONE;
     }
+  }
+
+  public static JSObject serializeReaderSettings(ReaderSettings settings) {
+    JSObject accessibility = new JSObject();
+
+    ReaderAccessibility readerAccessibility = settings.getReaderAccessibility();
+    if (readerAccessibility instanceof ReaderAccessibility.Accessibility) {
+      ReaderTextToSpeechStatus status = (
+        (ReaderAccessibility.Accessibility) readerAccessibility
+      ).getTextToSpeechStatus();
+      switch (status) {
+        case HEADPHONES:
+          accessibility.put("textToSpeechStatus", "headphones");
+          break;
+        case SPEAKERS:
+          accessibility.put("textToSpeechStatus", "speakers");
+          break;
+        default:
+          accessibility.put("textToSpeechStatus", "off");
+          break;
+      }
+    } else if (readerAccessibility instanceof ReaderAccessibility.Error) {
+      Throwable throwable = (
+        (ReaderAccessibility.Error) readerAccessibility
+      ).getError();
+      accessibility.put(
+        "error",
+        throwable != null ? throwable.getMessage() : "Unknown error"
+      );
+    } else {
+      accessibility.put("error", "Unknown text-to-speech status");
+    }
+
+    JSObject object = new JSObject();
+    object.put("accessibility", accessibility);
+
+    return object;
   }
   public static Object serializeReader(Reader reader) {
     return serializeReader(reader, null, null, null);

@@ -1024,6 +1024,51 @@ export interface CollectConfig {
 }
 
 /**
+ * The text-to-speech status of a connected reader.
+ *
+ * @category Reader
+ */
+export type ReaderTextToSpeechStatus = 'off' | 'headphones' | 'speakers'
+
+/**
+ * Accessibility settings reported by the connected reader.
+ *
+ * Either `textToSpeechStatus` or `error` is set, never both.
+ *
+ * @category Reader
+ */
+export type ReaderAccessibility =
+  | {
+      textToSpeechStatus: ReaderTextToSpeechStatus
+      error?: undefined
+    }
+  | {
+      textToSpeechStatus?: undefined
+      error: string
+    }
+
+/**
+ * Settings reported by the connected reader.
+ *
+ * @category Reader
+ */
+export interface ReaderSettings {
+  accessibility: ReaderAccessibility
+}
+
+/**
+ * Settings to apply to the connected reader.
+ *
+ * @category Reader
+ */
+export interface ReaderSettingsParameters {
+  /**
+   * When true, text-to-speech is routed through the reader's speakers.
+   */
+  textToSpeechViaSpeakers: boolean
+}
+
+/**
  * The battery state reported by a connected Bluetooth reader.
  *
  * @category Reader
@@ -1104,6 +1149,12 @@ export interface StripeTerminalInterface {
   getPaymentStatus(): Promise<{ status: PaymentStatus }>
 
   disconnectReader(): Promise<void>
+
+  rebootReader(): Promise<void>
+
+  getReaderSettings(): Promise<ReaderSettings>
+
+  setReaderSettings(options: ReaderSettingsParameters): Promise<ReaderSettings>
 
   installAvailableUpdate(): Promise<void>
 

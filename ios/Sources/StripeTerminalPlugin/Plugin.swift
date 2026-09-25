@@ -23,6 +23,9 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "getConnectedReader", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelDiscoverReaders", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "disconnectReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "rebootReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getReaderSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setReaderSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "installAvailableUpdate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelInstallUpdate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelCollectPaymentMethod", returnType: CAPPluginReturnPromise),
@@ -331,6 +334,58 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
                     call.reject(error.localizedDescription, nil, error)
                 }
             })
+        }
+    }
+
+    @objc func rebootReader(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            Terminal.shared.rebootReader { error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else {
+                    call.resolve()
+                }
+            }
+        }
+    }
+
+    @objc func getReaderSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            Terminal.shared.retrieveReaderSettings { settings, error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else if let settings = settings {
+                    call.resolve(StripeTerminalUtils.serializeReaderSettings(settings: settings))
+                } else {
+                    call.reject("Unable to retrieve reader settings")
+                }
+            }
+        }
+    }
+
+    @objc func setReaderSettings(_ call: CAPPluginCall) {
+        let textToSpeechViaSpeakers = call.getBool("textToSpeechViaSpeakers", false)
+
+        let params: ReaderAccessibilityParameters
+        do {
+            params = try ReaderAccessibilityParametersBuilder()
+                .setTextToSpeechViaSpeakers(textToSpeechViaSpeakers)
+                .build()
+        } catch {
+            call.reject("Failed to build reader settings: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        DispatchQueue.main.async {
+            Terminal.shared.setReaderSettings(params) { settings, error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else if let settings = settings {
+                    call.resolve(StripeTerminalUtils.serializeReaderSettings(settings: settings))
+                } else {
+                    call.reject("Unable to update reader settings")
+                }
+            }
         }
     }
 
