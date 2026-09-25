@@ -20,6 +20,8 @@ import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.Tip;
+import java.util.Locale;
+import java.util.Set;
 
 public class TerminalUtils {
 
@@ -217,10 +219,35 @@ public class TerminalUtils {
 
     ReaderSoftwareUpdate.UpdateDurationEstimate durationEstimate = readerSoftwareUpdate.getDurationEstimate();
 
+    String estimatedUpdateTime;
+    switch (durationEstimate) {
+      case ONE_TO_TWO_MINUTES:
+        estimatedUpdateTime = "estimate1To2Minutes";
+        break;
+      case TWO_TO_FIVE_MINUTES:
+        estimatedUpdateTime = "estimate2To5Minutes";
+        break;
+      case FIVE_TO_FIFTEEN_MINUTES:
+        estimatedUpdateTime = "estimate5To15Minutes";
+        break;
+      default:
+        estimatedUpdateTime = "estimateLessThan1Minute";
+        break;
+    }
+
+    JSArray components = new JSArray();
+    Set<ReaderSoftwareUpdate.UpdateComponent> updateComponents =
+      readerSoftwareUpdate.getComponents();
+    if (updateComponents != null) {
+      for (ReaderSoftwareUpdate.UpdateComponent component : updateComponents) {
+        components.put(component.name().toLowerCase(Locale.ROOT));
+      }
+    }
+
+    object.put("estimatedUpdateTime", estimatedUpdateTime);
     object.put("estimatedUpdateTimeString", durationEstimate.getDescription());
-    object.put("estimatedUpdateTime", durationEstimate.ordinal());
     object.put("deviceSoftwareVersion", readerSoftwareUpdate.getVersion());
-    object.put("components", readerSoftwareUpdate.getComponents());
+    object.put("components", components);
     object.put("requiredAt", readerSoftwareUpdate.getRequiredAtMs() / 1000.0);
 
     return object;

@@ -385,6 +385,33 @@ const id = paymentIntent.stripeId
 const id = paymentIntent.id
 ```
 
+### 14. `ReaderSoftwareUpdate.estimatedUpdateTime` is now a string union
+
+`estimatedUpdateTime` was typed as `string` but the native SDKs were actually sending a number, so the declared type was wrong. It is now a proper string union, and the fields the native layer was already sending are now declared.
+
+```typescript
+// Before
+interface ReaderSoftwareUpdate {
+  estimatedUpdateTime: string // actually a number at runtime
+  deviceSoftwareVersion: string
+}
+
+// After
+interface ReaderSoftwareUpdate {
+  estimatedUpdateTime:
+    | 'estimateLessThan1Minute'
+    | 'estimate1To2Minutes'
+    | 'estimate2To5Minutes'
+    | 'estimate5To15Minutes'
+  estimatedUpdateTimeString: string // e.g. "1-2 minutes"
+  deviceSoftwareVersion: string
+  components: ('firmware' | 'config' | 'keys' | 'incremental')[]
+  requiredAt?: number | null
+}
+```
+
+If you were displaying `estimatedUpdateTime` directly, switch to `estimatedUpdateTimeString`.
+
 ## Testing Your Migration
 
 After upgrading, test the following scenarios:
@@ -423,3 +450,4 @@ This upgrade primarily updates the underlying SDKs while maintaining most API co
 - Rename `processPayment()` → `confirmPaymentIntent()` (matches the native Stripe Terminal SDK function name)
 - `confirmPaymentIntent` errors are now always thrown as `StripeTerminalError`; `decline_code` and `payment_intent` fields are now populated on card declines (no action required, but you may now read these fields in your catch handler)
 - Switch `stripeId` reads to `id` — `stripeId` still works in v5 but will be removed in v6
+- If you display `ReaderSoftwareUpdate.estimatedUpdateTime`, switch to `estimatedUpdateTimeString`; `estimatedUpdateTime` is now a string union

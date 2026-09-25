@@ -77,11 +77,25 @@ public class StripeTerminalUtils {
     }
 
     static func serializeUpdate(update: ReaderSoftwareUpdate) -> [String: Any] {
+        let estimatedUpdateTime: String
+        switch update.durationEstimate {
+        case .estimate1To2Minutes: estimatedUpdateTime = "estimate1To2Minutes"
+        case .estimate2To5Minutes: estimatedUpdateTime = "estimate2To5Minutes"
+        case .estimate5To15Minutes: estimatedUpdateTime = "estimate5To15Minutes"
+        default: estimatedUpdateTime = "estimateLessThan1Minute"
+        }
+
+        var components: [String] = []
+        if update.components.contains(.firmware) { components.append("firmware") }
+        if update.components.contains(.config) { components.append("config") }
+        if update.components.contains(.keys) { components.append("keys") }
+        if update.components.contains(.incremental) { components.append("incremental") }
+
         let jsonObject: [String: Any] = [
+            "estimatedUpdateTime": estimatedUpdateTime,
             "estimatedUpdateTimeString": ReaderSoftwareUpdate.string(from: update.durationEstimate),
-            "estimatedUpdateTime": update.durationEstimate.rawValue,
             "deviceSoftwareVersion": update.deviceSoftwareVersion,
-            "components": update.components.rawValue,
+            "components": components,
             "requiredAt": update.requiredAt.timeIntervalSince1970,
         ]
 

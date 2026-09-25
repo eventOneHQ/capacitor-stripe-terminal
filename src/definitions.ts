@@ -462,18 +462,51 @@ export interface Reader {
 }
 
 /**
+ * A component included in a reader software update.
+ *
+ * @category Reader Updates
+ */
+export type UpdateComponent = 'firmware' | 'config' | 'keys' | 'incremental'
+
+/**
+ * An estimate of how long a reader software update will take.
+ *
+ * @category Reader Updates
+ */
+export type EstimatedUpdateTime =
+  | 'estimateLessThan1Minute'
+  | 'estimate1To2Minutes'
+  | 'estimate2To5Minutes'
+  | 'estimate5To15Minutes'
+
+/**
  * @category Reader Updates
  */
 export interface ReaderSoftwareUpdate {
   /**
    * The estimated amount of time for the update.
    */
-  estimatedUpdateTime: string
+  estimatedUpdateTime: EstimatedUpdateTime
+
+  /**
+   * A human readable description of `estimatedUpdateTime`, e.g. `"1-2 minutes"`.
+   */
+  estimatedUpdateTimeString: string
 
   /**
    * The target version for the update.
    */
   deviceSoftwareVersion: string
+
+  /**
+   * The components that will be updated.
+   */
+  components: UpdateComponent[]
+
+  /**
+   * The date after which the update will be required, in seconds since the Unix epoch.
+   */
+  requiredAt?: number | null
 }
 
 /**
