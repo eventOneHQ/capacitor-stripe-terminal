@@ -587,15 +587,19 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     @objc func createPaymentIntent(_ call: CAPPluginCall) {
-        guard let amount = call.getInt("amount"), let currency = call.getString("currency") else {
+        guard let rawAmount = call.getInt("amount"), let currency = call.getString("currency") else {
             call.reject("Must provide an amount and a currency")
+            return
+        }
+        guard let amount = UInt(exactly: rawAmount) else {
+            call.reject("Amount must be a non-negative integer")
             return
         }
 
         let params: PaymentIntentParameters
         do {
             let paymentMethodTypes = call.getArray("paymentMethodTypes", String.self) ?? ["cardPresent"]
-            let builder = PaymentIntentParametersBuilder(amount: UInt(amount), currency: currency)
+            let builder = PaymentIntentParametersBuilder(amount: amount, currency: currency)
             _ = builder.setPaymentMethodTypes(StripeTerminalUtils.translateJSPaymentMethodTypes(paymentMethodTypes))
 
             if let captureMethod = call.getString("captureMethod") {
@@ -778,8 +782,12 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     @objc func collectRefundPaymentMethod(_ call: CAPPluginCall) {
-        guard let amount = call.getInt("amount"), let currency = call.getString("currency") else {
+        guard let rawAmount = call.getInt("amount"), let currency = call.getString("currency") else {
             call.reject("Must provide an amount and a currency")
+            return
+        }
+        guard let amount = UInt(exactly: rawAmount) else {
+            call.reject("Amount must be a non-negative integer")
             return
         }
 
@@ -787,13 +795,13 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         do {
             let builder: RefundParametersBuilder
             if let chargeId = call.getString("chargeId") {
-                builder = RefundParametersBuilder(chargeId: chargeId, amount: UInt(amount), currency: currency)
+                builder = RefundParametersBuilder(chargeId: chargeId, amount: amount, currency: currency)
             } else if let paymentIntentId = call.getString("paymentIntentId"),
                       let clientSecret = call.getString("clientSecret") {
                 builder = RefundParametersBuilder(
                     paymentIntentId: paymentIntentId,
                     clientSecret: clientSecret,
-                    amount: UInt(amount),
+                    amount: amount,
                     currency: currency
                 )
             } else {

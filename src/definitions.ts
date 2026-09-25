@@ -1307,6 +1307,8 @@ export interface CollectConfig {
   /**
    * Whether to show a cancel button on the reader during collection.
    *
+   * On the JS SDK, `'disableIfAvailable'` is not supported and throws an error.
+   *
    * @default 'enableIfAvailable'
    */
   customerCancellation?: CustomerCancellation

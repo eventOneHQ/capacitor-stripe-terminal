@@ -46,6 +46,7 @@ import {
   ISdkManagedPaymentIntent,
   IPaymentIntent,
   ISetReaderDisplayRequest,
+  ICollectConfig,
 } from '@stripe/terminal-js'
 import { Stripe } from 'stripe'
 
@@ -198,6 +199,17 @@ function serializeCharge(c: Stripe.Charge): Charge {
 /**
  * @ignore
  */
+const paymentMethodType: { [type: string]: PaymentMethodType } = {
+  card_present: 'cardPresent',
+  interac_present: 'interacPresent',
+  card: 'card',
+  wechat_pay: 'wechatPay',
+  affirm: 'affirm',
+}
+
+/**
+ * @ignore
+ */
 function serializePaymentMethodDetails(
   details: Stripe.Charge.PaymentMethodDetails | null | undefined,
 ): PaymentMethodDetails | null {
@@ -208,7 +220,7 @@ function serializePaymentMethodDetails(
   const card = (details as any).card
 
   return {
-    type: (details.type as PaymentMethodType) ?? null,
+    type: paymentMethodType[details.type] ?? null,
     cardPresentDetails: serializeCardPresentDetails(cardPresent),
     interacPresentDetails: serializeCardPresentDetails(interacPresent),
     cardDetails: card
@@ -719,6 +731,13 @@ export class StripeTerminalWeb extends WebPlugin {
         'No `clientSecret` was found. Make sure to run `retrievePaymentIntent` before running this method.',
       )
     }
+    // The JS SDK has no collect-time option to hide the reader's cancel button.
+    if (collectConfig?.customerCancellation === 'disableIfAvailable') {
+      throw new Error(
+        "customerCancellation: 'disableIfAvailable' is only supported on iOS and Android.",
+      )
+    }
+
     const result = await sdk.collectPaymentMethod(this.currentClientSecret, {
       config_override: {
         update_payment_intent: collectConfig?.updatePaymentIntent,
@@ -726,6 +745,10 @@ export class StripeTerminalWeb extends WebPlugin {
         tipping: {
           eligible_amount: collectConfig?.tipping?.eligibleAmount,
         },
+        request_dynamic_currency_conversion:
+          collectConfig?.requestDynamicCurrencyConversion,
+        allow_redisplay: collectConfig?.allowRedisplay as
+          ICollectConfig['allow_redisplay'] | undefined,
       },
     })
 
@@ -864,22 +887,20 @@ export class StripeTerminalWeb extends WebPlugin {
       throw new Error(json)
     }
 
-    const locations: Location[] = json.data.map(
-      (l: any): Location => ({
-        id: l.id,
-        stripeId: l.id,
-        displayName: l.display_name,
-        livemode: l.livemode,
-        address: {
-          city: l.address?.city,
-          country: l.address?.country,
-          line1: l.address?.line1,
-          line2: l.address?.line2,
-          postalCode: l.address?.postal_code,
-          state: l.address?.state,
-        },
-      }),
-    )
+    const locations: Location[] = json.data.map((l: any): Location => ({
+      id: l.id,
+      stripeId: l.id,
+      displayName: l.display_name,
+      livemode: l.livemode,
+      address: {
+        city: l.address?.city,
+        country: l.address?.country,
+        line1: l.address?.line1,
+        line2: l.address?.line2,
+        postalCode: l.address?.postal_code,
+        state: l.address?.state,
+      },
+    }))
 
     return {
       locations,

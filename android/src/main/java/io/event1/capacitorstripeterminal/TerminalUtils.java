@@ -368,6 +368,14 @@ public class TerminalUtils {
       attempt.getPaymentMethodDetails();
     if (paymentMethodDetails != null) {
       JSObject details = new JSObject();
+      // The SDK's type getter is Kotlin-internal, so infer it from the populated details.
+      PaymentMethodType type = null;
+      if (paymentMethodDetails.getInteracPresentDetails() != null) {
+        type = PaymentMethodType.INTERAC_PRESENT;
+      } else if (paymentMethodDetails.getCardPresentDetails() != null) {
+        type = PaymentMethodType.CARD_PRESENT;
+      }
+      details.put("type", serializePaymentMethodType(type));
       details.put(
         "cardPresent",
         serializeSetupAttemptCardPresentDetails(
