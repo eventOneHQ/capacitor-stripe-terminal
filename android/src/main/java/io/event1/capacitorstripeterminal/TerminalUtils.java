@@ -3,6 +3,7 @@ package io.event1.capacitorstripeterminal;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.stripe.stripeterminal.external.models.Address;
+import com.stripe.stripeterminal.external.models.AllowRedisplay;
 import com.stripe.stripeterminal.external.models.AmountDetails;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.Charge;
@@ -25,6 +26,12 @@ import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSettings;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.ReaderTextToSpeechStatus;
+import com.stripe.stripeterminal.external.models.SetupAttempt;
+import com.stripe.stripeterminal.external.models.SetupIntent;
+import com.stripe.stripeterminal.external.models.SetupIntentCardPresentDetails;
+import com.stripe.stripeterminal.external.models.SetupIntentPaymentMethodDetails;
+import com.stripe.stripeterminal.external.models.SetupIntentStatus;
+import com.stripe.stripeterminal.external.models.SetupIntentUsage;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.Tip;
 import com.stripe.stripeterminal.log.LogLevel;
@@ -125,6 +132,16 @@ public class TerminalUtils {
       : CustomerCancellation.ENABLE_IF_AVAILABLE;
   }
 
+  public static AllowRedisplay translateJSAllowRedisplay(String value) {
+    if ("always".equals(value)) {
+      return AllowRedisplay.ALWAYS;
+    } else if ("limited".equals(value)) {
+      return AllowRedisplay.LIMITED;
+    }
+
+    return AllowRedisplay.UNSPECIFIED;
+  }
+
   public static PaymentMethodType translateJSPaymentMethodType(String value) {
     if ("interacPresent".equals(value)) {
       return PaymentMethodType.INTERAC_PRESENT;
@@ -160,6 +177,39 @@ public class TerminalUtils {
     return types;
   }
 
+  public static String serializePaymentMethodType(PaymentMethodType type) {
+    if (type == null) {
+      return null;
+    }
+
+    switch (type) {
+      case INTERAC_PRESENT:
+        return "interacPresent";
+      case CARD:
+        return "card";
+      case WECHAT_PAY:
+        return "wechatPay";
+      case AFFIRM:
+        return "affirm";
+      default:
+        return "cardPresent";
+    }
+  }
+
+  private static PaymentMethodType translateApiPaymentMethodType(String value) {
+    if ("interac_present".equals(value)) {
+      return PaymentMethodType.INTERAC_PRESENT;
+    } else if ("card".equals(value)) {
+      return PaymentMethodType.CARD;
+    } else if ("wechat_pay".equals(value)) {
+      return PaymentMethodType.WECHAT_PAY;
+    } else if ("affirm".equals(value)) {
+      return PaymentMethodType.AFFIRM;
+    }
+
+    return PaymentMethodType.CARD_PRESENT;
+  }
+
   public static Map<String, String> readMetadata(JSObject metadata) {
     if (metadata == null) {
       return null;
@@ -173,6 +223,149 @@ public class TerminalUtils {
     }
 
     return map;
+  }
+
+  private static JSObject serializeMetadata(Map<String, String> metadata) {
+    if (metadata == null) {
+      return null;
+    }
+
+    JSObject object = new JSObject();
+    for (Map.Entry<String, String> entry : metadata.entrySet()) {
+      object.put(entry.getKey(), entry.getValue());
+    }
+
+    return object;
+  }
+
+  private static String serializeSetupIntentStatus(SetupIntentStatus status) {
+    if (status == null) {
+      return "unknown";
+    }
+
+    switch (status) {
+      case REQUIRES_PAYMENT_METHOD:
+        return "requiresPaymentMethod";
+      case REQUIRES_CONFIRMATION:
+        return "requiresConfirmation";
+      case REQUIRES_ACTION:
+        return "requiresAction";
+      case PROCESSING:
+        return "processing";
+      case SUCCEEDED:
+        return "succeeded";
+      case CANCELLED:
+        return "canceled";
+      default:
+        return "unknown";
+    }
+  }
+
+  private static String serializeSetupIntentUsage(SetupIntentUsage usage) {
+    if (usage == null) {
+      return null;
+    }
+
+    return usage == SetupIntentUsage.OFF_SESSION ? "offSession" : "onSession";
+  }
+
+  public static JSObject serializeSetupAttempt(SetupAttempt attempt) {
+    if (attempt == null) {
+      return null;
+    }
+
+    JSObject object = new JSObject();
+    object.put("id", attempt.getId());
+    object.put("applicationId", attempt.getApplicationId());
+    object.put("created", attempt.getCreated());
+    object.put("customer", attempt.getCustomerId());
+    object.put("livemode", attempt.isLiveMode());
+    object.put("onBehalfOfId", attempt.getOnBehalfOfId());
+    object.put("paymentMethodId", attempt.getPaymentMethodId());
+    object.put("setupIntentId", attempt.getSetupIntentId());
+    object.put(
+      "status",
+      attempt.getStatus() != null
+        ? attempt.getStatus().toString().toLowerCase(Locale.ROOT)
+        : null
+    );
+    object.put("usage", serializeSetupIntentUsage(attempt.getUsage()));
+
+    SetupIntentPaymentMethodDetails paymentMethodDetails =
+      attempt.getPaymentMethodDetails();
+    if (paymentMethodDetails != null) {
+      JSObject details = new JSObject();
+      details.put(
+        "cardPresent",
+        serializeSetupAttemptCardPresentDetails(
+          paymentMethodDetails.getCardPresentDetails()
+        )
+      );
+      details.put(
+        "interacPresent",
+        serializeSetupAttemptCardPresentDetails(
+          paymentMethodDetails.getInteracPresentDetails()
+        )
+      );
+      object.put("paymentMethodDetails", details);
+    }
+
+    return object;
+  }
+
+  private static JSObject serializeSetupAttemptCardPresentDetails(
+    SetupIntentCardPresentDetails details
+  ) {
+    if (details == null) {
+      return null;
+    }
+
+    JSObject object = new JSObject();
+    object.put("emvAuthData", details.getEmvAuthData());
+    object.put("generatedCard", details.getGeneratedCard());
+
+    return object;
+  }
+
+  public static Object serializeSetupIntent(SetupIntent intent) {
+    if (intent == null) {
+      return JSObject.NULL;
+    }
+
+    JSObject object = new JSObject();
+    object.put("id", intent.getId());
+    object.put("created", intent.getCreated());
+    object.put("customer", intent.getCustomerId());
+    object.put("description", intent.getDescription());
+    object.put("livemode", intent.isLiveMode());
+    object.put("onBehalfOf", intent.getOnBehalfOfId());
+    object.put("paymentMethodId", intent.getPaymentMethodId());
+    object.put("status", serializeSetupIntentStatus(intent.getStatus()));
+    object.put("usage", serializeSetupIntentUsage(intent.getUsage()));
+
+    Map<String, String> metadata = intent.getMetadata();
+    if (metadata != null) {
+      object.put("metadata", serializeMetadata(metadata));
+    }
+
+    List<String> paymentMethodTypes = intent.getPaymentMethodTypes();
+    if (paymentMethodTypes != null) {
+      JSArray types = new JSArray();
+      for (String type : paymentMethodTypes) {
+        // Android reports the raw API value (e.g. card_present); iOS reports camelCase.
+        types.put(
+          serializePaymentMethodType(translateApiPaymentMethodType(type))
+        );
+      }
+      object.put("paymentMethodTypes", types);
+    }
+
+    JSObject latestAttempt = serializeSetupAttempt(intent.getLatestAttempt());
+    if (latestAttempt != null) {
+      object.put("latestAttempt", latestAttempt);
+    }
+
+    return object;
   }
   public static Object serializeReader(Reader reader) {
     return serializeReader(reader, null, null, null);

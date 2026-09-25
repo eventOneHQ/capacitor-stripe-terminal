@@ -1011,6 +1011,13 @@ export type CustomerCancellation =
   | 'unspecified'
 
 /**
+ * Indicates whether a payment method can be shown again to its customer in a checkout flow. Consent must be obtained before setting this field to anything other than `unspecified`.
+ *
+ * @see https://stripe.com/docs/api/payment_methods/object#payment_method_object-allow_redisplay
+ */
+export type AllowRedisplay = 'always' | 'limited' | 'unspecified'
+
+/**
  * The type of payment method a PaymentIntent or SetupIntent may collect.
  */
 export type PaymentMethodType =
@@ -1119,6 +1126,146 @@ export interface CreatePaymentIntentParams {
    * Set of key-value pairs attached to the object.
    */
   metadata?: Record<string, string>
+}
+
+/**
+ * The possible statuses of a `SetupIntent`.
+ *
+ * @category Payment
+ */
+export type SetupIntentStatus =
+  | 'requiresPaymentMethod'
+  | 'requiresConfirmation'
+  | 'requiresAction'
+  | 'processing'
+  | 'succeeded'
+  | 'canceled'
+  | 'unknown'
+
+/**
+ * Indicates how a saved payment method is intended to be used in the future.
+ *
+ * @category Payment
+ */
+export type SetupIntentUsage = 'onSession' | 'offSession'
+
+/**
+ * The reason a SetupIntent payment method is being collected.
+ *
+ * @category Payment
+ */
+export type CollectionReason = 'saveCard' | 'verify' | 'unspecified'
+
+/**
+ * Parameters used to create a `SetupIntent` on the device.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/setup_intents/create
+ */
+export interface CreateSetupIntentParams {
+  /**
+   * The ID of the customer this SetupIntent is for.
+   */
+  customer?: string
+  /**
+   * An arbitrary string attached to the object.
+   */
+  description?: string
+  /**
+   * Set of key-value pairs attached to the object.
+   */
+  metadata?: Record<string, string>
+  /**
+   * The Stripe account ID for which this SetupIntent is intended.
+   */
+  onBehalfOf?: string
+  /**
+   * The payment method types this SetupIntent may use.
+   *
+   * @default ['cardPresent']
+   */
+  paymentMethodTypes?: PaymentMethodType[]
+  /**
+   * How the saved payment method is intended to be used in the future.
+   */
+  usage?: SetupIntentUsage
+}
+
+/**
+ * Options for `collectSetupIntentPaymentMethod()`.
+ *
+ * @category Payment
+ */
+export interface CollectSetupIntentPaymentMethodParams {
+  /**
+   * Whether the collected payment method may be shown to the customer again in a future checkout flow.
+   *
+   * @default 'unspecified'
+   */
+  allowRedisplay?: AllowRedisplay
+  /**
+   * Whether to show a cancel button on the reader during collection.
+   */
+  customerCancellation?: CustomerCancellation
+  /**
+   * The reason the payment method is being collected.
+   */
+  collectionReason?: CollectionReason
+}
+
+/**
+ * Details of the card presented during a setup attempt.
+ *
+ * @category Payment
+ */
+export interface SetupAttemptCardPresentDetails {
+  emvAuthData?: string | null
+  generatedCard?: string | null
+}
+
+/**
+ * An attempt to set up a payment method.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/setup_attempts
+ */
+export interface SetupAttempt {
+  id: string
+  applicationId?: string | null
+  created?: number | null
+  customer?: string | null
+  livemode: boolean
+  onBehalfOfId?: string | null
+  paymentMethodId?: string | null
+  setupIntentId?: string | null
+  status?: string | null
+  usage?: SetupIntentUsage | null
+  paymentMethodDetails?: {
+    type?: PaymentMethodType | null
+    cardPresent?: SetupAttemptCardPresentDetails | null
+    interacPresent?: SetupAttemptCardPresentDetails | null
+  } | null
+}
+
+/**
+ * A `SetupIntent` guides you through the process of setting up a customer's payment credentials for future payments.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/setup_intents
+ */
+export interface SetupIntent {
+  id: string
+  created?: number | null
+  customer?: string | null
+  description?: string | null
+  livemode: boolean
+  metadata?: Record<string, string> | null
+  onBehalfOf?: string | null
+  paymentMethodId?: string | null
+  paymentMethodTypes?: PaymentMethodType[]
+  status?: SetupIntentStatus | null
+  usage?: SetupIntentUsage | null
+  latestAttempt?: SetupAttempt | null
 }
 
 /**
@@ -1330,6 +1477,24 @@ export interface StripeTerminalInterface {
   confirmPaymentIntent(): Promise<{ intent: PaymentIntent }>
 
   cancelPaymentIntent(): Promise<{ intent: PaymentIntent | null }>
+
+  createSetupIntent(
+    params: CreateSetupIntentParams,
+  ): Promise<{ intent: SetupIntent | null }>
+
+  retrieveSetupIntent(options: {
+    clientSecret: string
+  }): Promise<{ intent: SetupIntent | null }>
+
+  collectSetupIntentPaymentMethod(
+    params?: CollectSetupIntentPaymentMethodParams,
+  ): Promise<{ intent: SetupIntent | null }>
+
+  cancelCollectSetupIntentPaymentMethod(): Promise<void>
+
+  confirmSetupIntent(): Promise<{ intent: SetupIntent | null }>
+
+  cancelSetupIntent(): Promise<{ intent: SetupIntent | null }>
 
   clearCachedCredentials(): Promise<void>
 

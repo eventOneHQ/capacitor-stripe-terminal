@@ -24,6 +24,9 @@ import {
   CollectDataConfig,
   CollectedData,
   CreatePaymentIntentParams,
+  CreateSetupIntentParams,
+  CollectSetupIntentPaymentMethodParams,
+  SetupIntent,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -442,6 +445,35 @@ export class StripeTerminalWeb extends WebPlugin {
   }
   async cancelPaymentIntent(): Promise<{ intent: PaymentIntent | null }> {
     throw new Error('cancelPaymentIntent is only available on iOS and Android.')
+  }
+  async createSetupIntent(
+    _params: CreateSetupIntentParams,
+  ): Promise<{ intent: SetupIntent | null }> {
+    throw new Error('createSetupIntent is only available on iOS and Android.')
+  }
+  async retrieveSetupIntent(_options: {
+    clientSecret: string
+  }): Promise<{ intent: SetupIntent | null }> {
+    throw new Error('retrieveSetupIntent is only available on iOS and Android.')
+  }
+  async collectSetupIntentPaymentMethod(
+    _params?: CollectSetupIntentPaymentMethodParams,
+  ): Promise<{ intent: SetupIntent | null }> {
+    throw new Error(
+      'collectSetupIntentPaymentMethod is only available on iOS and Android.',
+    )
+  }
+  async cancelCollectSetupIntentPaymentMethod(): Promise<void> {
+    // no equivalent
+    console.warn(
+      'cancelCollectSetupIntentPaymentMethod is only available on iOS and Android.',
+    )
+  }
+  async confirmSetupIntent(): Promise<{ intent: SetupIntent | null }> {
+    throw new Error('confirmSetupIntent is only available on iOS and Android.')
+  }
+  async cancelSetupIntent(): Promise<{ intent: SetupIntent | null }> {
+    throw new Error('cancelSetupIntent is only available on iOS and Android.')
   }
   async getConnectedReader(): Promise<{ reader: Reader | null }> {
     const sdk = this.ensureInitialized()

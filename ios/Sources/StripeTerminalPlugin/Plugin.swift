@@ -33,6 +33,12 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "retrievePaymentIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "createPaymentIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelPaymentIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "createSetupIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "retrieveSetupIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectSetupIntentPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelCollectSetupIntentPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "confirmSetupIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelSetupIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "collectPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirmPaymentIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearCachedCredentials", returnType: CAPPluginReturnPromise),
@@ -54,9 +60,11 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     private var pendingInstallUpdate: Cancelable?
     private var pendingCollectPaymentMethod: Cancelable?
     private var pendingCollectData: Cancelable?
+    private var pendingCollectSetupIntentPaymentMethod: Cancelable?
     private var pendingReaderAutoReconnect: Cancelable?
     private var currentUpdate: ReaderSoftwareUpdate?
     private var currentPaymentIntent: PaymentIntent?
+    private var currentSetupIntent: SetupIntent?
     private var cancelDiscoverReadersCall: CAPPluginCall?
     private var isInitialized: Bool = false
     private var thread = DispatchQueue.init(label: "CapacitorStripeTerminal")
@@ -635,6 +643,134 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             } else {
                 call.reject("Unable to cancel payment intent")
             }
+        }
+    }
+
+    @objc func createSetupIntent(_ call: CAPPluginCall) {
+        let params: SetupIntentParameters
+        do {
+            let builder = SetupIntentParametersBuilder()
+
+            if let paymentMethodTypes = call.getArray("paymentMethodTypes", String.self) {
+                _ = builder.setPaymentMethodTypes(StripeTerminalUtils.translateJSPaymentMethodTypes(paymentMethodTypes))
+            }
+            if let customer = call.getString("customer") { _ = builder.setCustomer(customer) }
+            if let description = call.getString("description") { _ = builder.setStripeDescription(description) }
+            if let onBehalfOf = call.getString("onBehalfOf") { _ = builder.setOnBehalfOf(onBehalfOf) }
+            if let usage = call.getString("usage") { _ = builder.setUsage(StripeTerminalUtils.translateJSSetupIntentUsage(usage)) }
+            if let metadata = call.getObject("metadata") as? [String: String] { _ = builder.setMetadata(metadata) }
+
+            params = try builder.build()
+        } catch {
+            call.reject("Failed to build setup intent parameters: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        Terminal.shared.createSetupIntent(params) { intent, error in
+            self.resolveSetupIntent(call, intent, error, "Unable to create setup intent")
+        }
+    }
+
+    @objc func retrieveSetupIntent(_ call: CAPPluginCall) {
+        guard let clientSecret = call.getString("clientSecret") else {
+            call.reject("Client secret cannot be null")
+            return
+        }
+
+        Terminal.shared.retrieveSetupIntent(clientSecret: clientSecret) { intent, error in
+            self.resolveSetupIntent(call, intent, error, "Unable to retrieve setup intent")
+        }
+    }
+
+    @objc func collectSetupIntentPaymentMethod(_ call: CAPPluginCall) {
+        guard let intent = currentSetupIntent else {
+            call.reject("There is no active setup intent. Make sure you called retrieveSetupIntent or createSetupIntent first")
+            return
+        }
+
+        let allowRedisplay = StripeTerminalUtils.translateJSAllowRedisplay(call.getString("allowRedisplay") ?? "unspecified")
+
+        let config: CollectSetupIntentConfiguration
+        do {
+            let builder = CollectSetupIntentConfigurationBuilder()
+            if let customerCancellation = call.getString("customerCancellation") {
+                _ = builder.setCustomerCancellation(StripeTerminalUtils.translateJSCustomerCancellation(customerCancellation))
+            }
+            if let collectionReason = call.getString("collectionReason"),
+               let reason = StripeTerminalUtils.translateJSCollectionReason(collectionReason) {
+                _ = builder.setCollectionReason(reason)
+            }
+            config = try builder.build()
+        } catch {
+            call.reject("Failed to build collect configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        pendingCollectSetupIntentPaymentMethod = Terminal.shared.collectSetupIntentPaymentMethod(
+            intent,
+            allowRedisplay: allowRedisplay,
+            setupConfig: config
+        ) { collectedIntent, error in
+            self.pendingCollectSetupIntentPaymentMethod = nil
+            self.resolveSetupIntent(call, collectedIntent, error, "Unable to collect setup intent payment method")
+        }
+    }
+
+    @objc func cancelCollectSetupIntentPaymentMethod(_ call: CAPPluginCall? = nil) {
+        guard let cancelable = pendingCollectSetupIntentPaymentMethod else {
+            call?.resolve()
+            return
+        }
+
+        cancelable.cancel { error in
+            if let error = error {
+                call?.reject(error.localizedDescription, nil, error)
+            } else {
+                self.pendingCollectSetupIntentPaymentMethod = nil
+                call?.resolve()
+            }
+        }
+    }
+
+    @objc func confirmSetupIntent(_ call: CAPPluginCall) {
+        guard let intent = currentSetupIntent else {
+            call.reject("There is no active setup intent. Make sure you called retrieveSetupIntent or createSetupIntent first")
+            return
+        }
+
+        thread.async {
+            Terminal.shared.confirmSetupIntent(intent) { confirmedIntent, error in
+                self.resolveSetupIntent(call, confirmedIntent, error, "Unable to confirm setup intent")
+            }
+        }
+    }
+
+    @objc func cancelSetupIntent(_ call: CAPPluginCall) {
+        guard let intent = currentSetupIntent else {
+            call.reject("There is no active setup intent. Make sure you called retrieveSetupIntent or createSetupIntent first")
+            return
+        }
+
+        Terminal.shared.cancelSetupIntent(intent) { canceledIntent, error in
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else if let canceledIntent = canceledIntent {
+                self.currentSetupIntent = nil
+                call.resolve(["intent": StripeTerminalUtils.serializeSetupIntent(intent: canceledIntent)])
+            } else {
+                call.reject("Unable to cancel setup intent")
+            }
+        }
+    }
+
+    private func resolveSetupIntent(_ call: CAPPluginCall, _ intent: SetupIntent?, _ error: Error?, _ fallbackMessage: String) {
+        if let error = error {
+            call.reject(error.localizedDescription, nil, error)
+        } else if let intent = intent {
+            currentSetupIntent = intent
+            call.resolve(["intent": StripeTerminalUtils.serializeSetupIntent(intent: intent)])
+        } else {
+            call.reject(fallbackMessage)
         }
     }
 

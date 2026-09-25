@@ -63,6 +63,14 @@ public class StripeTerminalUtils {
         }
     }
 
+    static func translateJSAllowRedisplay(_ value: String) -> AllowRedisplay {
+        switch value {
+        case "always": return .always
+        case "limited": return .limited
+        default: return .unspecified
+        }
+    }
+
     static func translateJSPaymentMethodType(_ value: String) -> PaymentMethodType {
         switch value {
         case "interacPresent": return .interacPresent
@@ -75,6 +83,100 @@ public class StripeTerminalUtils {
 
     static func translateJSPaymentMethodTypes(_ values: [String]) -> [NSNumber] {
         return values.map { NSNumber(value: translateJSPaymentMethodType($0).rawValue) }
+    }
+
+    static func translateJSSetupIntentUsage(_ value: String) -> SetupIntentUsage {
+        return value == "offSession" ? .offSession : .onSession
+    }
+
+    static func translateJSCollectionReason(_ value: String) -> SetupIntentCollectionReason? {
+        switch value {
+        case "saveCard": return .saveCard
+        case "verify": return .verify
+        default: return nil
+        }
+    }
+
+    static func serializeSetupIntentStatus(_ status: SetupIntentStatus) -> String {
+        switch status {
+        case .requiresPaymentMethod: return "requiresPaymentMethod"
+        case .requiresConfirmation: return "requiresConfirmation"
+        case .requiresAction: return "requiresAction"
+        case .processing: return "processing"
+        case .succeeded: return "succeeded"
+        case .canceled: return "canceled"
+        @unknown default: return "unknown"
+        }
+    }
+
+    static func serializePaymentMethodType(_ type: PaymentMethodType) -> String {
+        switch type {
+        case .interacPresent: return "interacPresent"
+        case .card: return "card"
+        case .wechatPay: return "wechatPay"
+        case .affirm: return "affirm"
+        default: return "cardPresent"
+        }
+    }
+
+    static func serializeSetupAttempt(attempt: SetupAttempt) -> [String: Any] {
+        var jsonObject: [String: Any] = [
+            "id": attempt.stripeId,
+            "applicationId": attempt.application as Any,
+            "created": attempt.created.timeIntervalSince1970,
+            "customer": attempt.customer as Any,
+            "livemode": attempt.livemode,
+            "onBehalfOfId": attempt.onBehalfOf as Any,
+            "paymentMethodId": attempt.paymentMethod as Any,
+            "setupIntentId": attempt.setupIntent,
+            "status": attempt.status,
+            "usage": attempt.usage == .offSession ? "offSession" : "onSession",
+        ]
+
+        if let paymentMethodDetails = attempt.paymentMethodDetails {
+            var details: [String: Any] = [
+                "type": serializePaymentMethodType(paymentMethodDetails.type),
+            ]
+            if let cardPresent = paymentMethodDetails.cardPresent {
+                details["cardPresent"] = [
+                    "emvAuthData": cardPresent.emvAuthData,
+                    "generatedCard": cardPresent.generatedCard,
+                ]
+            }
+            if let interacPresent = paymentMethodDetails.interacPresent {
+                details["interacPresent"] = [
+                    "emvAuthData": interacPresent.emvAuthData,
+                    "generatedCard": interacPresent.generatedCard,
+                ]
+            }
+            jsonObject["paymentMethodDetails"] = details
+        }
+
+        return jsonObject
+    }
+
+    static func serializeSetupIntent(intent: SetupIntent) -> [String: Any] {
+        var jsonObject: [String: Any] = [
+            "id": intent.stripeId as Any,
+            "created": intent.created.timeIntervalSince1970,
+            "customer": intent.customer as Any,
+            "description": intent.stripeDescription as Any,
+            "livemode": intent.livemode,
+            "metadata": intent.metadata as Any,
+            "onBehalfOf": intent.onBehalfOf as Any,
+            "paymentMethodId": intent.paymentMethod as Any,
+            "status": serializeSetupIntentStatus(intent.status),
+            "usage": intent.usage == .offSession ? "offSession" : "onSession",
+            "paymentMethodTypes": intent.paymentMethodTypes.map {
+                serializePaymentMethodType(PaymentMethodType(rawValue: $0.uintValue) ?? .cardPresent)
+            },
+        ]
+
+        if let latestAttempt = intent.latestAttempt {
+            jsonObject["latestAttempt"] = serializeSetupAttempt(attempt: latestAttempt)
+        }
+
+        return jsonObject
     }
 
     static func translateJSDeviceType(_ type: Int) -> DeviceType? {

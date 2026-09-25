@@ -26,6 +26,9 @@ import {
   CollectDataConfig,
   CollectedData,
   CreatePaymentIntentParams,
+  CreateSetupIntentParams,
+  CollectSetupIntentPaymentMethodParams,
+  SetupIntent,
   SimulatedCardType,
   SimulatorConfiguration,
   DeviceType,
@@ -808,6 +811,80 @@ export class StripeTerminalPlugin {
     const data = await this.sdk.cancelPaymentIntent()
 
     return this.normalizePaymentIntent(this.objectExists(data?.intent))
+  }
+
+  /**
+   * Creates a new `SetupIntent` on the device, used to save a card for future payments.
+   *
+   * @see https://stripe.com/docs/terminal/features/saving-cards/save-cards-directly
+   */
+  public async createSetupIntent(
+    params: CreateSetupIntentParams,
+  ): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.createSetupIntent(params)
+
+    return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Retrieves a `SetupIntent` created on your backend and makes it the active setup intent.
+   */
+  public async retrieveSetupIntent(
+    clientSecret: string,
+  ): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.retrieveSetupIntent({ clientSecret })
+
+    return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Collects a payment method for the active `SetupIntent`.
+   *
+   * Call `createSetupIntent` or `retrieveSetupIntent` first.
+   */
+  public async collectSetupIntentPaymentMethod(
+    params?: CollectSetupIntentPaymentMethodParams,
+  ): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.collectSetupIntentPaymentMethod(params)
+
+    return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Cancels an in-progress `collectSetupIntentPaymentMethod`.
+   */
+  public async cancelCollectSetupIntentPaymentMethod(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelCollectSetupIntentPaymentMethod()
+  }
+
+  /**
+   * Confirms the active `SetupIntent`, saving the collected card for future use.
+   */
+  public async confirmSetupIntent(): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.confirmSetupIntent()
+
+    return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Cancels the active `SetupIntent`.
+   */
+  public async cancelSetupIntent(): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.cancelSetupIntent()
+
+    return this.objectExists(data?.intent)
   }
 
   public async collectPaymentMethod(
