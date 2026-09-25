@@ -27,6 +27,8 @@ import {
   CreateSetupIntentParams,
   CollectSetupIntentPaymentMethodParams,
   SetupIntent,
+  RefundParams,
+  Refund,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -474,6 +476,20 @@ export class StripeTerminalWeb extends WebPlugin {
   }
   async cancelSetupIntent(): Promise<{ intent: SetupIntent | null }> {
     throw new Error('cancelSetupIntent is only available on iOS and Android.')
+  }
+  async collectRefundPaymentMethod(_params: RefundParams): Promise<void> {
+    throw new Error(
+      'collectRefundPaymentMethod is only available on iOS and Android.',
+    )
+  }
+  async cancelCollectRefundPaymentMethod(): Promise<void> {
+    // no equivalent
+    console.warn(
+      'cancelCollectRefundPaymentMethod is only available on iOS and Android.',
+    )
+  }
+  async confirmRefund(): Promise<{ refund: Refund | null }> {
+    throw new Error('confirmRefund is only available on iOS and Android.')
   }
   async getConnectedReader(): Promise<{ reader: Reader | null }> {
     const sdk = this.ensureInitialized()

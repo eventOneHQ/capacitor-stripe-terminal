@@ -1269,6 +1269,79 @@ export interface SetupIntent {
 }
 
 /**
+ * The possible statuses of a `Refund`.
+ *
+ * @category Payment
+ */
+export type RefundStatus = 'succeeded' | 'failed' | 'pending' | 'unknown'
+
+/**
+ * Parameters used to refund a charge in person, identified by the PaymentIntent being refunded.
+ *
+ * @category Payment
+ */
+export interface RefundParamsWithPaymentIntentId {
+  paymentIntentId: string
+  clientSecret: string
+  amount: number
+  currency: string
+  refundApplicationFee?: boolean
+  reverseTransfer?: boolean
+  customerCancellation?: CustomerCancellation
+  metadata?: Record<string, string>
+}
+
+/**
+ * Parameters used to refund a charge in person, identified by the charge being refunded.
+ *
+ * @category Payment
+ */
+export interface RefundParamsWithChargeId {
+  chargeId: string
+  amount: number
+  currency: string
+  refundApplicationFee?: boolean
+  reverseTransfer?: boolean
+  customerCancellation?: CustomerCancellation
+  metadata?: Record<string, string>
+}
+
+/**
+ * Parameters used to refund a charge in person.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/terminal/features/refunds
+ */
+export type RefundParams =
+  | RefundParamsWithPaymentIntentId
+  | RefundParamsWithChargeId
+
+/**
+ * A `Refund` object, created by an in-person refund.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/refunds
+ */
+export interface Refund {
+  id: string
+  amount?: number | null
+  balanceTransaction?: string | null
+  chargeId?: string | null
+  created?: number | null
+  currency?: string | null
+  description?: string | null
+  failureBalanceTransaction?: string | null
+  failureReason?: string | null
+  metadata?: Record<string, string> | null
+  paymentIntentId?: string | null
+  reason?: string | null
+  receiptNumber?: string | null
+  sourceTransferReversal?: string | null
+  status?: RefundStatus | null
+  transferReversal?: string | null
+}
+
+/**
  * The text-to-speech status of a connected reader.
  *
  * @category Reader
@@ -1495,6 +1568,12 @@ export interface StripeTerminalInterface {
   confirmSetupIntent(): Promise<{ intent: SetupIntent | null }>
 
   cancelSetupIntent(): Promise<{ intent: SetupIntent | null }>
+
+  collectRefundPaymentMethod(params: RefundParams): Promise<void>
+
+  cancelCollectRefundPaymentMethod(): Promise<void>
+
+  confirmRefund(): Promise<{ refund: Refund | null }>
 
   clearCachedCredentials(): Promise<void>
 

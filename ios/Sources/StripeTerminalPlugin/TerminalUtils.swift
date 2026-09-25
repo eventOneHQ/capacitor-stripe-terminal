@@ -179,6 +179,35 @@ public class StripeTerminalUtils {
         return jsonObject
     }
 
+    static func serializeRefund(refund: Refund) -> [String: Any] {
+        let status: String
+        switch refund.status {
+        case .succeeded: status = "succeeded"
+        case .failed: status = "failed"
+        case .pending: status = "pending"
+        @unknown default: status = "unknown"
+        }
+
+        return [
+            "id": refund.stripeId,
+            "amount": refund.amount,
+            "balanceTransaction": refund.balanceTransaction as Any,
+            "chargeId": refund.chargeId as Any,
+            "created": refund.created.timeIntervalSince1970,
+            "currency": refund.currency,
+            "description": refund.stripeDescription as Any,
+            "failureBalanceTransaction": refund.failureBalanceTransaction as Any,
+            "failureReason": refund.failureReason as Any,
+            "metadata": refund.metadata,
+            "paymentIntentId": refund.paymentIntentId as Any,
+            "reason": refund.reason as Any,
+            "receiptNumber": refund.receiptNumber as Any,
+            "sourceTransferReversal": refund.sourceTransferReversal as Any,
+            "status": status,
+            "transferReversal": refund.transferReversal as Any,
+        ]
+    }
+
     static func translateJSDeviceType(_ type: Int) -> DeviceType? {
         switch type {
         case 0: return .chipper2X

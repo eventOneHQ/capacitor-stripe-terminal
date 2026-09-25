@@ -39,6 +39,9 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "cancelCollectSetupIntentPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirmSetupIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelSetupIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectRefundPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelCollectRefundPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "confirmRefund", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "collectPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirmPaymentIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearCachedCredentials", returnType: CAPPluginReturnPromise),
@@ -61,6 +64,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     private var pendingCollectPaymentMethod: Cancelable?
     private var pendingCollectData: Cancelable?
     private var pendingCollectSetupIntentPaymentMethod: Cancelable?
+    private var pendingCollectRefundPaymentMethod: Cancelable?
     private var pendingReaderAutoReconnect: Cancelable?
     private var currentUpdate: ReaderSoftwareUpdate?
     private var currentPaymentIntent: PaymentIntent?
@@ -771,6 +775,96 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             call.resolve(["intent": StripeTerminalUtils.serializeSetupIntent(intent: intent)])
         } else {
             call.reject(fallbackMessage)
+        }
+    }
+
+    @objc func collectRefundPaymentMethod(_ call: CAPPluginCall) {
+        guard let amount = call.getInt("amount"), let currency = call.getString("currency") else {
+            call.reject("Must provide an amount and a currency")
+            return
+        }
+
+        let params: RefundParameters
+        do {
+            let builder: RefundParametersBuilder
+            if let chargeId = call.getString("chargeId") {
+                builder = RefundParametersBuilder(chargeId: chargeId, amount: UInt(amount), currency: currency)
+            } else if let paymentIntentId = call.getString("paymentIntentId"),
+                      let clientSecret = call.getString("clientSecret") {
+                builder = RefundParametersBuilder(
+                    paymentIntentId: paymentIntentId,
+                    clientSecret: clientSecret,
+                    amount: UInt(amount),
+                    currency: currency
+                )
+            } else {
+                call.reject("Must provide either a chargeId, or a paymentIntentId together with its clientSecret")
+                return
+            }
+
+            if let metadata = call.getObject("metadata") as? [String: String] { _ = builder.setMetadata(metadata) }
+            _ = builder.setReverseTransfer(call.getBool("reverseTransfer", false))
+            _ = builder.setRefundApplicationFee(call.getBool("refundApplicationFee", false))
+
+            params = try builder.build()
+        } catch {
+            call.reject("Failed to build refund parameters: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        let config: CollectRefundConfiguration
+        do {
+            let builder = CollectRefundConfigurationBuilder()
+            if let customerCancellation = call.getString("customerCancellation") {
+                _ = builder.setCustomerCancellation(StripeTerminalUtils.translateJSCustomerCancellation(customerCancellation))
+            }
+            config = try builder.build()
+        } catch {
+            call.reject("Failed to build collect refund configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        pendingCollectRefundPaymentMethod = Terminal.shared.collectRefundPaymentMethod(
+            params,
+            refundConfig: config
+        ) { error in
+            self.pendingCollectRefundPaymentMethod = nil
+
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else {
+                call.resolve()
+            }
+        }
+    }
+
+    @objc func cancelCollectRefundPaymentMethod(_ call: CAPPluginCall? = nil) {
+        guard let cancelable = pendingCollectRefundPaymentMethod else {
+            call?.resolve()
+            return
+        }
+
+        cancelable.cancel { error in
+            if let error = error {
+                call?.reject(error.localizedDescription, nil, error)
+            } else {
+                self.pendingCollectRefundPaymentMethod = nil
+                call?.resolve()
+            }
+        }
+    }
+
+    @objc func confirmRefund(_ call: CAPPluginCall) {
+        thread.async {
+            Terminal.shared.confirmRefund { refund, error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else if let refund = refund {
+                    call.resolve(["refund": StripeTerminalUtils.serializeRefund(refund: refund)])
+                } else {
+                    call.reject("Unable to confirm refund")
+                }
+            }
         }
     }
 

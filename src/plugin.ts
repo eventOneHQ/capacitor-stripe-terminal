@@ -29,6 +29,8 @@ import {
   CreateSetupIntentParams,
   CollectSetupIntentPaymentMethodParams,
   SetupIntent,
+  RefundParams,
+  Refund,
   SimulatedCardType,
   SimulatorConfiguration,
   DeviceType,
@@ -885,6 +887,39 @@ export class StripeTerminalPlugin {
     const data = await this.sdk.cancelSetupIntent()
 
     return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Collects a payment method for an in-person refund.
+   *
+   * Follow this with `confirmRefund` to complete the refund. Interac refunds must be processed in person.
+   *
+   * @see https://stripe.com/docs/terminal/features/refunds
+   */
+  public async collectRefundPaymentMethod(params: RefundParams): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.collectRefundPaymentMethod(params)
+  }
+
+  /**
+   * Cancels an in-progress `collectRefundPaymentMethod`.
+   */
+  public async cancelCollectRefundPaymentMethod(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelCollectRefundPaymentMethod()
+  }
+
+  /**
+   * Confirms the refund for the payment method collected by `collectRefundPaymentMethod`.
+   */
+  public async confirmRefund(): Promise<Refund | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.confirmRefund()
+
+    return this.objectExists(data?.refund)
   }
 
   public async collectPaymentMethod(

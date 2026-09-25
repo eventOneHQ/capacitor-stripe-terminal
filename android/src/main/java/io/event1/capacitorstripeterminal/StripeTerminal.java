@@ -27,6 +27,7 @@ import com.stripe.stripeterminal.external.callable.MobileReaderListener;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
 import com.stripe.stripeterminal.external.callable.ReaderCallback;
 import com.stripe.stripeterminal.external.callable.ReaderSettingsCallback;
+import com.stripe.stripeterminal.external.callable.RefundCallback;
 import com.stripe.stripeterminal.external.callable.SetupIntentCallback;
 import com.stripe.stripeterminal.external.callable.TapToPayReaderListener;
 import com.stripe.stripeterminal.external.callable.TerminalListener;
@@ -36,6 +37,7 @@ import com.stripe.stripeterminal.external.models.Cart;
 import com.stripe.stripeterminal.external.models.CartLineItem;
 import com.stripe.stripeterminal.external.models.CollectDataConfiguration;
 import com.stripe.stripeterminal.external.models.CollectPaymentIntentConfiguration;
+import com.stripe.stripeterminal.external.models.CollectRefundConfiguration;
 import com.stripe.stripeterminal.external.models.CollectSetupIntentConfiguration;
 import com.stripe.stripeterminal.external.models.CollectedData;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.AppsOnDevicesConnectionConfiguration;
@@ -61,6 +63,8 @@ import com.stripe.stripeterminal.external.models.ReaderSettings;
 import com.stripe.stripeterminal.external.models.ReaderSettingsParameters;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.ReaderSupportResult;
+import com.stripe.stripeterminal.external.models.Refund;
+import com.stripe.stripeterminal.external.models.RefundParameters;
 import com.stripe.stripeterminal.external.models.SetupIntent;
 import com.stripe.stripeterminal.external.models.SetupIntentCancellationParameters;
 import com.stripe.stripeterminal.external.models.SetupIntentParameters;
@@ -109,6 +113,7 @@ public class StripeTerminal
   Cancelable pendingCollectPaymentMethod = null;
   Cancelable pendingCollectData = null;
   Cancelable pendingCollectSetupIntentPaymentMethod = null;
+  Cancelable pendingCollectRefundPaymentMethod = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
   String lastCurrency = null;
 
@@ -1142,6 +1147,113 @@ public class StripeTerminal
         call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
       }
     };
+  }
+
+  @PluginMethod
+  public void collectRefundPaymentMethod(final PluginCall call) {
+    Integer amount = call.getInt("amount");
+    String currency = call.getString("currency");
+
+    if (amount == null || currency == null) {
+      call.reject("Must provide an amount and a currency");
+      return;
+    }
+
+    String chargeId = call.getString("chargeId");
+    String paymentIntentId = call.getString("paymentIntentId");
+    String clientSecret = call.getString("clientSecret");
+
+    Map<String, String> metadata = TerminalUtils.readMetadata(
+      call.getObject("metadata")
+    );
+    boolean reverseTransfer = Boolean.TRUE.equals(
+      call.getBoolean("reverseTransfer", false)
+    );
+    boolean refundApplicationFee = Boolean.TRUE.equals(
+      call.getBoolean("refundApplicationFee", false)
+    );
+
+    // The fluent setters on RefundParameters.Builder are ambiguous with the property
+    // setters, so configure the concrete builder types directly.
+    RefundParameters refundParameters;
+    if (chargeId != null) {
+      RefundParameters.ByChargeId refundBuilder =
+        new RefundParameters.ByChargeId(chargeId, amount, currency);
+      refundBuilder.setReverseTransfer(reverseTransfer);
+      refundBuilder.setRefundApplicationFee(refundApplicationFee);
+      if (metadata != null) refundBuilder.setMetadata(metadata);
+      refundParameters = refundBuilder.build();
+    } else if (paymentIntentId != null && clientSecret != null) {
+      RefundParameters.ByPaymentIntentId refundBuilder =
+        new RefundParameters.ByPaymentIntentId(
+          paymentIntentId,
+          clientSecret,
+          amount,
+          currency
+        );
+      refundBuilder.setReverseTransfer(reverseTransfer);
+      refundBuilder.setRefundApplicationFee(refundApplicationFee);
+      if (metadata != null) refundBuilder.setMetadata(metadata);
+      refundParameters = refundBuilder.build();
+    } else {
+      call.reject(
+        "Must provide either a chargeId, or a paymentIntentId together with its clientSecret"
+      );
+      return;
+    }
+
+    CollectRefundConfiguration.Builder configBuilder =
+      new CollectRefundConfiguration.Builder();
+    String customerCancellation = call.getString("customerCancellation");
+    if (customerCancellation != null) {
+      configBuilder.setCustomerCancellation(
+        TerminalUtils.translateJSCustomerCancellation(customerCancellation)
+      );
+    }
+
+    pendingCollectRefundPaymentMethod =
+      Terminal.getInstance().collectRefundPaymentMethod(
+        refundParameters,
+        configBuilder.build(),
+        new Callback() {
+          @Override
+          public void onSuccess() {
+            pendingCollectRefundPaymentMethod = null;
+            call.resolve();
+          }
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            pendingCollectRefundPaymentMethod = null;
+            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+          }
+        }
+      );
+  }
+
+  @PluginMethod
+  public void cancelCollectRefundPaymentMethod(final PluginCall call) {
+    cancelPending(pendingCollectRefundPaymentMethod, call);
+    pendingCollectRefundPaymentMethod = null;
+  }
+
+  @PluginMethod
+  public void confirmRefund(final PluginCall call) {
+    Terminal.getInstance().confirmRefund(
+      new RefundCallback() {
+        @Override
+        public void onSuccess(@NonNull Refund refund) {
+          JSObject ret = new JSObject();
+          ret.put("refund", TerminalUtils.serializeRefund(refund));
+          call.resolve(ret);
+        }
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
+    );
   }
 
   private void cancelPending(Cancelable cancelable, final PluginCall call) {

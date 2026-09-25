@@ -26,6 +26,7 @@ import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSettings;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.ReaderTextToSpeechStatus;
+import com.stripe.stripeterminal.external.models.Refund;
 import com.stripe.stripeterminal.external.models.SetupAttempt;
 import com.stripe.stripeterminal.external.models.SetupIntent;
 import com.stripe.stripeterminal.external.models.SetupIntentCardPresentDetails;
@@ -363,6 +364,41 @@ public class TerminalUtils {
     JSObject latestAttempt = serializeSetupAttempt(intent.getLatestAttempt());
     if (latestAttempt != null) {
       object.put("latestAttempt", latestAttempt);
+    }
+
+    return object;
+  }
+
+  public static Object serializeRefund(Refund refund) {
+    if (refund == null) {
+      return JSObject.NULL;
+    }
+
+    JSObject object = new JSObject();
+    object.put("id", refund.getId());
+    object.put("amount", refund.getAmount());
+    object.put("balanceTransaction", refund.getBalanceTransaction());
+    object.put("chargeId", refund.getChargeId());
+    object.put("created", refund.getCreated());
+    object.put("currency", refund.getCurrency());
+    object.put("description", refund.getDescription());
+    object.put(
+      "failureBalanceTransaction",
+      refund.getFailureBalanceTransaction()
+    );
+    object.put("failureReason", refund.getFailureReason());
+    object.put("paymentIntentId", refund.getPaymentIntentId());
+    object.put("reason", refund.getReason());
+    object.put("receiptNumber", refund.getReceiptNumber());
+    object.put("sourceTransferReversal", refund.getSourceTransferReversal());
+    object.put("transferReversal", refund.getTransferReversal());
+
+    String status = refund.getStatus();
+    object.put("status", status != null ? status : "unknown");
+
+    Map<String, String> metadata = refund.getMetadata();
+    if (metadata != null) {
+      object.put("metadata", serializeMetadata(metadata));
     }
 
     return object;
