@@ -21,6 +21,8 @@ import {
   Charge,
   ReaderSettings,
   ReaderSettingsParameters,
+  CollectDataConfig,
+  CollectedData,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -426,6 +428,11 @@ export class StripeTerminalWeb extends WebPlugin {
     _options: ReaderSettingsParameters,
   ): Promise<ReaderSettings> {
     throw new Error('setReaderSettings is only available on iOS and Android.')
+  }
+  async collectData(
+    _options: CollectDataConfig,
+  ): Promise<{ data: CollectedData }> {
+    throw new Error('collectData is only available on iOS and Android.')
   }
   async getConnectedReader(): Promise<{ reader: Reader | null }> {
     const sdk = this.ensureInitialized()

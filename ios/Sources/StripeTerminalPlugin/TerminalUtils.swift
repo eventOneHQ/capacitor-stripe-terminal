@@ -15,6 +15,14 @@ public class StripeTerminalUtils {
         return level == 0 ? .none : .verbose
     }
 
+    static func translateJSCollectDataType(_ value: String) -> CollectDataType {
+        switch value {
+        case "nfcUid": return .nfcUid
+        case "magstripe": return .magstripe
+        default: return .unknown
+        }
+    }
+
     static func serializeReaderSettings(settings: ReaderSettings) -> [String: Any] {
         var accessibility: [String: Any] = [:]
 
@@ -30,6 +38,29 @@ public class StripeTerminalUtils {
         }
 
         return ["accessibility": accessibility]
+    }
+
+    static func serializeCollectedData(data: CollectedData) -> [String: Any] {
+        var jsonObject: [String: Any] = [
+            "created": data.created.timeIntervalSince1970,
+            "livemode": data.livemode,
+        ]
+
+        if let magstripe = data as? MagstripeCollectedData {
+            jsonObject["id"] = magstripe.stripeId as Any
+            jsonObject["stripeId"] = magstripe.stripeId as Any
+        } else if let nfcUid = data as? NfcUidCollectedData {
+            jsonObject["uid"] = nfcUid.uid
+        }
+
+        return jsonObject
+    }
+
+    static func translateJSCustomerCancellation(_ value: String) -> CustomerCancellation {
+        switch value {
+        case "disableIfAvailable": return .disableIfAvailable
+        default: return .enableIfAvailable
+        }
     }
 
     static func translateJSDeviceType(_ type: Int) -> DeviceType? {

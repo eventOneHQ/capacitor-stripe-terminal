@@ -18,6 +18,7 @@ import com.stripe.stripeterminal.external.callable.AppsOnDevicesListener;
 import com.stripe.stripeterminal.external.api.ApiError;
 import com.stripe.stripeterminal.external.callable.Callback;
 import com.stripe.stripeterminal.external.callable.Cancelable;
+import com.stripe.stripeterminal.external.callable.CollectedDataCallback;
 import com.stripe.stripeterminal.external.callable.ConnectionTokenCallback;
 import com.stripe.stripeterminal.external.callable.ConnectionTokenProvider;
 import com.stripe.stripeterminal.external.callable.DiscoveryListener;
@@ -31,7 +32,9 @@ import com.stripe.stripeterminal.external.callable.TerminalListener;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.Cart;
 import com.stripe.stripeterminal.external.models.CartLineItem;
+import com.stripe.stripeterminal.external.models.CollectDataConfiguration;
 import com.stripe.stripeterminal.external.models.CollectPaymentIntentConfiguration;
+import com.stripe.stripeterminal.external.models.CollectedData;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.AppsOnDevicesConnectionConfiguration;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.BluetoothConnectionConfiguration;
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.InternetConnectionConfiguration;
@@ -96,6 +99,7 @@ public class StripeTerminal
 
   Cancelable pendingDiscoverReaders = null;
   Cancelable pendingCollectPaymentMethod = null;
+  Cancelable pendingCollectData = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
   String lastCurrency = null;
 
@@ -541,6 +545,41 @@ public class StripeTerminal
         call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
       }
     };
+  }
+
+  @PluginMethod
+  public void collectData(final PluginCall call) {
+    CollectDataConfiguration.Builder builder =
+      new CollectDataConfiguration.Builder().setType(
+        TerminalUtils.translateJSCollectDataType(call.getString("type"))
+      );
+
+    String customerCancellation = call.getString("customerCancellation");
+    if (customerCancellation != null) {
+      builder.setCustomerCancellation(
+        TerminalUtils.translateJSCustomerCancellation(customerCancellation)
+      );
+    }
+
+    pendingCollectData = Terminal.getInstance().collectData(
+      builder.build(),
+      new CollectedDataCallback() {
+        @Override
+        public void onSuccess(@NonNull CollectedData collectedData) {
+          pendingCollectData = null;
+
+          JSObject ret = new JSObject();
+          ret.put("data", TerminalUtils.serializeCollectedData(collectedData));
+          call.resolve(ret);
+        }
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          pendingCollectData = null;
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
+    );
   }
 
   @PluginMethod

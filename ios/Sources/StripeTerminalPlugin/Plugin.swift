@@ -26,6 +26,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "rebootReader", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getReaderSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setReaderSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectData", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "installAvailableUpdate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelInstallUpdate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelCollectPaymentMethod", returnType: CAPPluginReturnPromise),
@@ -50,6 +51,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     private var pendingDiscoverReaders: Cancelable?
     private var pendingInstallUpdate: Cancelable?
     private var pendingCollectPaymentMethod: Cancelable?
+    private var pendingCollectData: Cancelable?
     private var pendingReaderAutoReconnect: Cancelable?
     private var currentUpdate: ReaderSoftwareUpdate?
     private var currentPaymentIntent: PaymentIntent?
@@ -385,6 +387,33 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
                 } else {
                     call.reject("Unable to update reader settings")
                 }
+            }
+        }
+    }
+
+    @objc func collectData(_ call: CAPPluginCall) {
+        let config: CollectDataConfiguration
+        do {
+            let builder = CollectDataConfigurationBuilder()
+                .setCollectDataType(StripeTerminalUtils.translateJSCollectDataType(call.getString("type") ?? ""))
+            if let customerCancellation = call.getString("customerCancellation") {
+                _ = builder.setCustomerCancellation(StripeTerminalUtils.translateJSCustomerCancellation(customerCancellation))
+            }
+            config = try builder.build()
+        } catch {
+            call.reject("Failed to build collect data configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        pendingCollectData = Terminal.shared.collectData(config) { collectedData, error in
+            self.pendingCollectData = nil
+
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else if let collectedData = collectedData {
+                call.resolve(["data": StripeTerminalUtils.serializeCollectedData(data: collectedData)])
+            } else {
+                call.reject("No data was collected")
             }
         }
     }

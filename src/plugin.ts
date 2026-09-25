@@ -23,6 +23,8 @@ import {
   BatteryLevel,
   ReaderSettings,
   ReaderSettingsParameters,
+  CollectDataConfig,
+  CollectedData,
   SimulatedCardType,
   SimulatorConfiguration,
   DeviceType,
@@ -617,6 +619,19 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return await this.sdk.setReaderSettings(settings)
+  }
+
+  /**
+   * Collects raw card data (magstripe or NFC UID) from the connected reader without creating a payment.
+   *
+   * @see https://stripe.com/docs/terminal/features/collect-data
+   */
+  public async collectData(config: CollectDataConfig): Promise<CollectedData> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.collectData(config)
+
+    return data.data
   }
 
   public async connectionStatus(

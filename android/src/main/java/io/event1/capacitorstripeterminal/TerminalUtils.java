@@ -6,7 +6,10 @@ import com.stripe.stripeterminal.external.models.Address;
 import com.stripe.stripeterminal.external.models.AmountDetails;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.Charge;
+import com.stripe.stripeterminal.external.models.CollectDataType;
+import com.stripe.stripeterminal.external.models.CollectedData;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
+import com.stripe.stripeterminal.external.models.CustomerCancellation;
 import com.stripe.stripeterminal.external.models.DeviceType;
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
 import com.stripe.stripeterminal.external.models.Location;
@@ -48,6 +51,12 @@ public class TerminalUtils {
     }
   }
 
+  public static CollectDataType translateJSCollectDataType(String type) {
+    return "nfcUid".equals(type)
+      ? CollectDataType.NFC_UID
+      : CollectDataType.MAGSTRIPE;
+  }
+
   public static JSObject serializeReaderSettings(ReaderSettings settings) {
     JSObject accessibility = new JSObject();
 
@@ -83,6 +92,30 @@ public class TerminalUtils {
     object.put("accessibility", accessibility);
 
     return object;
+  }
+
+  public static JSObject serializeCollectedData(CollectedData data) {
+    JSObject object = new JSObject();
+
+    object.put("created", data.getCreated());
+    object.put("livemode", data.getLivemode());
+
+    if (data instanceof CollectedData.Magstripe) {
+      object.put("id", ((CollectedData.Magstripe) data).getId());
+      object.put("stripeId", ((CollectedData.Magstripe) data).getId());
+    } else if (data instanceof CollectedData.NfcUid) {
+      object.put("uid", ((CollectedData.NfcUid) data).getUid());
+    }
+
+    return object;
+  }
+
+  public static CustomerCancellation translateJSCustomerCancellation(
+    String value
+  ) {
+    return "disableIfAvailable".equals(value)
+      ? CustomerCancellation.DISABLE_IF_AVAILABLE
+      : CustomerCancellation.ENABLE_IF_AVAILABLE;
   }
   public static Object serializeReader(Reader reader) {
     return serializeReader(reader, null, null, null);

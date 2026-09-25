@@ -1000,6 +1000,16 @@ export interface TippingConfig {
   eligibleAmount?: number | null
 }
 
+/**
+ * Controls whether customer-initiated cancellation is enabled during collection.
+ *
+ * Android-based internet readers support enabling and disabling customer cancellation. WisePad 3 and Tap to Pay always show customer cancellation and it cannot be disabled. Stripe M2 and Chipper 2X do not support customer cancellation.
+ */
+export type CustomerCancellation =
+  | 'enableIfAvailable'
+  | 'disableIfAvailable'
+  | 'unspecified'
+
 export interface CollectConfig {
   /**
    * Bypass tipping selection if it would have otherwise been shown.
@@ -1066,6 +1076,59 @@ export interface ReaderSettingsParameters {
    * When true, text-to-speech is routed through the reader's speakers.
    */
   textToSpeechViaSpeakers: boolean
+}
+
+/**
+ * The type of data to collect from a card presented to the reader.
+ *
+ * @category Payment
+ */
+export type CollectDataType = 'magstripe' | 'nfcUid'
+
+/**
+ * Configuration for `collectData()`.
+ *
+ * @category Payment
+ */
+export interface CollectDataConfig {
+  /**
+   * The type of data to collect.
+   */
+  type: CollectDataType
+  /**
+   * Whether to show a cancel button on the reader during collection.
+   */
+  customerCancellation?: CustomerCancellation
+}
+
+/**
+ * Data collected from a card via `collectData()`.
+ *
+ * @category Payment
+ */
+export interface CollectedData {
+  /**
+   * When the data was collected, in seconds since the Unix epoch.
+   */
+  created: number
+  /**
+   * Whether the data was collected in live mode.
+   */
+  livemode: boolean
+  /**
+   * The Stripe identifier for the collected magstripe data. Only set when collecting `CollectDataType.Magstripe`.
+   */
+  id?: string | null
+  /**
+   * The Stripe identifier for the collected magstripe data. Only set when collecting `CollectDataType.Magstripe`.
+   *
+   * @deprecated Use `id` instead. This will be removed in v6.
+   */
+  stripeId?: string | null
+  /**
+   * The UID of the presented NFC card. Only set when collecting `CollectDataType.NfcUid`.
+   */
+  uid?: string | null
 }
 
 /**
@@ -1155,6 +1218,8 @@ export interface StripeTerminalInterface {
   getReaderSettings(): Promise<ReaderSettings>
 
   setReaderSettings(options: ReaderSettingsParameters): Promise<ReaderSettings>
+
+  collectData(options: CollectDataConfig): Promise<{ data: CollectedData }>
 
   installAvailableUpdate(): Promise<void>
 
