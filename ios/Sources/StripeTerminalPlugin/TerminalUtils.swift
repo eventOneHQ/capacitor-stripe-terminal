@@ -208,6 +208,130 @@ public class StripeTerminalUtils {
         ]
     }
 
+    static func buildToggles(_ raw: [[String: Any]]) throws -> [Toggle] {
+        return try raw.map { toggle in
+            let defaultValue: ToggleValue = (toggle["defaultValue"] as? String) == "disabled" ? .disabled : .enabled
+            let builder = ToggleBuilder(defaultValue: defaultValue)
+            if let title = toggle["title"] as? String { _ = builder.setTitle(title) }
+            if let description = toggle["description"] as? String { _ = builder.setStripeDescription(description) }
+            return try builder.build()
+        }
+    }
+
+    static func buildInput(_ input: [String: Any]) throws -> Input {
+        let formType = input["formType"] as? String ?? ""
+        let title = input["title"] as? String ?? ""
+        let required = input["required"] as? Bool ?? false
+        let description = input["description"] as? String
+        let skipButtonText = input["skipButtonText"] as? String
+        let submitButtonText = input["submitButtonText"] as? String
+        let toggles = try buildToggles(input["toggles"] as? [[String: Any]] ?? [])
+
+        switch formType {
+        case "selection":
+            let builder = SelectionInputBuilder(title: title)
+            _ = builder.setRequired(required)
+            _ = builder.setToggles(toggles)
+            if let description = description { _ = builder.setStripeDescription(description) }
+            if let skipButtonText = skipButtonText { _ = builder.setSkipButtonText(skipButtonText) }
+
+            let buttons: [SelectionButton] = try (input["selectionButtons"] as? [[String: Any]] ?? []).map { button in
+                let style: SelectionButtonStyle = (button["style"] as? String) == "secondary" ? .secondary : .primary
+                return try SelectionButtonBuilder(
+                    style: style,
+                    text: button["text"] as? String ?? "",
+                    id: button["id"] as? String ?? ""
+                )
+                .build()
+            }
+            _ = builder.setSelectionButtons(buttons)
+            return try builder.build()
+        case "signature":
+            let builder = SignatureInputBuilder(title: title)
+            _ = builder.setRequired(required)
+            _ = builder.setToggles(toggles)
+            if let description = description { _ = builder.setStripeDescription(description) }
+            if let skipButtonText = skipButtonText { _ = builder.setSkipButtonText(skipButtonText) }
+            if let submitButtonText = submitButtonText { _ = builder.setSubmitButtonText(submitButtonText) }
+            return try builder.build()
+        case "phone":
+            let builder = PhoneInputBuilder(title: title)
+            _ = builder.setRequired(required)
+            _ = builder.setToggles(toggles)
+            if let description = description { _ = builder.setStripeDescription(description) }
+            if let skipButtonText = skipButtonText { _ = builder.setSkipButtonText(skipButtonText) }
+            if let submitButtonText = submitButtonText { _ = builder.setSubmitButtonText(submitButtonText) }
+            return try builder.build()
+        case "email":
+            let builder = EmailInputBuilder(title: title)
+            _ = builder.setRequired(required)
+            _ = builder.setToggles(toggles)
+            if let description = description { _ = builder.setStripeDescription(description) }
+            if let skipButtonText = skipButtonText { _ = builder.setSkipButtonText(skipButtonText) }
+            if let submitButtonText = submitButtonText { _ = builder.setSubmitButtonText(submitButtonText) }
+            return try builder.build()
+        case "numeric":
+            let builder = NumericInputBuilder(title: title)
+            _ = builder.setRequired(required)
+            _ = builder.setToggles(toggles)
+            if let description = description { _ = builder.setStripeDescription(description) }
+            if let skipButtonText = skipButtonText { _ = builder.setSkipButtonText(skipButtonText) }
+            if let submitButtonText = submitButtonText { _ = builder.setSubmitButtonText(submitButtonText) }
+            return try builder.build()
+        default:
+            let builder = TextInputBuilder(title: title)
+            _ = builder.setRequired(required)
+            _ = builder.setToggles(toggles)
+            if let description = description { _ = builder.setStripeDescription(description) }
+            if let skipButtonText = skipButtonText { _ = builder.setSkipButtonText(skipButtonText) }
+            if let submitButtonText = submitButtonText { _ = builder.setSubmitButtonText(submitButtonText) }
+            return try builder.build()
+        }
+    }
+
+    private static func serializeToggleResults(_ toggles: [NSNumber]) -> [String] {
+        return toggles.map { value in
+            switch ToggleResult(rawValue: value.uintValue) {
+            case .enabled: return "enabled"
+            case .disabled: return "disabled"
+            default: return "skipped"
+            }
+        }
+    }
+
+    static func serializeCollectInputsResult(result: CollectInputsResult) -> [String: Any] {
+        var jsonObject: [String: Any] = ["skipped": result.skipped]
+
+        if let selection = result as? SelectionResult {
+            jsonObject["formType"] = "selection"
+            jsonObject["toggles"] = serializeToggleResults(selection.toggles)
+            jsonObject["selection"] = selection.selection as Any
+            jsonObject["selectionId"] = selection.selectionId as Any
+        } else if let signature = result as? SignatureResult {
+            jsonObject["formType"] = "signature"
+            jsonObject["toggles"] = serializeToggleResults(signature.toggles)
+            jsonObject["signatureSvg"] = signature.signatureSvg as Any
+        } else if let phone = result as? PhoneResult {
+            jsonObject["formType"] = "phone"
+            jsonObject["toggles"] = serializeToggleResults(phone.toggles)
+            jsonObject["phone"] = phone.phone as Any
+        } else if let email = result as? EmailResult {
+            jsonObject["formType"] = "email"
+            jsonObject["toggles"] = serializeToggleResults(email.toggles)
+            jsonObject["email"] = email.email as Any
+        } else if let numeric = result as? NumericResult {
+            jsonObject["formType"] = "numeric"
+            jsonObject["toggles"] = serializeToggleResults(numeric.toggles)
+            jsonObject["numericString"] = numeric.numericString as Any
+        } else if let text = result as? TextResult {
+            jsonObject["formType"] = "text"
+            jsonObject["toggles"] = serializeToggleResults(text.toggles)
+            jsonObject["text"] = text.text as Any
+        }
+
+        return jsonObject
+    }
+
     static func translateJSDeviceType(_ type: Int) -> DeviceType? {
         switch type {
         case 0: return .chipper2X

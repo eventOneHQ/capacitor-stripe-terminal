@@ -1342,6 +1342,143 @@ export interface Refund {
 }
 
 /**
+ * The type of form to display on the reader during `collectInputs()`.
+ *
+ * @category Payment
+ */
+export enum FormType {
+  SELECTION = 'selection',
+  SIGNATURE = 'signature',
+  PHONE = 'phone',
+  EMAIL = 'email',
+  NUMERIC = 'numeric',
+  TEXT = 'text',
+}
+
+/**
+ * The visual style of a selection button.
+ *
+ * @category Payment
+ */
+export enum SelectionButtonStyle {
+  PRIMARY = 'primary',
+  SECONDARY = 'secondary',
+}
+
+/**
+ * The default state of a toggle shown alongside an input form.
+ *
+ * @category Payment
+ */
+export enum ToggleValue {
+  ENABLED = 'enabled',
+  DISABLED = 'disabled',
+}
+
+/**
+ * The state of a toggle after an input form was submitted or skipped.
+ *
+ * @category Payment
+ */
+export enum ToggleResult {
+  ENABLED = 'enabled',
+  DISABLED = 'disabled',
+  SKIPPED = 'skipped',
+}
+
+/**
+ * A button shown on a `FormType.SELECTION` form.
+ *
+ * @category Payment
+ */
+export interface ISelectionButton {
+  style: SelectionButtonStyle
+  text: string
+  id: string
+}
+
+/**
+ * A toggle shown alongside an input form.
+ *
+ * @category Payment
+ */
+export interface IToggle {
+  title?: string | null
+  description?: string | null
+  defaultValue: ToggleValue
+}
+
+/**
+ * A single form to display on the reader during `collectInputs()`.
+ *
+ * @category Payment
+ */
+export interface IInput {
+  formType: FormType
+  title: string
+  required?: boolean | null
+  description?: string | null
+  skipButtonText?: string | null
+  /**
+   * Not supported by `FormType.SELECTION`, which uses its selection buttons to submit.
+   */
+  submitButtonText?: string | null
+  toggles?: IToggle[] | null
+  /**
+   * Required for `FormType.SELECTION`, ignored for every other form type.
+   */
+  selectionButtons?: ISelectionButton[]
+}
+
+/**
+ * Parameters for `collectInputs()`.
+ *
+ * @category Payment
+ */
+export interface ICollectInputsParameters {
+  inputs: IInput[]
+}
+
+/**
+ * The result of a single form shown during `collectInputs()`.
+ *
+ * @category Payment
+ */
+export interface ICollectInputsResult {
+  formType: FormType
+  skipped: boolean
+  toggles: ToggleResult[]
+  /**
+   * The text of the selected button. Only set for `FormType.SELECTION`, and null if the form was skipped.
+   */
+  selection?: string | null
+  /**
+   * The id of the selected button. Only set for `FormType.SELECTION`, and null if the form was skipped.
+   */
+  selectionId?: string | null
+  /**
+   * The signature in SVG format. Only set for `FormType.SIGNATURE`, and null if the form was skipped.
+   */
+  signatureSvg?: string | null
+  /**
+   * The submitted phone number in E.164 format. Only set for `FormType.PHONE`, and null if the form was skipped.
+   */
+  phone?: string | null
+  /**
+   * The submitted email. Only set for `FormType.EMAIL`, and null if the form was skipped.
+   */
+  email?: string | null
+  /**
+   * The submitted text. Only set for `FormType.TEXT`, and null if the form was skipped.
+   */
+  text?: string | null
+  /**
+   * The submitted number as a string. Only set for `FormType.NUMERIC`, and null if the form was skipped.
+   */
+  numericString?: string | null
+}
+
+/**
  * The text-to-speech status of a connected reader.
  *
  * @category Reader
@@ -1574,6 +1711,12 @@ export interface StripeTerminalInterface {
   cancelCollectRefundPaymentMethod(): Promise<void>
 
   confirmRefund(): Promise<{ refund: Refund | null }>
+
+  collectInputs(
+    params: ICollectInputsParameters,
+  ): Promise<{ collectInputResults: ICollectInputsResult[] }>
+
+  cancelCollectInputs(): Promise<void>
 
   clearCachedCredentials(): Promise<void>
 

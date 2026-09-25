@@ -8,17 +8,26 @@ import com.stripe.stripeterminal.external.models.AmountDetails;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.Charge;
 import com.stripe.stripeterminal.external.models.CollectDataType;
+import com.stripe.stripeterminal.external.models.CollectInputsParameters;
+import com.stripe.stripeterminal.external.models.CollectInputsResult;
 import com.stripe.stripeterminal.external.models.CollectedData;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.CustomerCancellation;
 import com.stripe.stripeterminal.external.models.DeviceType;
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
+import com.stripe.stripeterminal.external.models.EmailInput;
+import com.stripe.stripeterminal.external.models.EmailResult;
+import com.stripe.stripeterminal.external.models.Input;
 import com.stripe.stripeterminal.external.models.Location;
+import com.stripe.stripeterminal.external.models.NumericInput;
+import com.stripe.stripeterminal.external.models.NumericResult;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
 import com.stripe.stripeterminal.external.models.PaymentMethod;
 import com.stripe.stripeterminal.external.models.PaymentMethodType;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
+import com.stripe.stripeterminal.external.models.PhoneInput;
+import com.stripe.stripeterminal.external.models.PhoneResult;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderAccessibility;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
@@ -27,14 +36,25 @@ import com.stripe.stripeterminal.external.models.ReaderSettings;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.ReaderTextToSpeechStatus;
 import com.stripe.stripeterminal.external.models.Refund;
+import com.stripe.stripeterminal.external.models.SelectionButton;
+import com.stripe.stripeterminal.external.models.SelectionButtonStyle;
+import com.stripe.stripeterminal.external.models.SelectionInput;
+import com.stripe.stripeterminal.external.models.SelectionResult;
 import com.stripe.stripeterminal.external.models.SetupAttempt;
 import com.stripe.stripeterminal.external.models.SetupIntent;
 import com.stripe.stripeterminal.external.models.SetupIntentCardPresentDetails;
 import com.stripe.stripeterminal.external.models.SetupIntentPaymentMethodDetails;
 import com.stripe.stripeterminal.external.models.SetupIntentStatus;
 import com.stripe.stripeterminal.external.models.SetupIntentUsage;
+import com.stripe.stripeterminal.external.models.SignatureInput;
+import com.stripe.stripeterminal.external.models.SignatureResult;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
+import com.stripe.stripeterminal.external.models.TextInput;
+import com.stripe.stripeterminal.external.models.TextResult;
 import com.stripe.stripeterminal.external.models.Tip;
+import com.stripe.stripeterminal.external.models.Toggle;
+import com.stripe.stripeterminal.external.models.ToggleResult;
+import com.stripe.stripeterminal.external.models.ToggleValue;
 import com.stripe.stripeterminal.log.LogLevel;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,7 +63,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 public class TerminalUtils {
 
@@ -403,6 +425,212 @@ public class TerminalUtils {
 
     return object;
   }
+
+  private static List<Toggle> buildToggles(JSONArray raw) throws JSONException {
+    List<Toggle> toggles = new ArrayList<>();
+
+    if (raw == null) {
+      return toggles;
+    }
+
+    for (int i = 0; i < raw.length(); i++) {
+      JSONObject toggle = raw.getJSONObject(i);
+      ToggleValue defaultValue = "disabled".equals(
+        toggle.optString("defaultValue")
+      )
+        ? ToggleValue.DISABLED
+        : ToggleValue.ENABLED;
+
+      toggles.add(
+        new Toggle(
+          toggle.isNull("title") ? null : toggle.optString("title"),
+          toggle.isNull("description") ? null : toggle.optString("description"),
+          defaultValue
+        )
+      );
+    }
+
+    return toggles;
+  }
+
+  public static CollectInputsParameters buildCollectInputsParameters(
+    JSArray rawInputs
+  ) throws JSONException {
+    List<Input> inputs = new ArrayList<>();
+
+    if (rawInputs != null) {
+      for (int i = 0; i < rawInputs.length(); i++) {
+        inputs.add(buildInput(rawInputs.getJSONObject(i)));
+      }
+    }
+
+    return new CollectInputsParameters(inputs);
+  }
+
+  private static Input buildInput(JSONObject input) throws JSONException {
+    String formType = input.optString("formType");
+    String title = input.optString("title");
+    boolean required = input.optBoolean("required", false);
+    String description = input.isNull("description")
+      ? null
+      : input.optString("description");
+    String skipButtonText = input.isNull("skipButtonText")
+      ? null
+      : input.optString("skipButtonText");
+    String submitButtonText = input.isNull("submitButtonText")
+      ? null
+      : input.optString("submitButtonText");
+    List<Toggle> toggles = buildToggles(input.optJSONArray("toggles"));
+
+    switch (formType) {
+      case "selection": {
+        List<SelectionButton> buttons = new ArrayList<>();
+        JSONArray rawButtons = input.optJSONArray("selectionButtons");
+        if (rawButtons != null) {
+          for (int i = 0; i < rawButtons.length(); i++) {
+            JSONObject button = rawButtons.getJSONObject(i);
+            SelectionButtonStyle style = "secondary".equals(
+              button.optString("style")
+            )
+              ? SelectionButtonStyle.SECONDARY
+              : SelectionButtonStyle.PRIMARY;
+
+            buttons.add(
+              new SelectionButton(
+                style,
+                button.optString("text"),
+                button.optString("id")
+              )
+            );
+          }
+        }
+
+        SelectionInput.Builder builder = new SelectionInput.Builder(title)
+          .setRequired(required)
+          .setToggles(toggles)
+          .setSelectionButtons(buttons);
+        if (description != null) builder.setDescription(description);
+        if (skipButtonText != null) builder.setSkipButtonText(skipButtonText);
+        return builder.build();
+      }
+      case "signature": {
+        SignatureInput.Builder builder = new SignatureInput.Builder(title)
+          .setRequired(required)
+          .setToggles(toggles);
+        if (description != null) builder.setDescription(description);
+        if (skipButtonText != null) builder.setSkipButtonText(skipButtonText);
+        if (submitButtonText != null) builder.setSubmitButtonText(
+          submitButtonText
+        );
+        return builder.build();
+      }
+      case "phone": {
+        PhoneInput.Builder builder = new PhoneInput.Builder(title)
+          .setRequired(required)
+          .setToggles(toggles);
+        if (description != null) builder.setDescription(description);
+        if (skipButtonText != null) builder.setSkipButtonText(skipButtonText);
+        if (submitButtonText != null) builder.setSubmitButtonText(
+          submitButtonText
+        );
+        return builder.build();
+      }
+      case "email": {
+        EmailInput.Builder builder = new EmailInput.Builder(title)
+          .setRequired(required)
+          .setToggles(toggles);
+        if (description != null) builder.setDescription(description);
+        if (skipButtonText != null) builder.setSkipButtonText(skipButtonText);
+        if (submitButtonText != null) builder.setSubmitButtonText(
+          submitButtonText
+        );
+        return builder.build();
+      }
+      case "numeric": {
+        NumericInput.Builder builder = new NumericInput.Builder(title)
+          .setRequired(required)
+          .setToggles(toggles);
+        if (description != null) builder.setDescription(description);
+        if (skipButtonText != null) builder.setSkipButtonText(skipButtonText);
+        if (submitButtonText != null) builder.setSubmitButtonText(
+          submitButtonText
+        );
+        return builder.build();
+      }
+      default: {
+        TextInput.Builder builder = new TextInput.Builder(title)
+          .setRequired(required)
+          .setToggles(toggles);
+        if (description != null) builder.setDescription(description);
+        if (skipButtonText != null) builder.setSkipButtonText(skipButtonText);
+        if (submitButtonText != null) builder.setSubmitButtonText(
+          submitButtonText
+        );
+        return builder.build();
+      }
+    }
+  }
+
+  private static JSArray serializeToggleResults(List<ToggleResult> toggles) {
+    JSArray array = new JSArray();
+
+    if (toggles != null) {
+      for (ToggleResult toggle : toggles) {
+        if (toggle == ToggleResult.ENABLED) {
+          array.put("enabled");
+        } else if (toggle == ToggleResult.DISABLED) {
+          array.put("disabled");
+        } else {
+          array.put("skipped");
+        }
+      }
+    }
+
+    return array;
+  }
+
+  public static JSObject serializeCollectInputsResult(
+    CollectInputsResult result
+  ) {
+    JSObject object = new JSObject();
+    object.put("skipped", result.getSkipped());
+
+    if (result instanceof SelectionResult) {
+      SelectionResult selection = (SelectionResult) result;
+      object.put("formType", "selection");
+      object.put("toggles", serializeToggleResults(selection.getToggles()));
+      object.put("selection", selection.getSelection());
+      object.put("selectionId", selection.getSelectionId());
+    } else if (result instanceof SignatureResult) {
+      SignatureResult signature = (SignatureResult) result;
+      object.put("formType", "signature");
+      object.put("toggles", serializeToggleResults(signature.getToggles()));
+      object.put("signatureSvg", signature.getSignatureSvg());
+    } else if (result instanceof PhoneResult) {
+      PhoneResult phone = (PhoneResult) result;
+      object.put("formType", "phone");
+      object.put("toggles", serializeToggleResults(phone.getToggles()));
+      object.put("phone", phone.getPhone());
+    } else if (result instanceof EmailResult) {
+      EmailResult email = (EmailResult) result;
+      object.put("formType", "email");
+      object.put("toggles", serializeToggleResults(email.getToggles()));
+      object.put("email", email.getEmail());
+    } else if (result instanceof NumericResult) {
+      NumericResult numeric = (NumericResult) result;
+      object.put("formType", "numeric");
+      object.put("toggles", serializeToggleResults(numeric.getToggles()));
+      object.put("numericString", numeric.getNumericString());
+    } else if (result instanceof TextResult) {
+      TextResult text = (TextResult) result;
+      object.put("formType", "text");
+      object.put("toggles", serializeToggleResults(text.getToggles()));
+      object.put("text", text.getText());
+    }
+
+    return object;
+  }
+
   public static Object serializeReader(Reader reader) {
     return serializeReader(reader, null, null, null);
   }

@@ -31,6 +31,8 @@ import {
   SetupIntent,
   RefundParams,
   Refund,
+  ICollectInputsParameters,
+  ICollectInputsResult,
   SimulatedCardType,
   SimulatorConfiguration,
   DeviceType,
@@ -920,6 +922,32 @@ export class StripeTerminalPlugin {
     const data = await this.sdk.confirmRefund()
 
     return this.objectExists(data?.refund)
+  }
+
+  /**
+   * Displays forms on the connected reader and collects the customer's input.
+   *
+   * Only supported on Internet-connected smart readers (for example the BBPOS WisePOS E and Stripe Reader S700).
+   *
+   * @see https://stripe.com/docs/terminal/features/collect-inputs
+   */
+  public async collectInputs(
+    params: ICollectInputsParameters,
+  ): Promise<ICollectInputsResult[]> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.collectInputs(params)
+
+    return data?.collectInputResults ?? []
+  }
+
+  /**
+   * Cancels an in-progress `collectInputs`.
+   */
+  public async cancelCollectInputs(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelCollectInputs()
   }
 
   public async collectPaymentMethod(

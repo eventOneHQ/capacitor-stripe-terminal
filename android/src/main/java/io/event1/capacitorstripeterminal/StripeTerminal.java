@@ -18,6 +18,7 @@ import com.stripe.stripeterminal.external.callable.AppsOnDevicesListener;
 import com.stripe.stripeterminal.external.api.ApiError;
 import com.stripe.stripeterminal.external.callable.Callback;
 import com.stripe.stripeterminal.external.callable.Cancelable;
+import com.stripe.stripeterminal.external.callable.CollectInputsResultCallback;
 import com.stripe.stripeterminal.external.callable.CollectedDataCallback;
 import com.stripe.stripeterminal.external.callable.ConnectionTokenCallback;
 import com.stripe.stripeterminal.external.callable.ConnectionTokenProvider;
@@ -36,6 +37,8 @@ import com.stripe.stripeterminal.external.models.CaptureMethod;
 import com.stripe.stripeterminal.external.models.Cart;
 import com.stripe.stripeterminal.external.models.CartLineItem;
 import com.stripe.stripeterminal.external.models.CollectDataConfiguration;
+import com.stripe.stripeterminal.external.models.CollectInputsParameters;
+import com.stripe.stripeterminal.external.models.CollectInputsResult;
 import com.stripe.stripeterminal.external.models.CollectPaymentIntentConfiguration;
 import com.stripe.stripeterminal.external.models.CollectRefundConfiguration;
 import com.stripe.stripeterminal.external.models.CollectSetupIntentConfiguration;
@@ -114,6 +117,7 @@ public class StripeTerminal
   Cancelable pendingCollectData = null;
   Cancelable pendingCollectSetupIntentPaymentMethod = null;
   Cancelable pendingCollectRefundPaymentMethod = null;
+  Cancelable pendingCollectInputs = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
   String lastCurrency = null;
 
@@ -1254,6 +1258,52 @@ public class StripeTerminal
         }
       }
     );
+  }
+
+  @PluginMethod
+  public void collectInputs(final PluginCall call) {
+    CollectInputsParameters params;
+    try {
+      params = TerminalUtils.buildCollectInputsParameters(
+        call.getArray("inputs")
+      );
+    } catch (JSONException e) {
+      call.reject("Unable to read collect inputs parameters", e);
+      return;
+    }
+
+    pendingCollectInputs = Terminal.getInstance().collectInputs(
+      params,
+      new CollectInputsResultCallback() {
+        @Override
+        public void onSuccess(
+          @NonNull List<? extends CollectInputsResult> results
+        ) {
+          pendingCollectInputs = null;
+
+          JSArray serialized = new JSArray();
+          for (CollectInputsResult result : results) {
+            serialized.put(TerminalUtils.serializeCollectInputsResult(result));
+          }
+
+          JSObject ret = new JSObject();
+          ret.put("collectInputResults", serialized);
+          call.resolve(ret);
+        }
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          pendingCollectInputs = null;
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
+    );
+  }
+
+  @PluginMethod
+  public void cancelCollectInputs(final PluginCall call) {
+    cancelPending(pendingCollectInputs, call);
+    pendingCollectInputs = null;
   }
 
   private void cancelPending(Cancelable cancelable, final PluginCall call) {

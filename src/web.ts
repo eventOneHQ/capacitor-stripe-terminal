@@ -29,6 +29,8 @@ import {
   SetupIntent,
   RefundParams,
   Refund,
+  ICollectInputsParameters,
+  ICollectInputsResult,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -490,6 +492,15 @@ export class StripeTerminalWeb extends WebPlugin {
   }
   async confirmRefund(): Promise<{ refund: Refund | null }> {
     throw new Error('confirmRefund is only available on iOS and Android.')
+  }
+  async collectInputs(
+    _params: ICollectInputsParameters,
+  ): Promise<{ collectInputResults: ICollectInputsResult[] }> {
+    throw new Error('collectInputs is only available on iOS and Android.')
+  }
+  async cancelCollectInputs(): Promise<void> {
+    // no equivalent
+    console.warn('cancelCollectInputs is only available on iOS and Android.')
   }
   async getConnectedReader(): Promise<{ reader: Reader | null }> {
     const sdk = this.ensureInitialized()

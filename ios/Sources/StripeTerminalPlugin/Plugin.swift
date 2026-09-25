@@ -42,6 +42,8 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "collectRefundPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelCollectRefundPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirmRefund", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectInputs", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelCollectInputs", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "collectPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirmPaymentIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearCachedCredentials", returnType: CAPPluginReturnPromise),
@@ -65,6 +67,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     private var pendingCollectData: Cancelable?
     private var pendingCollectSetupIntentPaymentMethod: Cancelable?
     private var pendingCollectRefundPaymentMethod: Cancelable?
+    private var pendingCollectInputs: Cancelable?
     private var pendingReaderAutoReconnect: Cancelable?
     private var currentUpdate: ReaderSoftwareUpdate?
     private var currentPaymentIntent: PaymentIntent?
@@ -864,6 +867,49 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
                 } else {
                     call.reject("Unable to confirm refund")
                 }
+            }
+        }
+    }
+
+    @objc func collectInputs(_ call: CAPPluginCall) {
+        let params: CollectInputsParameters
+        do {
+            let inputs = try (call.getArray("inputs") as? [[String: Any]] ?? []).map {
+                try StripeTerminalUtils.buildInput($0)
+            }
+            params = try CollectInputsParametersBuilder(inputs: inputs).build()
+        } catch {
+            call.reject("Failed to build collect inputs parameters: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        pendingCollectInputs = Terminal.shared.collectInputs(params) { results, error in
+            self.pendingCollectInputs = nil
+
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else {
+                call.resolve([
+                    "collectInputResults": (results ?? []).map {
+                        StripeTerminalUtils.serializeCollectInputsResult(result: $0)
+                    },
+                ])
+            }
+        }
+    }
+
+    @objc func cancelCollectInputs(_ call: CAPPluginCall? = nil) {
+        guard let cancelable = pendingCollectInputs else {
+            call?.resolve()
+            return
+        }
+
+        cancelable.cancel { error in
+            if let error = error {
+                call?.reject(error.localizedDescription, nil, error)
+            } else {
+                self.pendingCollectInputs = nil
+                call?.resolve()
             }
         }
     }
