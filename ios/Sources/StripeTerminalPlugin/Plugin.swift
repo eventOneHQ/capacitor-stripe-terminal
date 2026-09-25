@@ -15,6 +15,8 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "setConnectionToken", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "discoverReaders", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "connectBluetoothReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectUsbReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectAppsOnDevicesReader", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "connectInternetReader", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getConnectionStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getPaymentStatus", returnType: CAPPluginReturnPromise),
@@ -138,10 +140,17 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
                 let builder = InternetDiscoveryConfigurationBuilder().setSimulated(simulated)
                 if let locationId = locationId { _ = builder.setLocationId(locationId) }
                 config = try builder.build()
+            case 4: // USB
+                call.reject("The USB discovery method is only supported on Android.")
+                return
+            case 5: // AppsOnDevices
+                call.reject("The AppsOnDevices discovery method is only supported on Android.")
+                return
             case 6: // TapToPay
                 config = try TapToPayDiscoveryConfigurationBuilder().setSimulated(simulated).build()
             default:
-                config = try BluetoothScanDiscoveryConfigurationBuilder().setSimulated(simulated).build()
+                call.reject("Unsupported discovery method: \(method)")
+                return
             }
         } catch {
             call.reject("Failed to build discovery configuration: \(error.localizedDescription)", nil, error)
@@ -227,6 +236,15 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
                 }
             })
         }
+    }
+
+    @objc func connectUsbReader(_ call: CAPPluginCall) {
+        // USB readers are gated behind SCP_USB_ENABLED and are not available in the public iOS SDK.
+        call.reject("USB readers are only supported on Android.")
+    }
+
+    @objc func connectAppsOnDevicesReader(_ call: CAPPluginCall) {
+        call.reject("AppsOnDevices readers are only supported on Android.")
     }
 
     @objc func connectInternetReader(_ call: CAPPluginCall) {

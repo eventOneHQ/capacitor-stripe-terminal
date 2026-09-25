@@ -424,6 +424,10 @@ const terminal = await StripeTerminalPlugin.create({
 })
 ```
 
+### 16. USB and AppsOnDevices now fail loudly on iOS
+
+`DiscoveryMethod.USB` previously fell back to a Bluetooth scan on iOS without any error, and `connectUsbReader` / `connectAppsOnDevicesReader` were not implemented there at all. Both now reject with a clear message. USB and AppsOnDevices readers are Android-only — USB is gated behind a private preview flag in the public iOS SDK.
+
 ## Testing Your Migration
 
 After upgrading, test the following scenarios:
@@ -464,3 +468,4 @@ This upgrade primarily updates the underlying SDKs while maintaining most API co
 - Switch `stripeId` reads to `id` — `stripeId` still works in v5 but will be removed in v6
 - If you display `ReaderSoftwareUpdate.estimatedUpdateTime`, switch to `estimatedUpdateTimeString`; `estimatedUpdateTime` is now a string union
 - Pass `logLevel` to `StripeTerminalPlugin.create()` if you want native SDK logging — it no longer defaults to verbose on Android
+- Stop relying on `DiscoveryMethod.USB` silently falling back to a Bluetooth scan on iOS; it now rejects
