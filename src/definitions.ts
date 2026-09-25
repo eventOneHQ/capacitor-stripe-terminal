@@ -272,15 +272,15 @@ export enum LogLevel {
    */
   None = 0,
   /**
-   * Only errors. (Android only; treated as `Verbose` on iOS.)
+   * Only errors.
    */
   Error = 1,
   /**
-   * Errors and warnings. (Android only; treated as `Verbose` on iOS.)
+   * Errors and warnings.
    */
   Warning = 2,
   /**
-   * Errors, warnings and informational messages. (Android only; treated as `Verbose` on iOS.)
+   * Errors, warnings and informational messages.
    */
   Info = 3,
   /**
@@ -1262,9 +1262,7 @@ export interface TippingConfig {
  * Android-based internet readers support enabling and disabling customer cancellation. WisePad 3 and Tap to Pay always show customer cancellation and it cannot be disabled. Stripe M2 and Chipper 2X do not support customer cancellation.
  */
 export type CustomerCancellation =
-  | 'enableIfAvailable'
-  | 'disableIfAvailable'
-  | 'unspecified'
+  'enableIfAvailable' | 'disableIfAvailable' | 'unspecified'
 
 /**
  * Indicates whether a payment method can be shown again to its customer in a checkout flow. Consent must be obtained before setting this field to anything other than `unspecified`.
@@ -1277,11 +1275,7 @@ export type AllowRedisplay = 'always' | 'limited' | 'unspecified'
  * The type of payment method a PaymentIntent or SetupIntent may collect.
  */
 export type PaymentMethodType =
-  | 'cardPresent'
-  | 'interacPresent'
-  | 'card'
-  | 'wechatPay'
-  | 'affirm'
+  'cardPresent' | 'interacPresent' | 'card' | 'wechatPay' | 'affirm'
 
 /**
  * When to capture funds for a PaymentIntent.
@@ -1590,8 +1584,7 @@ export interface RefundParamsWithChargeId {
  * @see https://stripe.com/docs/terminal/features/refunds
  */
 export type RefundParams =
-  | RefundParamsWithPaymentIntentId
-  | RefundParamsWithChargeId
+  RefundParamsWithPaymentIntentId | RefundParamsWithChargeId
 
 /**
  * A `Refund` object, created by an in-person refund.

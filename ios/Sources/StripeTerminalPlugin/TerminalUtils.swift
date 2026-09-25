@@ -12,8 +12,13 @@ import StripeTerminal
 
 public class StripeTerminalUtils {
     static func translateJSLogLevel(_ level: Int) -> LogLevel {
-        // The iOS SDK only exposes none/verbose, so any enabled level maps to verbose.
-        return level == 0 ? .none : .verbose
+        switch level {
+        case 1: return .error
+        case 2: return .warning
+        case 3: return .info
+        case 4: return .verbose
+        default: return .none
+        }
     }
 
     static func buildCollectPaymentIntentConfiguration(_ call: CAPPluginCall) throws -> CollectPaymentIntentConfiguration {

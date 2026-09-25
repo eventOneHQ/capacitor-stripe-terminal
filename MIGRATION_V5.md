@@ -10,8 +10,8 @@ This guide covers the breaking changes when upgrading to `capacitor-stripe-termi
 | ----------------------------- | ------- | ------- |
 | `capacitor-stripe-terminal`   | v3.x    | v5.x    |
 | Capacitor                     | v4.0.0  | v8.0.2  |
-| Stripe Terminal SDK (iOS)     | v2.17.1 | v5.3.0  |
-| Stripe Terminal SDK (Android) | v2.17.1 | v5.3.0  |
+| Stripe Terminal SDK (iOS)     | v2.17.1 | v5.8.0  |
+| Stripe Terminal SDK (Android) | v2.17.1 | v5.8.1  |
 | `@stripe/terminal-js`         | v0.11.0 | v0.26.0 |
 
 ## Requirements
