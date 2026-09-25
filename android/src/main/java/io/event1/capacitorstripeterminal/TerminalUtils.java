@@ -775,8 +775,9 @@ public class TerminalUtils {
 
     // status
     int status = Reader.NetworkStatus.OFFLINE.ordinal();
-    if (reader.getNetworkStatus() != null) status =
-      reader.getNetworkStatus().ordinal();
+    if (reader.getNetworkStatus() != null) status = reader
+      .getNetworkStatus()
+      .ordinal();
     object.put("status", translateNetworkStatusToJS(status));
 
     // label
@@ -994,7 +995,10 @@ public class TerminalUtils {
       JSObject pmMetadata = new JSObject();
       if (paymentMethod.getMetadata() != null) {
         for (String key : paymentMethod.getMetadata().keySet()) {
-          pmMetadata.put(key, String.valueOf(paymentMethod.getMetadata().get(key)));
+          pmMetadata.put(
+            key,
+            String.valueOf(paymentMethod.getMetadata().get(key))
+          );
         }
       }
       paymentMethodJson.put("metadata", pmMetadata);
@@ -1015,13 +1019,22 @@ public class TerminalUtils {
         JSObject chargeMetadata = new JSObject();
         if (charge.getMetadata() != null) {
           for (String key : charge.getMetadata().keySet()) {
-            chargeMetadata.put(key, String.valueOf(charge.getMetadata().get(key)));
+            chargeMetadata.put(
+              key,
+              String.valueOf(charge.getMetadata().get(key))
+            );
           }
         }
         chargeJson.put("metadata", chargeMetadata);
         chargeJson.put("stripeDescription", charge.getDescription());
-        chargeJson.put("statementDescriptorSuffix", charge.getStatementDescriptorSuffix());
-        chargeJson.put("calculatedStatementDescriptor", charge.getCalculatedStatementDescriptor());
+        chargeJson.put(
+          "statementDescriptorSuffix",
+          charge.getStatementDescriptorSuffix()
+        );
+        chargeJson.put(
+          "calculatedStatementDescriptor",
+          charge.getCalculatedStatementDescriptor()
+        );
         chargeJson.put("authorizationCode", charge.getAuthorizationCode());
         chargeJson.put("amountRefunded", charge.getAmountRefunded());
         chargeJson.put("created", charge.getCreated());
@@ -1074,7 +1087,8 @@ public class TerminalUtils {
 
     JSObject object = new JSObject();
 
-    ReaderSoftwareUpdate.UpdateDurationEstimate durationEstimate = readerSoftwareUpdate.getDurationEstimate();
+    ReaderSoftwareUpdate.UpdateDurationEstimate durationEstimate =
+      readerSoftwareUpdate.getDurationEstimate();
 
     String estimatedUpdateTime;
     switch (durationEstimate) {
@@ -1170,10 +1184,14 @@ public class TerminalUtils {
   public static int translateChargeStatusToJS(String status) {
     if (status == null) return 2; // Failed as safe default
     switch (status) {
-      case "succeeded": return 0;
-      case "pending":   return 1;
-      case "failed":    return 2;
-      default:          return 2;
+      case "succeeded":
+        return 0;
+      case "pending":
+        return 1;
+      case "failed":
+        return 2;
+      default:
+        return 2;
     }
   }
 
@@ -1205,6 +1223,7 @@ public class TerminalUtils {
       );
     }
   }
+
   // translate the JS device type enum ordinal to the Android DeviceType enum
   public static DeviceType translateJSDeviceType(int type) {
     if (type == 0) {
@@ -1229,6 +1248,7 @@ public class TerminalUtils {
       return null;
     }
   }
+
   // translate the android device type enum to the JS device type enum
   public static Integer translateDeviceTypeToJS(int type) {
     if (type == DeviceType.CHIPPER_2X.ordinal()) {

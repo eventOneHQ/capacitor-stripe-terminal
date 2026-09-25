@@ -14,8 +14,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import com.stripe.stripeterminal.Terminal;
-import com.stripe.stripeterminal.external.callable.AppsOnDevicesListener;
 import com.stripe.stripeterminal.external.api.ApiError;
+import com.stripe.stripeterminal.external.callable.AppsOnDevicesListener;
 import com.stripe.stripeterminal.external.callable.Callback;
 import com.stripe.stripeterminal.external.callable.Cancelable;
 import com.stripe.stripeterminal.external.callable.CollectInputsResultCallback;
@@ -95,10 +95,10 @@ import org.json.JSONObject;
     @Permission(
       strings = {
         Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.BLUETOOTH_SCAN
+        Manifest.permission.BLUETOOTH_SCAN,
       },
       alias = "bluetooth"
-    )
+    ),
   }
 )
 public class StripeTerminal
@@ -265,11 +265,12 @@ public class StripeTerminal
     try {
       Boolean simulated = call.getBoolean("simulated", true);
       String locationId = call.getString("locationId", null);
-      DiscoveryConfiguration discoveryConfiguration = TerminalUtils.translateDiscoveryMethod(
-        call.getInt("discoveryMethod", 0),
-        simulated,
-        locationId
-      );
+      DiscoveryConfiguration discoveryConfiguration =
+        TerminalUtils.translateDiscoveryMethod(
+          call.getInt("discoveryMethod", 0),
+          simulated,
+          locationId
+        );
       Callback statusCallback = new Callback() {
         @Override
         public void onSuccess() {
@@ -286,10 +287,11 @@ public class StripeTerminal
 
       // Attempt to cancel any pending discoverReader calls first.
       cancelDiscoverReaders();
-      pendingDiscoverReaders =
-        Terminal
-          .getInstance()
-          .discoverReaders(discoveryConfiguration, this, statusCallback);
+      pendingDiscoverReaders = Terminal.getInstance().discoverReaders(
+        discoveryConfiguration,
+        this,
+        statusCallback
+      );
     } catch (Exception e) {
       e.printStackTrace();
 
@@ -403,14 +405,14 @@ public class StripeTerminal
     // TODO: Add below when supported
     // Boolean allowCustomerCancel = call.getBoolean("allowCustomerCancel", false);
 
-    InternetConnectionConfiguration connectionConfig = new InternetConnectionConfiguration(
-      null,
-      failIfInUse
-    );
+    InternetConnectionConfiguration connectionConfig =
+      new InternetConnectionConfiguration(null, failIfInUse);
 
-    Terminal
-      .getInstance()
-      .connectReader(reader, connectionConfig, this.createReaderCallback(call));
+    Terminal.getInstance().connectReader(
+      reader,
+      connectionConfig,
+      this.createReaderCallback(call)
+    );
   }
 
   @PluginMethod
@@ -433,15 +435,18 @@ public class StripeTerminal
       false
     );
 
-    BluetoothConnectionConfiguration connectionConfig = new BluetoothConnectionConfiguration(
-      locationId,
-      autoReconnectOnUnexpectedDisconnect,
-      this
-    );
+    BluetoothConnectionConfiguration connectionConfig =
+      new BluetoothConnectionConfiguration(
+        locationId,
+        autoReconnectOnUnexpectedDisconnect,
+        this
+      );
 
-    Terminal
-      .getInstance()
-      .connectReader(reader, connectionConfig, this.createReaderCallback(call));
+    Terminal.getInstance().connectReader(
+      reader,
+      connectionConfig,
+      this.createReaderCallback(call)
+    );
   }
 
   @PluginMethod
@@ -468,9 +473,11 @@ public class StripeTerminal
         this
       );
 
-    Terminal
-      .getInstance()
-      .connectReader(reader, connectionConfig, this.createReaderCallback(call));
+    Terminal.getInstance().connectReader(
+      reader,
+      connectionConfig,
+      this.createReaderCallback(call)
+    );
   }
 
   @PluginMethod
@@ -481,13 +488,14 @@ public class StripeTerminal
       return;
     }
 
-    AppsOnDevicesConnectionConfiguration connectionConfig = new AppsOnDevicesConnectionConfiguration(
-      this
-    );
+    AppsOnDevicesConnectionConfiguration connectionConfig =
+      new AppsOnDevicesConnectionConfiguration(this);
 
-    Terminal
-      .getInstance()
-      .connectReader(reader, connectionConfig, this.createReaderCallback(call));
+    Terminal.getInstance().connectReader(
+      reader,
+      connectionConfig,
+      this.createReaderCallback(call)
+    );
   }
 
   @PluginMethod
@@ -514,9 +522,11 @@ public class StripeTerminal
         this
       );
 
-    Terminal
-      .getInstance()
-      .connectReader(reader, connectionConfig, this.createReaderCallback(call));
+    Terminal.getInstance().connectReader(
+      reader,
+      connectionConfig,
+      this.createReaderCallback(call)
+    );
   }
 
   @PluginMethod
@@ -612,21 +622,19 @@ public class StripeTerminal
     if (Terminal.getInstance().getConnectedReader() == null) {
       call.resolve();
     } else {
-      Terminal
-        .getInstance()
-        .disconnectReader(
-          new Callback() {
-            @Override
-            public void onSuccess() {
-              call.resolve();
-            }
-
-            @Override
-            public void onFailure(@NonNull TerminalException e) {
-              call.reject(e.getErrorMessage(), e);
-            }
+      Terminal.getInstance().disconnectReader(
+        new Callback() {
+          @Override
+          public void onSuccess() {
+            call.resolve();
           }
-        );
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            call.reject(e.getErrorMessage(), e);
+          }
+        }
+      );
     }
   }
 
@@ -682,29 +690,27 @@ public class StripeTerminal
     String clientSecret = call.getString("clientSecret");
 
     if (clientSecret != null) {
-      Terminal
-        .getInstance()
-        .retrievePaymentIntent(
-          clientSecret,
-          new PaymentIntentCallback() {
-            @Override
-            public void onSuccess(@NonNull PaymentIntent paymentIntent) {
-              currentPaymentIntent = paymentIntent;
-              JSObject ret = new JSObject();
-              ret.put(
-                "intent",
-                TerminalUtils.serializePaymentIntent(paymentIntent, "")
-              );
-              call.resolve(ret);
-            }
-
-            @Override
-            public void onFailure(@NonNull TerminalException e) {
-              currentPaymentIntent = null;
-              call.reject(e.getErrorMessage(), e);
-            }
+      Terminal.getInstance().retrievePaymentIntent(
+        clientSecret,
+        new PaymentIntentCallback() {
+          @Override
+          public void onSuccess(@NonNull PaymentIntent paymentIntent) {
+            currentPaymentIntent = paymentIntent;
+            JSObject ret = new JSObject();
+            ret.put(
+              "intent",
+              TerminalUtils.serializePaymentIntent(paymentIntent, "")
+            );
+            call.resolve(ret);
           }
-        );
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            currentPaymentIntent = null;
+            call.reject(e.getErrorMessage(), e);
+          }
+        }
+      );
     } else {
       call.reject("Client secret cannot be null");
     }
@@ -716,41 +722,31 @@ public class StripeTerminal
       TerminalUtils.buildCollectPaymentIntentConfiguration(call);
 
     if (currentPaymentIntent != null) {
-      pendingCollectPaymentMethod =
-        Terminal
-          .getInstance()
-          .collectPaymentMethod(
-            currentPaymentIntent,
-            new PaymentIntentCallback() {
-              @Override
-              public void onSuccess(@NonNull PaymentIntent paymentIntent) {
-                pendingCollectPaymentMethod = null;
-                currentPaymentIntent = paymentIntent;
+      pendingCollectPaymentMethod = Terminal.getInstance().collectPaymentMethod(
+        currentPaymentIntent,
+        new PaymentIntentCallback() {
+          @Override
+          public void onSuccess(@NonNull PaymentIntent paymentIntent) {
+            pendingCollectPaymentMethod = null;
+            currentPaymentIntent = paymentIntent;
 
-                JSObject ret = new JSObject();
-                ret.put(
-                  "intent",
-                  TerminalUtils.serializePaymentIntent(
-                    paymentIntent,
-                    lastCurrency
-                  )
-                );
+            JSObject ret = new JSObject();
+            ret.put(
+              "intent",
+              TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+            );
 
-                call.resolve(ret);
-              }
+            call.resolve(ret);
+          }
 
-              @Override
-              public void onFailure(@NonNull TerminalException e) {
-                pendingCollectPaymentMethod = null;
-                call.reject(
-                  e.getErrorMessage(),
-                  e.getErrorCode().toString(),
-                  e
-                );
-              }
-            },
-            collectConfig
-          );
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            pendingCollectPaymentMethod = null;
+            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+          }
+        },
+        collectConfig
+      );
     } else {
       call.reject(
         "There is no active payment intent. Make sure you called retrievePaymentIntent first"
@@ -786,50 +782,50 @@ public class StripeTerminal
   @PluginMethod
   public void confirmPaymentIntent(final PluginCall call) {
     if (currentPaymentIntent != null) {
-      Terminal
-        .getInstance()
-        .confirmPaymentIntent(
-          currentPaymentIntent,
-          new PaymentIntentCallback() {
-            @Override
-            public void onSuccess(@NonNull PaymentIntent paymentIntent) {
-              currentPaymentIntent = paymentIntent;
+      Terminal.getInstance().confirmPaymentIntent(
+        currentPaymentIntent,
+        new PaymentIntentCallback() {
+          @Override
+          public void onSuccess(@NonNull PaymentIntent paymentIntent) {
+            currentPaymentIntent = paymentIntent;
 
-              JSObject ret = new JSObject();
-              ret.put(
-                "intent",
-                TerminalUtils.serializePaymentIntent(
-                  paymentIntent,
-                  lastCurrency
-                )
-              );
-              call.resolve(ret);
-            }
-
-            @Override
-            public void onFailure(@NonNull TerminalException e) {
-              JSObject data = new JSObject();
-
-              PaymentIntent failedIntent = e.getPaymentIntent();
-              if (failedIntent != null) {
-                data.put(
-                  "payment_intent",
-                  TerminalUtils.serializePaymentIntent(failedIntent, lastCurrency)
-                );
-              }
-
-              ApiError apiError = e.getApiError();
-              if (apiError != null) {
-                String declineCode = apiError.getDeclineCode();
-                if (declineCode != null) {
-                  data.put("decline_code", declineCode);
-                }
-              }
-
-              call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e, data);
-            }
+            JSObject ret = new JSObject();
+            ret.put(
+              "intent",
+              TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+            );
+            call.resolve(ret);
           }
-        );
+
+          @Override
+          public void onFailure(@NonNull TerminalException e) {
+            JSObject data = new JSObject();
+
+            PaymentIntent failedIntent = e.getPaymentIntent();
+            if (failedIntent != null) {
+              data.put(
+                "payment_intent",
+                TerminalUtils.serializePaymentIntent(failedIntent, lastCurrency)
+              );
+            }
+
+            ApiError apiError = e.getApiError();
+            if (apiError != null) {
+              String declineCode = apiError.getDeclineCode();
+              if (declineCode != null) {
+                data.put("decline_code", declineCode);
+              }
+            }
+
+            call.reject(
+              e.getErrorMessage(),
+              e.getErrorCode().toString(),
+              e,
+              data
+            );
+          }
+        }
+      );
     } else {
       call.reject(
         "There is no active payment intent. Make sure you called retrievePaymentIntent first"
@@ -1419,41 +1415,37 @@ public class StripeTerminal
 
     Cart cart = new Cart(currency, tax, total, lineItemsArr);
 
-    Terminal
-      .getInstance()
-      .setReaderDisplay(
-        cart,
-        new Callback() {
-          @Override
-          public void onSuccess() {
-            call.resolve();
-          }
-
-          @Override
-          public void onFailure(@NonNull TerminalException e) {
-            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
-          }
+    Terminal.getInstance().setReaderDisplay(
+      cart,
+      new Callback() {
+        @Override
+        public void onSuccess() {
+          call.resolve();
         }
-      );
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
+    );
   }
 
   @PluginMethod
   public void clearReaderDisplay(final PluginCall call) {
-    Terminal
-      .getInstance()
-      .clearReaderDisplay(
-        new Callback() {
-          @Override
-          public void onSuccess() {
-            call.resolve();
-          }
-
-          @Override
-          public void onFailure(@NonNull TerminalException e) {
-            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
-          }
+    Terminal.getInstance().clearReaderDisplay(
+      new Callback() {
+        @Override
+        public void onSuccess() {
+          call.resolve();
         }
-      );
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
+    );
   }
 
   @PluginMethod
@@ -1468,40 +1460,37 @@ public class StripeTerminal
       params = new ListLocationsParameters(limit, endingBefore, startingAfter);
     }
 
-    Terminal
-      .getInstance()
-      .listLocations(
-        params,
-        new LocationListCallback() {
-          @Override
-          public void onSuccess(@NonNull List<Location> list, boolean hasMore) {
-            JSObject object = new JSObject();
-            JSArray locationsArray = new JSArray();
-            for (Location location : list) {
-              if (location != null) {
-                locationsArray.put(TerminalUtils.serializeLocation(location));
-              }
+    Terminal.getInstance().listLocations(
+      params,
+      new LocationListCallback() {
+        @Override
+        public void onSuccess(@NonNull List<Location> list, boolean hasMore) {
+          JSObject object = new JSObject();
+          JSArray locationsArray = new JSArray();
+          for (Location location : list) {
+            if (location != null) {
+              locationsArray.put(TerminalUtils.serializeLocation(location));
             }
-
-            object.put("hasMore", hasMore);
-            object.put("locations", locationsArray);
-
-            call.resolve(object);
           }
 
-          @Override
-          public void onFailure(@NonNull TerminalException e) {
-            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
-          }
+          object.put("hasMore", hasMore);
+          object.put("locations", locationsArray);
+
+          call.resolve(object);
         }
-      );
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
+    );
   }
 
   @PluginMethod
   public void getSimulatorConfiguration(@NonNull final PluginCall call) {
-    SimulatorConfiguration config = Terminal
-      .getInstance()
-      .getSimulatorConfiguration();
+    SimulatorConfiguration config =
+      Terminal.getInstance().getSimulatorConfiguration();
     JSObject serialized = TerminalUtils.serializeSimulatorConfiguration(config);
 
     call.resolve(serialized);
@@ -1512,9 +1501,8 @@ public class StripeTerminal
     Integer availableReaderUpdateInt = call.getInt("availableReaderUpdate");
     Integer simulatedCardInt = call.getInt("simulatedCard");
 
-    SimulatorConfiguration currentConfig = Terminal
-      .getInstance()
-      .getSimulatorConfiguration();
+    SimulatorConfiguration currentConfig =
+      Terminal.getInstance().getSimulatorConfiguration();
 
     SimulateReaderUpdate availableReaderUpdate = currentConfig.getUpdate();
     SimulatedCard simulatedCard = currentConfig.getSimulatedCard();
@@ -1592,16 +1580,18 @@ public class StripeTerminal
       return;
     }
 
-    DiscoveryConfiguration discoveryConfiguration = TerminalUtils.translateDiscoveryMethod(
-      discoveryMethodInt,
-      simulated != null ? simulated : false,
-      null
-    );
+    DiscoveryConfiguration discoveryConfiguration =
+      TerminalUtils.translateDiscoveryMethod(
+        discoveryMethodInt,
+        simulated != null ? simulated : false,
+        null
+      );
 
-    ReaderSupportResult readerSupportResult = Terminal.getInstance().supportsReadersOfType(
-      deviceType,
-      discoveryConfiguration
-    );
+    ReaderSupportResult readerSupportResult =
+      Terminal.getInstance().supportsReadersOfType(
+        deviceType,
+        discoveryConfiguration
+      );
 
     JSObject result = new JSObject();
     result.put("isSupported", readerSupportResult.isSupported());
