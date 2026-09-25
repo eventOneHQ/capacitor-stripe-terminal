@@ -536,13 +536,9 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     @objc func collectPaymentMethod(_ call: CAPPluginCall) {
-        let updatePaymentIntent = call.getBool("updatePaymentIntent", false)
-
         let collectConfig: CollectPaymentIntentConfiguration
         do {
-            collectConfig = try CollectPaymentIntentConfigurationBuilder()
-                .setUpdatePaymentIntent(updatePaymentIntent)
-                .build()
+            collectConfig = try StripeTerminalUtils.buildCollectPaymentIntentConfiguration(call)
         } catch {
             call.reject("Failed to build collect configuration: \(error.localizedDescription)", nil, error)
             return

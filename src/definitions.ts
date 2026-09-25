@@ -1302,6 +1302,27 @@ export interface CollectConfig {
    * @default false
    */
   updatePaymentIntent?: boolean
+
+  /**
+   * Whether to show a cancel button on the reader during collection.
+   *
+   * @default 'enableIfAvailable'
+   */
+  customerCancellation?: CustomerCancellation
+
+  /**
+   * Whether the collected payment method may be shown to the customer again in a future checkout flow.
+   *
+   * @default 'unspecified'
+   */
+  allowRedisplay?: AllowRedisplay
+
+  /**
+   * Whether to request dynamic currency conversion during collection.
+   *
+   * @default false
+   */
+  requestDynamicCurrencyConversion?: boolean
 }
 
 /**

@@ -6,6 +6,7 @@
 //  Copyright © 2020 eventOne, Inc. All rights reserved.
 //
 
+import Capacitor
 import Foundation
 import StripeTerminal
 
@@ -13,6 +14,31 @@ public class StripeTerminalUtils {
     static func translateJSLogLevel(_ level: Int) -> LogLevel {
         // The iOS SDK only exposes none/verbose, so any enabled level maps to verbose.
         return level == 0 ? .none : .verbose
+    }
+
+    static func buildCollectPaymentIntentConfiguration(_ call: CAPPluginCall) throws -> CollectPaymentIntentConfiguration {
+        let builder = CollectPaymentIntentConfigurationBuilder()
+            .setUpdatePaymentIntent(call.getBool("updatePaymentIntent", false))
+            .setSkipTipping(call.getBool("skipTipping", false))
+            .setRequestDynamicCurrencyConversion(call.getBool("requestDynamicCurrencyConversion", false))
+
+        if let tipping = call.getObject("tipping"),
+           let eligibleAmount = tipping["eligibleAmount"] as? NSNumber {
+            let tippingConfig = try TippingConfigurationBuilder()
+                .setEligibleAmount(eligibleAmount.intValue)
+                .build()
+            _ = builder.setTippingConfiguration(tippingConfig)
+        }
+
+        if let customerCancellation = call.getString("customerCancellation") {
+            _ = builder.setCustomerCancellation(translateJSCustomerCancellation(customerCancellation))
+        }
+
+        if let allowRedisplay = call.getString("allowRedisplay") {
+            _ = builder.setAllowRedisplay(translateJSAllowRedisplay(allowRedisplay))
+        }
+
+        return try builder.build()
     }
 
     static func translateJSCollectDataType(_ value: String) -> CollectDataType {

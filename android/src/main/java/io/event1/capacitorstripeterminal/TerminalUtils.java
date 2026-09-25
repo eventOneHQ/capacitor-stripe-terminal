@@ -2,6 +2,7 @@ package io.event1.capacitorstripeterminal;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PluginCall;
 import com.stripe.stripeterminal.external.models.Address;
 import com.stripe.stripeterminal.external.models.AllowRedisplay;
 import com.stripe.stripeterminal.external.models.AmountDetails;
@@ -12,6 +13,7 @@ import com.stripe.stripeterminal.external.models.Charge;
 import com.stripe.stripeterminal.external.models.CollectDataType;
 import com.stripe.stripeterminal.external.models.CollectInputsParameters;
 import com.stripe.stripeterminal.external.models.CollectInputsResult;
+import com.stripe.stripeterminal.external.models.CollectPaymentIntentConfiguration;
 import com.stripe.stripeterminal.external.models.CollectedData;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.CustomerCancellation;
@@ -56,6 +58,7 @@ import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.TextInput;
 import com.stripe.stripeterminal.external.models.TextResult;
 import com.stripe.stripeterminal.external.models.Tip;
+import com.stripe.stripeterminal.external.models.TippingConfiguration;
 import com.stripe.stripeterminal.external.models.Toggle;
 import com.stripe.stripeterminal.external.models.ToggleResult;
 import com.stripe.stripeterminal.external.models.ToggleValue;
@@ -91,6 +94,48 @@ public class TerminalUtils {
       default:
         return LogLevel.NONE;
     }
+  }
+
+  public static CollectPaymentIntentConfiguration buildCollectPaymentIntentConfiguration(
+    PluginCall call
+  ) {
+    CollectPaymentIntentConfiguration.Builder builder =
+      new CollectPaymentIntentConfiguration.Builder()
+        .updatePaymentIntent(
+          Boolean.TRUE.equals(call.getBoolean("updatePaymentIntent", false))
+        )
+        .skipTipping(Boolean.TRUE.equals(call.getBoolean("skipTipping", false)))
+        .setRequestDynamicCurrencyConversion(
+          Boolean.TRUE.equals(
+            call.getBoolean("requestDynamicCurrencyConversion", false)
+          )
+        );
+
+    JSObject tipping = call.getObject("tipping");
+    if (tipping != null) {
+      Object eligibleAmount = tipping.opt("eligibleAmount");
+      if (eligibleAmount instanceof Number) {
+        builder.setTippingConfiguration(
+          new TippingConfiguration.Builder()
+            .setEligibleAmount(((Number) eligibleAmount).longValue())
+            .build()
+        );
+      }
+    }
+
+    String customerCancellation = call.getString("customerCancellation");
+    if (customerCancellation != null) {
+      builder.setCustomerCancellation(
+        translateJSCustomerCancellation(customerCancellation)
+      );
+    }
+
+    String allowRedisplay = call.getString("allowRedisplay");
+    if (allowRedisplay != null) {
+      builder.setAllowRedisplay(translateJSAllowRedisplay(allowRedisplay));
+    }
+
+    return builder.build();
   }
 
   public static CollectDataType translateJSCollectDataType(String type) {

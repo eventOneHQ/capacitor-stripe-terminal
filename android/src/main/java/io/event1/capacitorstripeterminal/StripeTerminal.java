@@ -706,11 +706,8 @@ public class StripeTerminal
 
   @PluginMethod
   public void collectPaymentMethod(final PluginCall call) {
-    Boolean updatePaymentIntent = call.getBoolean("updatePaymentIntent", false);
-
-    CollectPaymentIntentConfiguration collectConfig = new CollectPaymentIntentConfiguration.Builder()
-      .updatePaymentIntent(updatePaymentIntent)
-      .build();
+    CollectPaymentIntentConfiguration collectConfig =
+      TerminalUtils.buildCollectPaymentIntentConfiguration(call);
 
     if (currentPaymentIntent != null) {
       pendingCollectPaymentMethod =
