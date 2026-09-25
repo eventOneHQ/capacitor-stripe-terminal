@@ -10,8 +10,8 @@ This guide covers the breaking changes when upgrading to `capacitor-stripe-termi
 | ----------------------------- | ------- | ------- |
 | `capacitor-stripe-terminal`   | v3.x    | v5.x    |
 | Capacitor                     | v4.0.0  | v8.0.2  |
-| Stripe Terminal SDK (iOS)     | v2.17.1 | v5.3.0  |
-| Stripe Terminal SDK (Android) | v2.17.1 | v5.3.0  |
+| Stripe Terminal SDK (iOS)     | v2.17.1 | v5.8.0  |
+| Stripe Terminal SDK (Android) | v2.17.1 | v5.8.1  |
 | `@stripe/terminal-js`         | v0.11.0 | v0.26.0 |
 
 ## Requirements
@@ -373,6 +373,61 @@ Update your app's iOS deployment target in Xcode to **15.0** or higher (see [Upg
 
 This plugin upgrades the peer dependency from Capacitor v4 to Capacitor v8. Follow the [official Capacitor v8 migration guide](https://capacitorjs.com/docs/updating/8-0) to update your app.
 
+### 13. `stripeId` deprecated in favour of `id`
+
+`Reader`, `PaymentIntent`, `Charge`, `Location`, and `CollectedData` now expose an `id` field, matching the Stripe API and the JS/React Native SDKs. `stripeId` is still populated and will keep working for the whole of v5, but it is deprecated and **will be removed in v6**.
+
+```typescript
+// Before
+const id = paymentIntent.stripeId
+
+// After
+const id = paymentIntent.id
+```
+
+### 14. `ReaderSoftwareUpdate.estimatedUpdateTime` is now a string union
+
+`estimatedUpdateTime` was typed as `string` but the native SDKs were actually sending a number, so the declared type was wrong. It is now a proper string union, and the fields the native layer was already sending are now declared.
+
+```typescript
+// Before
+interface ReaderSoftwareUpdate {
+  estimatedUpdateTime: string // actually a number at runtime
+  deviceSoftwareVersion: string
+}
+
+// After
+interface ReaderSoftwareUpdate {
+  estimatedUpdateTime:
+    | 'estimateLessThan1Minute'
+    | 'estimate1To2Minutes'
+    | 'estimate2To5Minutes'
+    | 'estimate5To15Minutes'
+  estimatedUpdateTimeString: string // e.g. "1-2 minutes"
+  deviceSoftwareVersion: string
+  components: ('firmware' | 'config' | 'keys' | 'incremental')[]
+  requiredAt?: number | null
+}
+```
+
+If you were displaying `estimatedUpdateTime` directly, switch to `estimatedUpdateTimeString`.
+
+### 15. Native logging now defaults to off
+
+Android previously hardcoded `LogLevel.VERBOSE`, and iOS had logging disabled entirely. Both now default to `None` and are configurable:
+
+```typescript
+const terminal = await StripeTerminalPlugin.create({
+  fetchConnectionToken,
+  onUnexpectedReaderDisconnect,
+  logLevel: LogLevel.Verbose, // opt in
+})
+```
+
+### 16. USB and AppsOnDevices now fail loudly on iOS
+
+`DiscoveryMethod.USB` previously fell back to a Bluetooth scan on iOS without any error, and `connectUsbReader` / `connectAppsOnDevicesReader` were not implemented there at all. Both now reject with a clear message. USB and AppsOnDevices readers are Android-only — USB is gated behind a private preview flag in the public iOS SDK.
+
 ## Testing Your Migration
 
 After upgrading, test the following scenarios:
@@ -410,3 +465,7 @@ This upgrade primarily updates the underlying SDKs while maintaining most API co
 - **Remove `rxjs` from your dependencies** and update all Observable-based call sites to use the new callback + `PluginListenerHandle` pattern (call `handle.remove()` instead of `subscription.unsubscribe()`)
 - Rename `processPayment()` → `confirmPaymentIntent()` (matches the native Stripe Terminal SDK function name)
 - `confirmPaymentIntent` errors are now always thrown as `StripeTerminalError`; `decline_code` and `payment_intent` fields are now populated on card declines (no action required, but you may now read these fields in your catch handler)
+- Switch `stripeId` reads to `id` — `stripeId` still works in v5 but will be removed in v6
+- If you display `ReaderSoftwareUpdate.estimatedUpdateTime`, switch to `estimatedUpdateTimeString`; `estimatedUpdateTime` is now a string union
+- Pass `logLevel` to `StripeTerminalPlugin.create()` if you want native SDK logging — it no longer defaults to verbose on Android
+- Stop relying on `DiscoveryMethod.USB` silently falling back to a Bluetooth scan on iOS; it now rejects

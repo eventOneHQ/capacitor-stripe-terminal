@@ -19,6 +19,21 @@ import {
   CollectConfig,
   ChargeStatus,
   Charge,
+  CardPresentDetails,
+  PaymentMethodDetails,
+  PaymentMethodType,
+  ReaderSettings,
+  ReaderSettingsParameters,
+  CollectDataConfig,
+  CollectedData,
+  CreatePaymentIntentParams,
+  CreateSetupIntentParams,
+  CollectSetupIntentPaymentMethodParams,
+  SetupIntent,
+  RefundParams,
+  Refund,
+  ICollectInputsParameters,
+  ICollectInputsResult,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -31,6 +46,7 @@ import {
   ISdkManagedPaymentIntent,
   IPaymentIntent,
   ISetReaderDisplayRequest,
+  ICollectConfig,
 } from '@stripe/terminal-js'
 import { Stripe } from 'stripe'
 
@@ -136,6 +152,7 @@ const chargeStatus: { [status: string]: ChargeStatus } = {
  */
 function serializeCharge(c: Stripe.Charge): Charge {
   return {
+    id: c.id,
     stripeId: c.id,
     amount: c.amount,
     currency: c.currency,
@@ -160,6 +177,107 @@ function serializeCharge(c: Stripe.Charge): Charge {
     receiptNumber: c.receipt_number ?? null,
     receiptUrl: c.receipt_url ?? null,
     livemode: c.livemode,
+    balanceTransaction:
+      typeof c.balance_transaction === 'string'
+        ? c.balance_transaction
+        : (c.balance_transaction?.id ?? null),
+    applicationFee:
+      typeof c.application_fee === 'string'
+        ? c.application_fee
+        : (c.application_fee?.id ?? null),
+    applicationFeeAmount: c.application_fee_amount ?? null,
+    onBehalfOf:
+      typeof c.on_behalf_of === 'string'
+        ? c.on_behalf_of
+        : (c.on_behalf_of?.id ?? null),
+    paymentMethodDetails: serializePaymentMethodDetails(
+      c.payment_method_details,
+    ),
+  }
+}
+
+/**
+ * @ignore
+ */
+const paymentMethodType: { [type: string]: PaymentMethodType } = {
+  card_present: 'cardPresent',
+  interac_present: 'interacPresent',
+  card: 'card',
+  wechat_pay: 'wechatPay',
+  affirm: 'affirm',
+}
+
+/**
+ * @ignore
+ */
+function serializePaymentMethodDetails(
+  details: Stripe.Charge.PaymentMethodDetails | null | undefined,
+): PaymentMethodDetails | null {
+  if (!details) return null
+
+  const cardPresent = (details as any).card_present
+  const interacPresent = (details as any).interac_present
+  const card = (details as any).card
+
+  return {
+    type: paymentMethodType[details.type] ?? null,
+    cardPresentDetails: serializeCardPresentDetails(cardPresent),
+    interacPresentDetails: serializeCardPresentDetails(interacPresent),
+    cardDetails: card
+      ? {
+          brand: card.brand ?? null,
+          country: card.country ?? null,
+          expMonth: card.exp_month ?? null,
+          expYear: card.exp_year ?? null,
+          funding: card.funding ?? null,
+          last4: card.last4 ?? null,
+        }
+      : null,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeCardPresentDetails(details: any): CardPresentDetails | null {
+  if (!details) return null
+
+  return {
+    last4: details.last4 ?? null,
+    expMonth: details.exp_month ?? null,
+    expYear: details.exp_year ?? null,
+    cardholderName: details.cardholder_name ?? null,
+    funding: details.funding ?? null,
+    brand: details.brand ?? null,
+    generatedCard: details.generated_card ?? null,
+    emvAuthData: details.emv_auth_data ?? null,
+    country: details.country ?? null,
+    preferredLocales: details.preferred_locales ?? undefined,
+    issuer: details.issuer ?? null,
+    iin: details.iin ?? null,
+    network: details.network ?? null,
+    description: details.description ?? null,
+    location: details.location ?? null,
+    reader: details.reader ?? null,
+    readMethod: details.read_method ?? null,
+    wallet: details.wallet ? { type: details.wallet.type ?? null } : null,
+    receipt: details.receipt
+      ? {
+          accountType: details.receipt.account_type ?? null,
+          applicationCryptogram: details.receipt.application_cryptogram ?? null,
+          applicationPreferredName:
+            details.receipt.application_preferred_name ?? null,
+          authorizationCode: details.receipt.authorization_code ?? null,
+          authorizationResponseCode:
+            details.receipt.authorization_response_code ?? null,
+          cvm: details.receipt.cardholder_verification_method ?? null,
+          dedicatedFileName: details.receipt.dedicated_file_name ?? null,
+          terminalVerificationResult:
+            details.receipt.terminal_verification_results ?? null,
+          transactionStatusInformation:
+            details.receipt.transaction_status_information ?? null,
+        }
+      : null,
   }
 }
 
@@ -290,6 +408,7 @@ export class StripeTerminalWeb extends WebPlugin {
 
   private translateReader(sdkReader: DiscoverReader): Reader {
     return {
+      id: sdkReader.id,
       stripeId: sdkReader.id,
       deviceType: deviceTypes[sdkReader.device_type],
       status: sdkReader.status
@@ -300,6 +419,14 @@ export class StripeTerminalWeb extends WebPlugin {
       locationId: this.isInstanceOfLocation(sdkReader.location)
         ? sdkReader.location.id
         : (sdkReader.location ?? null),
+      location: this.isInstanceOfLocation(sdkReader.location)
+        ? {
+            id: sdkReader.location.id,
+            stripeId: sdkReader.location.id,
+            displayName: sdkReader.location.display_name,
+            livemode: sdkReader.livemode,
+          }
+        : null,
       label: sdkReader.label,
       deviceSoftwareVersion: sdkReader.device_sw_version,
       batteryStatus: BatteryStatus.Unknown,
@@ -343,19 +470,22 @@ export class StripeTerminalWeb extends WebPlugin {
   async connectInternetReader(options: {
     serialNumber: string
     ipAddress?: string
+    id?: string
     stripeId?: string
     failIfInUse?: boolean
     allowCustomerCancel?: boolean
   }): Promise<{ reader: Reader }> {
     const sdk = this.ensureInitialized()
 
-    if (!options.stripeId) {
+    const readerId = options.id ?? options.stripeId
+
+    if (!readerId) {
       throw new Error('Reader ID missing')
     }
 
     // use any here since we don't have all the reader details and don't actually need them all
     const readerOpts: any = {
-      id: options.stripeId,
+      id: readerId,
       object: 'terminal.reader',
       ip_address: options.ipAddress ?? null,
       serial_number: options.serialNumber,
@@ -407,6 +537,83 @@ export class StripeTerminalWeb extends WebPlugin {
     // no equivalent
     console.warn('connectTapToPayReader is only available on iOS and Android.')
     return { reader: null }
+  }
+  async rebootReader(): Promise<void> {
+    // no equivalent
+    console.warn('rebootReader is only available on iOS and Android.')
+  }
+  async getReaderSettings(): Promise<ReaderSettings> {
+    throw new Error('getReaderSettings is only available on iOS and Android.')
+  }
+  async setReaderSettings(
+    _options: ReaderSettingsParameters,
+  ): Promise<ReaderSettings> {
+    throw new Error('setReaderSettings is only available on iOS and Android.')
+  }
+  async collectData(
+    _options: CollectDataConfig,
+  ): Promise<{ data: CollectedData }> {
+    throw new Error('collectData is only available on iOS and Android.')
+  }
+  async createPaymentIntent(
+    _params: CreatePaymentIntentParams,
+  ): Promise<{ intent: PaymentIntent | null }> {
+    throw new Error('createPaymentIntent is only available on iOS and Android.')
+  }
+  async cancelPaymentIntent(): Promise<{ intent: PaymentIntent | null }> {
+    throw new Error('cancelPaymentIntent is only available on iOS and Android.')
+  }
+  async createSetupIntent(
+    _params: CreateSetupIntentParams,
+  ): Promise<{ intent: SetupIntent | null }> {
+    throw new Error('createSetupIntent is only available on iOS and Android.')
+  }
+  async retrieveSetupIntent(_options: {
+    clientSecret: string
+  }): Promise<{ intent: SetupIntent | null }> {
+    throw new Error('retrieveSetupIntent is only available on iOS and Android.')
+  }
+  async collectSetupIntentPaymentMethod(
+    _params?: CollectSetupIntentPaymentMethodParams,
+  ): Promise<{ intent: SetupIntent | null }> {
+    throw new Error(
+      'collectSetupIntentPaymentMethod is only available on iOS and Android.',
+    )
+  }
+  async cancelCollectSetupIntentPaymentMethod(): Promise<void> {
+    // no equivalent
+    console.warn(
+      'cancelCollectSetupIntentPaymentMethod is only available on iOS and Android.',
+    )
+  }
+  async confirmSetupIntent(): Promise<{ intent: SetupIntent | null }> {
+    throw new Error('confirmSetupIntent is only available on iOS and Android.')
+  }
+  async cancelSetupIntent(): Promise<{ intent: SetupIntent | null }> {
+    throw new Error('cancelSetupIntent is only available on iOS and Android.')
+  }
+  async collectRefundPaymentMethod(_params: RefundParams): Promise<void> {
+    throw new Error(
+      'collectRefundPaymentMethod is only available on iOS and Android.',
+    )
+  }
+  async cancelCollectRefundPaymentMethod(): Promise<void> {
+    // no equivalent
+    console.warn(
+      'cancelCollectRefundPaymentMethod is only available on iOS and Android.',
+    )
+  }
+  async confirmRefund(): Promise<{ refund: Refund | null }> {
+    throw new Error('confirmRefund is only available on iOS and Android.')
+  }
+  async collectInputs(
+    _params: ICollectInputsParameters,
+  ): Promise<{ collectInputResults: ICollectInputsResult[] }> {
+    throw new Error('collectInputs is only available on iOS and Android.')
+  }
+  async cancelCollectInputs(): Promise<void> {
+    // no equivalent
+    console.warn('cancelCollectInputs is only available on iOS and Android.')
   }
   async getConnectedReader(): Promise<{ reader: Reader | null }> {
     const sdk = this.ensureInitialized()
@@ -497,6 +704,7 @@ export class StripeTerminalWeb extends WebPlugin {
 
     return {
       intent: {
+        id: paymentIntent.id,
         stripeId: paymentIntent.id,
         created: paymentIntent.created,
         status: paymentIntentStatus[paymentIntent.status],
@@ -523,6 +731,13 @@ export class StripeTerminalWeb extends WebPlugin {
         'No `clientSecret` was found. Make sure to run `retrievePaymentIntent` before running this method.',
       )
     }
+    // The JS SDK has no collect-time option to hide the reader's cancel button.
+    if (collectConfig?.customerCancellation === 'disableIfAvailable') {
+      throw new Error(
+        "customerCancellation: 'disableIfAvailable' is only supported on iOS and Android.",
+      )
+    }
+
     const result = await sdk.collectPaymentMethod(this.currentClientSecret, {
       config_override: {
         update_payment_intent: collectConfig?.updatePaymentIntent,
@@ -530,6 +745,10 @@ export class StripeTerminalWeb extends WebPlugin {
         tipping: {
           eligible_amount: collectConfig?.tipping?.eligibleAmount,
         },
+        request_dynamic_currency_conversion:
+          collectConfig?.requestDynamicCurrencyConversion,
+        allow_redisplay: collectConfig?.allowRedisplay as
+          ICollectConfig['allow_redisplay'] | undefined,
       },
     })
 
@@ -541,6 +760,7 @@ export class StripeTerminalWeb extends WebPlugin {
 
       return {
         intent: {
+          id: this.currentPaymentIntent.id,
           stripeId: this.currentPaymentIntent.id,
           created: this.currentPaymentIntent.created,
           status: paymentIntentStatus[this.currentPaymentIntent.status],
@@ -583,6 +803,7 @@ export class StripeTerminalWeb extends WebPlugin {
 
       return {
         intent: {
+          id: res.paymentIntent.id,
           stripeId: res.paymentIntent.id,
           created: res.paymentIntent.created,
           status: paymentIntentStatus[res.paymentIntent.status],
@@ -666,21 +887,20 @@ export class StripeTerminalWeb extends WebPlugin {
       throw new Error(json)
     }
 
-    const locations: Location[] = json.data.map(
-      (l: any): Location => ({
-        stripeId: l.id,
-        displayName: l.display_name,
-        livemode: l.livemode,
-        address: {
-          city: l.address?.city,
-          country: l.address?.country,
-          line1: l.address?.line1,
-          line2: l.address?.line2,
-          postalCode: l.address?.postal_code,
-          state: l.address?.state,
-        },
-      }),
-    )
+    const locations: Location[] = json.data.map((l: any): Location => ({
+      id: l.id,
+      stripeId: l.id,
+      displayName: l.display_name,
+      livemode: l.livemode,
+      address: {
+        city: l.address?.city,
+        country: l.address?.country,
+        line1: l.address?.line1,
+        line2: l.address?.line2,
+        postalCode: l.address?.postal_code,
+        state: l.address?.state,
+      },
+    }))
 
     return {
       locations,

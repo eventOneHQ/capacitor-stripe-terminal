@@ -19,6 +19,20 @@ import {
   PaymentIntent,
   Cart,
   ListLocationsParameters,
+  LogLevel,
+  BatteryLevel,
+  ReaderSettings,
+  ReaderSettingsParameters,
+  CollectDataConfig,
+  CollectedData,
+  CreatePaymentIntentParams,
+  CreateSetupIntentParams,
+  CollectSetupIntentPaymentMethodParams,
+  SetupIntent,
+  RefundParams,
+  Refund,
+  ICollectInputsParameters,
+  ICollectInputsResult,
   SimulatedCardType,
   SimulatorConfiguration,
   DeviceType,
@@ -61,6 +75,8 @@ export class StripeTerminalPlugin {
   private isCollectingPaymentMethod = false
   private listeners: { [key: string]: PluginListenerHandle } = {}
 
+  private _logLevel?: LogLevel
+
   private simulatedCardType: SimulatedCardType | null = null
 
   private selectedSdkType: 'native' | 'js' = 'native'
@@ -99,6 +115,7 @@ export class StripeTerminalPlugin {
   constructor(options: StripeTerminalConfig) {
     this._fetchConnectionToken = options.fetchConnectionToken
     this._onUnexpectedReaderDisconnect = options.onUnexpectedReaderDisconnect
+    this._logLevel = options.logLevel
   }
 
   private isNative(): boolean {
@@ -167,7 +184,7 @@ export class StripeTerminalPlugin {
     }
 
     await Promise.all([
-      StripeTerminal.initialize(),
+      StripeTerminal.initialize({ logLevel: this._logLevel }),
       this.stripeTerminalWeb?.initialize(),
     ])
 
@@ -203,6 +220,7 @@ export class StripeTerminalPlugin {
       | 'didStartInstallingUpdate'
       | 'didReportReaderSoftwareUpdateProgress'
       | 'didFinishInstallingUpdate'
+      | 'didUpdateBatteryLevel'
       | 'didStartReaderReconnect'
       | 'didSucceedReaderReconnect'
       | 'didFailReaderReconnect',
@@ -478,6 +496,8 @@ export class StripeTerminalPlugin {
     const data = await this.sdk.connectUsbReader({
       serialNumber: reader.serialNumber,
       locationId: config.locationId,
+      autoReconnectOnUnexpectedDisconnect:
+        config.autoReconnectOnUnexpectedDisconnect,
     })
 
     return this.objectExists(data?.reader)
@@ -543,7 +563,7 @@ export class StripeTerminalPlugin {
     const data = await this.sdk.connectInternetReader({
       serialNumber: reader.serialNumber,
       ipAddress: reader.ipAddress ?? undefined,
-      stripeId: reader.stripeId ?? undefined,
+      id: reader.id ?? reader.stripeId ?? undefined,
       ...config,
     })
 
@@ -578,6 +598,50 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return await this.sdk.disconnectReader()
+  }
+
+  /**
+   * Reboots the connected reader.
+   *
+   * The reader will disconnect while it restarts.
+   */
+  public async rebootReader(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.rebootReader()
+  }
+
+  /**
+   * Retrieves the settings currently reported by the connected reader.
+   */
+  public async getReaderSettings(): Promise<ReaderSettings> {
+    this.ensureInitialized()
+
+    return await this.sdk.getReaderSettings()
+  }
+
+  /**
+   * Updates the settings on the connected reader and returns the resulting settings.
+   */
+  public async setReaderSettings(
+    settings: ReaderSettingsParameters,
+  ): Promise<ReaderSettings> {
+    this.ensureInitialized()
+
+    return await this.sdk.setReaderSettings(settings)
+  }
+
+  /**
+   * Collects raw card data (magstripe or NFC UID) from the connected reader without creating a payment.
+   *
+   * @see https://stripe.com/docs/terminal/features/collect-data
+   */
+  public async collectData(config: CollectDataConfig): Promise<CollectedData> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.collectData(config)
+
+    return data.data
   }
 
   public async connectionStatus(
@@ -661,6 +725,17 @@ export class StripeTerminalPlugin {
     )
   }
 
+  /**
+   * Subscribe to battery updates reported by the connected reader.
+   *
+   * Bluetooth and Tap to Pay readers only.
+   */
+  public async didUpdateBatteryLevel(
+    callback: (batteryLevel: BatteryLevel) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener('didUpdateBatteryLevel', callback)
+  }
+
   public async didReportAvailableUpdate(
     callback: (update: ReaderSoftwareUpdate | null) => void,
   ): Promise<PluginListenerHandle> {
@@ -706,6 +781,21 @@ export class StripeTerminalPlugin {
     )
   }
 
+  /**
+   * Creates a new `PaymentIntent` on the device.
+   *
+   * This requires a connected reader and is only available for readers that support creating payment intents on device. Most integrations should create the PaymentIntent on their backend and use `retrievePaymentIntent` instead.
+   */
+  public async createPaymentIntent(
+    params: CreatePaymentIntentParams,
+  ): Promise<PaymentIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.createPaymentIntent(params)
+
+    return this.normalizePaymentIntent(this.objectExists(data?.intent))
+  }
+
   public async retrievePaymentIntent(
     clientSecret: string,
   ): Promise<PaymentIntent | null> {
@@ -716,6 +806,150 @@ export class StripeTerminalPlugin {
     const pi = this.objectExists(data?.intent)
 
     return this.normalizePaymentIntent(pi)
+  }
+
+  /**
+   * Cancels the active `PaymentIntent`.
+   */
+  public async cancelPaymentIntent(): Promise<PaymentIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.cancelPaymentIntent()
+
+    return this.normalizePaymentIntent(this.objectExists(data?.intent))
+  }
+
+  /**
+   * Creates a new `SetupIntent` on the device, used to save a card for future payments.
+   *
+   * @see https://stripe.com/docs/terminal/features/saving-cards/save-cards-directly
+   */
+  public async createSetupIntent(
+    params: CreateSetupIntentParams,
+  ): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.createSetupIntent(params)
+
+    return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Retrieves a `SetupIntent` created on your backend and makes it the active setup intent.
+   */
+  public async retrieveSetupIntent(
+    clientSecret: string,
+  ): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.retrieveSetupIntent({ clientSecret })
+
+    return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Collects a payment method for the active `SetupIntent`.
+   *
+   * Call `createSetupIntent` or `retrieveSetupIntent` first.
+   */
+  public async collectSetupIntentPaymentMethod(
+    params?: CollectSetupIntentPaymentMethodParams,
+  ): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.collectSetupIntentPaymentMethod(params)
+
+    return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Cancels an in-progress `collectSetupIntentPaymentMethod`.
+   */
+  public async cancelCollectSetupIntentPaymentMethod(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelCollectSetupIntentPaymentMethod()
+  }
+
+  /**
+   * Confirms the active `SetupIntent`, saving the collected card for future use.
+   */
+  public async confirmSetupIntent(): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.confirmSetupIntent()
+
+    return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Cancels the active `SetupIntent`.
+   */
+  public async cancelSetupIntent(): Promise<SetupIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.cancelSetupIntent()
+
+    return this.objectExists(data?.intent)
+  }
+
+  /**
+   * Collects a payment method for an in-person refund.
+   *
+   * Follow this with `confirmRefund` to complete the refund. Interac refunds must be processed in person.
+   *
+   * @see https://stripe.com/docs/terminal/features/refunds
+   */
+  public async collectRefundPaymentMethod(params: RefundParams): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.collectRefundPaymentMethod(params)
+  }
+
+  /**
+   * Cancels an in-progress `collectRefundPaymentMethod`.
+   */
+  public async cancelCollectRefundPaymentMethod(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelCollectRefundPaymentMethod()
+  }
+
+  /**
+   * Confirms the refund for the payment method collected by `collectRefundPaymentMethod`.
+   */
+  public async confirmRefund(): Promise<Refund | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.confirmRefund()
+
+    return this.objectExists(data?.refund)
+  }
+
+  /**
+   * Displays forms on the connected reader and collects the customer's input.
+   *
+   * Only supported on Internet-connected smart readers (for example the BBPOS WisePOS E and Stripe Reader S700).
+   *
+   * @see https://stripe.com/docs/terminal/features/collect-inputs
+   */
+  public async collectInputs(
+    params: ICollectInputsParameters,
+  ): Promise<ICollectInputsResult[]> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.collectInputs(params)
+
+    return data?.collectInputResults ?? []
+  }
+
+  /**
+   * Cancels an in-progress `collectInputs`.
+   */
+  public async cancelCollectInputs(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelCollectInputs()
   }
 
   public async collectPaymentMethod(
