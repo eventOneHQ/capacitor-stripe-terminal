@@ -726,6 +726,14 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     public func reader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
         notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
     }
+
+    public func reader(_: Reader, didReportBatteryLevel batteryLevel: Float, status: BatteryStatus, isCharging: Bool) {
+        notifyListeners("didUpdateBatteryLevel", data: [
+            "batteryLevel": batteryLevel,
+            "batteryStatus": status.rawValue,
+            "isCharging": isCharging,
+        ])
+    }
         
     // MARK: TapToPayReaderDelegate
 

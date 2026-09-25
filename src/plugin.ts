@@ -20,6 +20,7 @@ import {
   Cart,
   ListLocationsParameters,
   LogLevel,
+  BatteryLevel,
   SimulatedCardType,
   SimulatorConfiguration,
   DeviceType,
@@ -207,6 +208,7 @@ export class StripeTerminalPlugin {
       | 'didStartInstallingUpdate'
       | 'didReportReaderSoftwareUpdateProgress'
       | 'didFinishInstallingUpdate'
+      | 'didUpdateBatteryLevel'
       | 'didStartReaderReconnect'
       | 'didSucceedReaderReconnect'
       | 'didFailReaderReconnect',
@@ -663,6 +665,17 @@ export class StripeTerminalPlugin {
       callback,
       (data: any) => parseFloat(data.value),
     )
+  }
+
+  /**
+   * Subscribe to battery updates reported by the connected reader.
+   *
+   * Bluetooth and Tap to Pay readers only.
+   */
+  public async didUpdateBatteryLevel(
+    callback: (batteryLevel: BatteryLevel) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener('didUpdateBatteryLevel', callback)
   }
 
   public async didReportAvailableUpdate(

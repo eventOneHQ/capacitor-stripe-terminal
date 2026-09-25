@@ -25,6 +25,7 @@ import com.stripe.stripeterminal.external.callable.LocationListCallback;
 import com.stripe.stripeterminal.external.callable.MobileReaderListener;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
 import com.stripe.stripeterminal.external.callable.ReaderCallback;
+import com.stripe.stripeterminal.external.callable.TapToPayReaderListener;
 import com.stripe.stripeterminal.external.callable.TerminalListener;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.Cart;
@@ -86,7 +87,9 @@ public class StripeTerminal
     TerminalListener,
     DiscoveryListener,
     MobileReaderListener,
-    AppsOnDevicesListener {
+    TapToPayReaderListener,
+    AppsOnDevicesListener
+{
 
   Cancelable pendingDiscoverReaders = null;
   Cancelable pendingCollectPaymentMethod = null;
@@ -95,6 +98,11 @@ public class StripeTerminal
 
   ReaderSoftwareUpdate currentUpdate = null;
   PaymentIntent currentPaymentIntent = null;
+
+  // The Reader object never carries battery status, so cache what the reader reports.
+  Float lastBatteryLevel = null;
+  BatteryStatus lastBatteryStatus = null;
+  Boolean lastIsCharging = null;
   ReaderEvent lastReaderEvent = ReaderEvent.CARD_REMOVED;
   List<? extends Reader> discoveredReadersList = null;
   Cancelable pendingInstallUpdate = null;
@@ -338,7 +346,15 @@ public class StripeTerminal
       @Override
       public void onSuccess(@NonNull Reader reader) {
         JSObject ret = new JSObject();
-        ret.put("reader", TerminalUtils.serializeReader(reader));
+        ret.put(
+          "reader",
+          TerminalUtils.serializeReader(
+            reader,
+            lastBatteryLevel,
+            lastBatteryStatus,
+            lastIsCharging
+          )
+        );
         call.resolve(ret);
       }
 
@@ -502,7 +518,15 @@ public class StripeTerminal
     if (reader == null) {
       ret.put("reader", JSObject.NULL);
     } else {
-      ret.put("reader", TerminalUtils.serializeReader(reader));
+      ret.put(
+        "reader",
+        TerminalUtils.serializeReader(
+          reader,
+          lastBatteryLevel,
+          lastBatteryStatus,
+          lastIsCharging
+        )
+      );
     }
 
     call.resolve(ret);
@@ -1024,6 +1048,9 @@ public class StripeTerminal
 
   @Override
   public void onDisconnect(@NonNull DisconnectReason reason) {
+    lastBatteryLevel = null;
+    lastBatteryStatus = null;
+    lastIsCharging = null;
     notifyListeners("didReportUnexpectedReaderDisconnect", new JSObject());
   }
 
@@ -1113,11 +1140,17 @@ public class StripeTerminal
     @NonNull BatteryStatus batteryStatus,
     boolean isCharging
   ) {
+    // Reader.batteryStatus is always UNKNOWN on Android, so cache what the reader reports here.
+    lastBatteryLevel = batteryLevel;
+    lastBatteryStatus = batteryStatus;
+    lastIsCharging = isCharging;
+
     JSObject ret = new JSObject();
     ret.put("batteryLevel", batteryLevel);
     ret.put("batteryStatus", batteryStatus.ordinal());
     ret.put("isCharging", isCharging);
 
+    notifyListeners("didUpdateBatteryLevel", ret);
     notifyListeners("didReportBatteryLevel", ret);
   }
 

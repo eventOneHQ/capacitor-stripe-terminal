@@ -45,6 +45,15 @@ public class TerminalUtils {
     }
   }
   public static Object serializeReader(Reader reader) {
+    return serializeReader(reader, null, null, null);
+  }
+
+  public static Object serializeReader(
+    Reader reader,
+    Float batteryLevel,
+    BatteryStatus batteryStatus,
+    Boolean isCharging
+  ) {
     if (reader == null) {
       return JSObject.NULL;
     }
@@ -88,18 +97,26 @@ public class TerminalUtils {
     object.put("isAvailableUpdate", reader.getAvailableUpdate() != null);
 
     // battery level
-    Float level = reader.getBatteryLevel();
+    Float level =
+      batteryLevel != null ? batteryLevel : reader.getBatteryLevel();
     if (level != null) {
       object.put("batteryLevel", (double) level);
     } else {
       object.put("batteryLevel", JSObject.NULL);
     }
 
-    // batteryStatus is not available on the Reader object in the Android SDK
-    object.put("batteryStatus", BatteryStatus.UNKNOWN.ordinal());
+    // The Reader object never carries a battery status, so fall back to the
+    // last value reported by MobileReaderListener.onBatteryLevelUpdate.
+    object.put(
+      "batteryStatus",
+      (batteryStatus != null ? batteryStatus : BatteryStatus.UNKNOWN).ordinal()
+    );
 
     // isCharging
-    object.put("isCharging", reader.isCharging());
+    object.put(
+      "isCharging",
+      isCharging != null ? isCharging : reader.isCharging()
+    );
 
     //
     // INTERNET READER PROPS

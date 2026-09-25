@@ -1024,6 +1024,26 @@ export interface CollectConfig {
 }
 
 /**
+ * The battery state reported by a connected Bluetooth reader.
+ *
+ * @category Reader
+ */
+export interface BatteryLevel {
+  /**
+   * The reader's battery level in the range `[0, 1]`.
+   */
+  batteryLevel: number
+  /**
+   * The reader's battery status.
+   */
+  batteryStatus: BatteryStatus
+  /**
+   * Whether the reader is currently charging.
+   */
+  isCharging: boolean
+}
+
+/**
  * @ignore
  */
 export interface StripeTerminalInterface {
@@ -1151,6 +1171,16 @@ export interface StripeTerminalInterface {
   addListener(
     eventName: 'didChangeConnectionStatus',
     listenerFunc: (status: any) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didChangePaymentStatus',
+    listenerFunc: (status: { status: PaymentStatus }) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didUpdateBatteryLevel',
+    listenerFunc: (data: BatteryLevel) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
