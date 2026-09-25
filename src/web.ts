@@ -23,6 +23,7 @@ import {
   ReaderSettingsParameters,
   CollectDataConfig,
   CollectedData,
+  CreatePaymentIntentParams,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -433,6 +434,14 @@ export class StripeTerminalWeb extends WebPlugin {
     _options: CollectDataConfig,
   ): Promise<{ data: CollectedData }> {
     throw new Error('collectData is only available on iOS and Android.')
+  }
+  async createPaymentIntent(
+    _params: CreatePaymentIntentParams,
+  ): Promise<{ intent: PaymentIntent | null }> {
+    throw new Error('createPaymentIntent is only available on iOS and Android.')
+  }
+  async cancelPaymentIntent(): Promise<{ intent: PaymentIntent | null }> {
+    throw new Error('cancelPaymentIntent is only available on iOS and Android.')
   }
   async getConnectedReader(): Promise<{ reader: Reader | null }> {
     const sdk = this.ensureInitialized()

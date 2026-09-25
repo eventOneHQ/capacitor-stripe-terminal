@@ -16,6 +16,7 @@ import com.stripe.stripeterminal.external.models.Location;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
 import com.stripe.stripeterminal.external.models.PaymentMethod;
+import com.stripe.stripeterminal.external.models.PaymentMethodType;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderAccessibility;
@@ -27,8 +28,14 @@ import com.stripe.stripeterminal.external.models.ReaderTextToSpeechStatus;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.Tip;
 import com.stripe.stripeterminal.log.LogLevel;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import org.json.JSONException;
 
 public class TerminalUtils {
 
@@ -116,6 +123,56 @@ public class TerminalUtils {
     return "disableIfAvailable".equals(value)
       ? CustomerCancellation.DISABLE_IF_AVAILABLE
       : CustomerCancellation.ENABLE_IF_AVAILABLE;
+  }
+
+  public static PaymentMethodType translateJSPaymentMethodType(String value) {
+    if ("interacPresent".equals(value)) {
+      return PaymentMethodType.INTERAC_PRESENT;
+    } else if ("card".equals(value)) {
+      return PaymentMethodType.CARD;
+    } else if ("wechatPay".equals(value)) {
+      return PaymentMethodType.WECHAT_PAY;
+    } else if ("affirm".equals(value)) {
+      return PaymentMethodType.AFFIRM;
+    }
+
+    return PaymentMethodType.CARD_PRESENT;
+  }
+
+  public static List<PaymentMethodType> translateJSPaymentMethodTypes(
+    JSArray values
+  ) throws JSONException {
+    List<PaymentMethodType> types = new ArrayList<>();
+
+    if (values == null) {
+      types.add(PaymentMethodType.CARD_PRESENT);
+      return types;
+    }
+
+    for (Object value : values.toList()) {
+      types.add(translateJSPaymentMethodType(String.valueOf(value)));
+    }
+
+    if (types.isEmpty()) {
+      types.add(PaymentMethodType.CARD_PRESENT);
+    }
+
+    return types;
+  }
+
+  public static Map<String, String> readMetadata(JSObject metadata) {
+    if (metadata == null) {
+      return null;
+    }
+
+    Map<String, String> map = new HashMap<>();
+    Iterator<String> keys = metadata.keys();
+    while (keys.hasNext()) {
+      String key = keys.next();
+      map.put(key, metadata.optString(key));
+    }
+
+    return map;
   }
   public static Object serializeReader(Reader reader) {
     return serializeReader(reader, null, null, null);

@@ -31,6 +31,8 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "cancelInstallUpdate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelCollectPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "retrievePaymentIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "createPaymentIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelPaymentIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "collectPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirmPaymentIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearCachedCredentials", returnType: CAPPluginReturnPromise),
@@ -569,6 +571,69 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
                 }
             } else {
                 call.reject("There is no active payment intent. Make sure you called retrievePaymentIntent first")
+            }
+        }
+    }
+
+    @objc func createPaymentIntent(_ call: CAPPluginCall) {
+        guard let amount = call.getInt("amount"), let currency = call.getString("currency") else {
+            call.reject("Must provide an amount and a currency")
+            return
+        }
+
+        let params: PaymentIntentParameters
+        do {
+            let paymentMethodTypes = call.getArray("paymentMethodTypes", String.self) ?? ["cardPresent"]
+            let builder = PaymentIntentParametersBuilder(amount: UInt(amount), currency: currency)
+            _ = builder.setPaymentMethodTypes(StripeTerminalUtils.translateJSPaymentMethodTypes(paymentMethodTypes))
+
+            if let captureMethod = call.getString("captureMethod") {
+                _ = builder.setCaptureMethod(captureMethod == "manual" ? .manual : .automatic)
+            }
+            if let setupFutureUsage = call.getString("setupFutureUsage") { _ = builder.setSetupFutureUsage(setupFutureUsage) }
+            if let onBehalfOf = call.getString("onBehalfOf") { _ = builder.setOnBehalfOf(onBehalfOf) }
+            if let transferDataDestination = call.getString("transferDataDestination") { _ = builder.setTransferDataDestination(transferDataDestination) }
+            if let transferGroup = call.getString("transferGroup") { _ = builder.setTransferGroup(transferGroup) }
+            if let applicationFeeAmount = call.getInt("applicationFeeAmount") { _ = builder.setApplicationFeeAmount(NSNumber(value: applicationFeeAmount)) }
+            if let description = call.getString("description") { _ = builder.setStripeDescription(description) }
+            if let statementDescriptor = call.getString("statementDescriptor") { _ = builder.setStatementDescriptor(statementDescriptor) }
+            if let statementDescriptorSuffix = call.getString("statementDescriptorSuffix") { _ = builder.setStatementDescriptorSuffix(statementDescriptorSuffix) }
+            if let receiptEmail = call.getString("receiptEmail") { _ = builder.setReceiptEmail(receiptEmail) }
+            if let customer = call.getString("customer") { _ = builder.setCustomer(customer) }
+            if let metadata = call.getObject("metadata") as? [String: String] { _ = builder.setMetadata(metadata) }
+
+            params = try builder.build()
+        } catch {
+            call.reject("Failed to build payment intent parameters: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        Terminal.shared.createPaymentIntent(params) { intent, error in
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else if let intent = intent {
+                self.currentPaymentIntent = intent
+                call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: intent)])
+            } else {
+                call.reject("Unable to create payment intent")
+            }
+        }
+    }
+
+    @objc func cancelPaymentIntent(_ call: CAPPluginCall) {
+        guard let intent = currentPaymentIntent else {
+            call.reject("There is no active payment intent. Make sure you called retrievePaymentIntent or createPaymentIntent first")
+            return
+        }
+
+        Terminal.shared.cancelPaymentIntent(intent) { canceledIntent, error in
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else if let canceledIntent = canceledIntent {
+                self.currentPaymentIntent = nil
+                call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: canceledIntent)])
+            } else {
+                call.reject("Unable to cancel payment intent")
             }
         }
     }

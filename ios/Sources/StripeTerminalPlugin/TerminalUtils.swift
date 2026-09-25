@@ -63,6 +63,20 @@ public class StripeTerminalUtils {
         }
     }
 
+    static func translateJSPaymentMethodType(_ value: String) -> PaymentMethodType {
+        switch value {
+        case "interacPresent": return .interacPresent
+        case "card": return .card
+        case "wechatPay": return .wechatPay
+        case "affirm": return .affirm
+        default: return .cardPresent
+        }
+    }
+
+    static func translateJSPaymentMethodTypes(_ values: [String]) -> [NSNumber] {
+        return values.map { NSNumber(value: translateJSPaymentMethodType($0).rawValue) }
+    }
+
     static func translateJSDeviceType(_ type: Int) -> DeviceType? {
         switch type {
         case 0: return .chipper2X

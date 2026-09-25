@@ -25,6 +25,7 @@ import {
   ReaderSettingsParameters,
   CollectDataConfig,
   CollectedData,
+  CreatePaymentIntentParams,
   SimulatedCardType,
   SimulatorConfiguration,
   DeviceType,
@@ -771,6 +772,21 @@ export class StripeTerminalPlugin {
     )
   }
 
+  /**
+   * Creates a new `PaymentIntent` on the device.
+   *
+   * This requires a connected reader and is only available for readers that support creating payment intents on device. Most integrations should create the PaymentIntent on their backend and use `retrievePaymentIntent` instead.
+   */
+  public async createPaymentIntent(
+    params: CreatePaymentIntentParams,
+  ): Promise<PaymentIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.createPaymentIntent(params)
+
+    return this.normalizePaymentIntent(this.objectExists(data?.intent))
+  }
+
   public async retrievePaymentIntent(
     clientSecret: string,
   ): Promise<PaymentIntent | null> {
@@ -781,6 +797,17 @@ export class StripeTerminalPlugin {
     const pi = this.objectExists(data?.intent)
 
     return this.normalizePaymentIntent(pi)
+  }
+
+  /**
+   * Cancels the active `PaymentIntent`.
+   */
+  public async cancelPaymentIntent(): Promise<PaymentIntent | null> {
+    this.ensureInitialized()
+
+    const data = await this.sdk.cancelPaymentIntent()
+
+    return this.normalizePaymentIntent(this.objectExists(data?.intent))
   }
 
   public async collectPaymentMethod(

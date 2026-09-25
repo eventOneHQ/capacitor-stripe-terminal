@@ -1010,6 +1010,21 @@ export type CustomerCancellation =
   | 'disableIfAvailable'
   | 'unspecified'
 
+/**
+ * The type of payment method a PaymentIntent or SetupIntent may collect.
+ */
+export type PaymentMethodType =
+  | 'cardPresent'
+  | 'interacPresent'
+  | 'card'
+  | 'wechatPay'
+  | 'affirm'
+
+/**
+ * When to capture funds for a PaymentIntent.
+ */
+export type CaptureMethod = 'automatic' | 'manual'
+
 export interface CollectConfig {
   /**
    * Bypass tipping selection if it would have otherwise been shown.
@@ -1031,6 +1046,79 @@ export interface CollectConfig {
    * @default false
    */
   updatePaymentIntent?: boolean
+}
+
+/**
+ * Parameters used to create a `PaymentIntent` on the device.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/payment_intents/create
+ */
+export interface CreatePaymentIntentParams {
+  /**
+   * The amount of the payment, provided in the currency's smallest unit.
+   */
+  amount: number
+  /**
+   * Three-letter ISO currency code, in lowercase.
+   */
+  currency: string
+  /**
+   * The payment method types this PaymentIntent may use.
+   *
+   * @default ['cardPresent']
+   */
+  paymentMethodTypes?: PaymentMethodType[]
+  /**
+   * When to capture the funds.
+   *
+   * @default 'automatic'
+   */
+  captureMethod?: CaptureMethod
+  /**
+   * Indicates that you intend to make future payments with this PaymentIntent's payment method.
+   */
+  setupFutureUsage?: 'off_session' | 'on_session'
+  /**
+   * The Stripe account ID for which this payment is intended.
+   */
+  onBehalfOf?: string
+  /**
+   * The account where funds from the payment will be transferred to upon payment success.
+   */
+  transferDataDestination?: string
+  /**
+   * A string that identifies the resulting payment as part of a group.
+   */
+  transferGroup?: string
+  /**
+   * The amount of the application fee collected, provided in the currency's smallest unit.
+   */
+  applicationFeeAmount?: number
+  /**
+   * An arbitrary string attached to the object, displayed alongside the payment in the Stripe dashboard.
+   */
+  description?: string
+  /**
+   * Extra information that will appear on your customer's statement.
+   */
+  statementDescriptor?: string
+  /**
+   * Extra dynamic information concatenated with `statementDescriptor` on your customer's statement.
+   */
+  statementDescriptorSuffix?: string
+  /**
+   * Email address that the receipt for the resulting payment will be sent to.
+   */
+  receiptEmail?: string
+  /**
+   * The ID of the customer this payment is for.
+   */
+  customer?: string
+  /**
+   * Set of key-value pairs attached to the object.
+   */
+  metadata?: Record<string, string>
 }
 
 /**
@@ -1225,6 +1313,10 @@ export interface StripeTerminalInterface {
 
   cancelInstallUpdate(): Promise<void>
 
+  createPaymentIntent(
+    params: CreatePaymentIntentParams,
+  ): Promise<{ intent: PaymentIntent | null }>
+
   retrievePaymentIntent(options: {
     clientSecret: string
   }): Promise<{ intent: PaymentIntent | null }>
@@ -1236,6 +1328,8 @@ export interface StripeTerminalInterface {
   cancelCollectPaymentMethod(): Promise<void>
 
   confirmPaymentIntent(): Promise<{ intent: PaymentIntent }>
+
+  cancelPaymentIntent(): Promise<{ intent: PaymentIntent | null }>
 
   clearCachedCredentials(): Promise<void>
 

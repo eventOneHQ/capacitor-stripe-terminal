@@ -30,6 +30,7 @@ import com.stripe.stripeterminal.external.callable.ReaderSettingsCallback;
 import com.stripe.stripeterminal.external.callable.TapToPayReaderListener;
 import com.stripe.stripeterminal.external.callable.TerminalListener;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
+import com.stripe.stripeterminal.external.models.CaptureMethod;
 import com.stripe.stripeterminal.external.models.Cart;
 import com.stripe.stripeterminal.external.models.CartLineItem;
 import com.stripe.stripeterminal.external.models.CollectDataConfiguration;
@@ -48,6 +49,7 @@ import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
 import com.stripe.stripeterminal.external.models.ListLocationsParameters;
 import com.stripe.stripeterminal.external.models.Location;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
+import com.stripe.stripeterminal.external.models.PaymentIntentParameters;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
@@ -67,6 +69,7 @@ import com.stripe.stripeterminal.external.models.TerminalException;
 import com.stripe.stripeterminal.log.LogLevel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -813,6 +816,142 @@ public class StripeTerminal
         "There is no active payment intent. Make sure you called retrievePaymentIntent first"
       );
     }
+  }
+
+  @PluginMethod
+  public void createPaymentIntent(final PluginCall call) {
+    Integer amount = call.getInt("amount");
+    String currency = call.getString("currency");
+
+    if (amount == null || currency == null) {
+      call.reject("Must provide an amount and a currency");
+      return;
+    }
+
+    try {
+      PaymentIntentParameters.Builder builder =
+        new PaymentIntentParameters.Builder(
+          TerminalUtils.translateJSPaymentMethodTypes(
+            call.getArray("paymentMethodTypes")
+          )
+        )
+          .setAmount(amount)
+          .setCurrency(currency);
+
+      String captureMethod = call.getString("captureMethod");
+      if (captureMethod != null) {
+        builder.setCaptureMethod(
+          "manual".equals(captureMethod)
+            ? CaptureMethod.Manual
+            : CaptureMethod.Automatic
+        );
+      }
+
+      if (
+        call.getString("setupFutureUsage") != null
+      ) builder.setSetupFutureUsage(call.getString("setupFutureUsage"));
+      if (call.getString("onBehalfOf") != null) builder.setOnBehalfOf(
+        call.getString("onBehalfOf")
+      );
+      if (
+        call.getString("transferDataDestination") != null
+      ) builder.setTransferDataDestination(
+        call.getString("transferDataDestination")
+      );
+      if (call.getString("transferGroup") != null) builder.setTransferGroup(
+        call.getString("transferGroup")
+      );
+      if (
+        call.getInt("applicationFeeAmount") != null
+      ) builder.setApplicationFeeAmount(
+        call.getInt("applicationFeeAmount").longValue()
+      );
+      if (call.getString("description") != null) builder.setDescription(
+        call.getString("description")
+      );
+      if (
+        call.getString("statementDescriptor") != null
+      ) builder.setStatementDescriptor(call.getString("statementDescriptor"));
+      if (
+        call.getString("statementDescriptorSuffix") != null
+      ) builder.setStatementDescriptorSuffix(
+        call.getString("statementDescriptorSuffix")
+      );
+      if (call.getString("receiptEmail") != null) builder.setReceiptEmail(
+        call.getString("receiptEmail")
+      );
+      if (call.getString("customer") != null) builder.setCustomer(
+        call.getString("customer")
+      );
+
+      Map<String, String> metadata = TerminalUtils.readMetadata(
+        call.getObject("metadata")
+      );
+      if (metadata != null) builder.setMetadata(metadata);
+
+      Terminal.getInstance().createPaymentIntent(
+        builder.build(),
+        createPaymentIntentCallback(call)
+      );
+    } catch (JSONException e) {
+      call.reject("Unable to read payment intent parameters", e);
+    }
+  }
+
+  @PluginMethod
+  public void cancelPaymentIntent(final PluginCall call) {
+    if (currentPaymentIntent == null) {
+      call.reject(
+        "There is no active payment intent. Make sure you called retrievePaymentIntent or createPaymentIntent first"
+      );
+      return;
+    }
+
+    Terminal.getInstance().cancelPaymentIntent(
+      currentPaymentIntent,
+      new PaymentIntentCallback() {
+        @Override
+        public void onSuccess(@NonNull PaymentIntent paymentIntent) {
+          currentPaymentIntent = null;
+
+          JSObject ret = new JSObject();
+          ret.put(
+            "intent",
+            TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+          );
+          call.resolve(ret);
+        }
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
+    );
+  }
+
+  private PaymentIntentCallback createPaymentIntentCallback(
+    final PluginCall call
+  ) {
+    return new PaymentIntentCallback() {
+      @Override
+      public void onSuccess(@NonNull PaymentIntent paymentIntent) {
+        currentPaymentIntent = paymentIntent;
+        lastCurrency = paymentIntent.getCurrency();
+
+        JSObject ret = new JSObject();
+        ret.put(
+          "intent",
+          TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+        );
+        call.resolve(ret);
+      }
+
+      @Override
+      public void onFailure(@NonNull TerminalException e) {
+        call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+      }
+    };
   }
 
   @PluginMethod
