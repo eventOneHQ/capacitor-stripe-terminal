@@ -459,11 +459,14 @@ public class StripeTerminal
       return;
     }
 
-    UsbConnectionConfiguration connectionConfig = new UsbConnectionConfiguration(
-      locationId,
-      false,
-      this
-    );
+    UsbConnectionConfiguration connectionConfig =
+      new UsbConnectionConfiguration(
+        locationId,
+        Boolean.TRUE.equals(
+          call.getBoolean("autoReconnectOnUnexpectedDisconnect", false)
+        ),
+        this
+      );
 
     Terminal
       .getInstance()
@@ -502,11 +505,14 @@ public class StripeTerminal
       return;
     }
 
-    TapToPayConnectionConfiguration connectionConfig = new TapToPayConnectionConfiguration(
-      locationId,
-      false,
-      null
-    );
+    TapToPayConnectionConfiguration connectionConfig =
+      new TapToPayConnectionConfiguration(
+        locationId,
+        Boolean.TRUE.equals(
+          call.getBoolean("autoReconnectOnUnexpectedDisconnect", false)
+        ),
+        this
+      );
 
     Terminal
       .getInstance()

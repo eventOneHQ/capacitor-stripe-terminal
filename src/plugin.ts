@@ -496,6 +496,8 @@ export class StripeTerminalPlugin {
     const data = await this.sdk.connectUsbReader({
       serialNumber: reader.serialNumber,
       locationId: config.locationId,
+      autoReconnectOnUnexpectedDisconnect:
+        config.autoReconnectOnUnexpectedDisconnect,
     })
 
     return this.objectExists(data?.reader)

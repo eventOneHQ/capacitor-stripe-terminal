@@ -347,7 +347,14 @@ export interface BluetoothConnectionConfiguration extends ConnectionConfiguratio
 /**
  * @category Reader
  */
-export interface UsbConnectionConfiguration extends ConnectionConfiguration {}
+export interface UsbConnectionConfiguration extends ConnectionConfiguration {
+  /**
+   * When set to true, the Terminal SDK will attempt to auto-reconnect on any unexpected disconnect.
+   *
+   * @default false
+   */
+  autoReconnectOnUnexpectedDisconnect?: boolean
+}
 
 /**
  * @category Reader
@@ -1903,6 +1910,7 @@ export interface StripeTerminalInterface {
   connectUsbReader(options: {
     serialNumber: string
     locationId: string
+    autoReconnectOnUnexpectedDisconnect?: boolean
   }): Promise<{ reader: Reader | null }>
 
   connectAppsOnDevicesReader(options: {
