@@ -167,7 +167,9 @@ public class StripeTerminal
     cancelDiscoverReaders();
     cancelInstallUpdate();
 
-    LogLevel logLevel = LogLevel.VERBOSE;
+    LogLevel logLevel = TerminalUtils.translateJSLogLevel(
+      call.getInt("logLevel")
+    );
     ConnectionTokenProvider tokenProvider = this;
     TerminalListener terminalListener = this;
 

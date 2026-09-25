@@ -19,6 +19,7 @@ import {
   PaymentIntent,
   Cart,
   ListLocationsParameters,
+  LogLevel,
   SimulatedCardType,
   SimulatorConfiguration,
   DeviceType,
@@ -61,6 +62,8 @@ export class StripeTerminalPlugin {
   private isCollectingPaymentMethod = false
   private listeners: { [key: string]: PluginListenerHandle } = {}
 
+  private _logLevel?: LogLevel
+
   private simulatedCardType: SimulatedCardType | null = null
 
   private selectedSdkType: 'native' | 'js' = 'native'
@@ -99,6 +102,7 @@ export class StripeTerminalPlugin {
   constructor(options: StripeTerminalConfig) {
     this._fetchConnectionToken = options.fetchConnectionToken
     this._onUnexpectedReaderDisconnect = options.onUnexpectedReaderDisconnect
+    this._logLevel = options.logLevel
   }
 
   private isNative(): boolean {
@@ -167,7 +171,7 @@ export class StripeTerminalPlugin {
     }
 
     await Promise.all([
-      StripeTerminal.initialize(),
+      StripeTerminal.initialize({ logLevel: this._logLevel }),
       this.stripeTerminalWeb?.initialize(),
     ])
 

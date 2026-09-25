@@ -20,11 +20,30 @@ import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.Tip;
+import com.stripe.stripeterminal.log.LogLevel;
 import java.util.Locale;
 import java.util.Set;
 
 public class TerminalUtils {
 
+  public static LogLevel translateJSLogLevel(Integer level) {
+    if (level == null) {
+      return LogLevel.NONE;
+    }
+
+    switch (level) {
+      case 1:
+        return LogLevel.ERROR;
+      case 2:
+        return LogLevel.WARNING;
+      case 3:
+        return LogLevel.INFO;
+      case 4:
+        return LogLevel.VERBOSE;
+      default:
+        return LogLevel.NONE;
+    }
+  }
   public static Object serializeReader(Reader reader) {
     if (reader == null) {
       return JSObject.NULL;

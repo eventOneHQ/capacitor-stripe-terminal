@@ -85,7 +85,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
                 Terminal.setLogListener { logline in
                     self.onLogEntry(logline: logline)
                 }
-                // Terminal.shared.logLevel = LogLevel.verbose;
+                Terminal.shared.logLevel = StripeTerminalUtils.translateJSLogLevel(call.getInt("logLevel") ?? 0)
 
                 self.cancelDiscoverReaders()
                 self.cancelInstallUpdate()

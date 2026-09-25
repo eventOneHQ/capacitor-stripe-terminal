@@ -412,6 +412,18 @@ interface ReaderSoftwareUpdate {
 
 If you were displaying `estimatedUpdateTime` directly, switch to `estimatedUpdateTimeString`.
 
+### 15. Native logging now defaults to off
+
+Android previously hardcoded `LogLevel.VERBOSE`, and iOS had logging disabled entirely. Both now default to `None` and are configurable:
+
+```typescript
+const terminal = await StripeTerminalPlugin.create({
+  fetchConnectionToken,
+  onUnexpectedReaderDisconnect,
+  logLevel: LogLevel.Verbose, // opt in
+})
+```
+
 ## Testing Your Migration
 
 After upgrading, test the following scenarios:
@@ -451,3 +463,4 @@ This upgrade primarily updates the underlying SDKs while maintaining most API co
 - `confirmPaymentIntent` errors are now always thrown as `StripeTerminalError`; `decline_code` and `payment_intent` fields are now populated on card declines (no action required, but you may now read these fields in your catch handler)
 - Switch `stripeId` reads to `id` — `stripeId` still works in v5 but will be removed in v6
 - If you display `ReaderSoftwareUpdate.estimatedUpdateTime`, switch to `estimatedUpdateTimeString`; `estimatedUpdateTime` is now a string union
+- Pass `logLevel` to `StripeTerminalPlugin.create()` if you want native SDK logging — it no longer defaults to verbose on Android

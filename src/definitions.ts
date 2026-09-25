@@ -252,6 +252,41 @@ export interface StripeTerminalConfig {
    * An event handler called [when a reader disconnects](https://stripe.com/docs/terminal/readers/connecting/verifone-p400#handling-disconnects) from your app.
    */
   onUnexpectedReaderDisconnect: () => void
+
+  /**
+   * The log level for the native SDK console output.
+   *
+   * The iOS SDK only distinguishes between `None` and verbose output, so any level other than `None` maps to verbose there.
+   *
+   * @default LogLevel.None
+   */
+  logLevel?: LogLevel
+}
+
+/**
+ * The verbosity of native SDK logging.
+ */
+export enum LogLevel {
+  /**
+   * No logs will be sent to the console.
+   */
+  None = 0,
+  /**
+   * Only errors. (Android only; treated as `Verbose` on iOS.)
+   */
+  Error = 1,
+  /**
+   * Errors and warnings. (Android only; treated as `Verbose` on iOS.)
+   */
+  Warning = 2,
+  /**
+   * Errors, warnings and informational messages. (Android only; treated as `Verbose` on iOS.)
+   */
+  Info = 3,
+  /**
+   * All logs.
+   */
+  Verbose = 4,
 }
 
 /**
@@ -999,7 +1034,7 @@ export interface StripeTerminalInterface {
     errorMessage?: string,
   ): Promise<void>
 
-  initialize(): Promise<void>
+  initialize(options?: { logLevel?: LogLevel }): Promise<void>
 
   discoverReaders(options: DiscoveryConfiguration): Promise<void>
 

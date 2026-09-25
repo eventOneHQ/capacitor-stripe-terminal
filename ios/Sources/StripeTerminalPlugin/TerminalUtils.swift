@@ -10,6 +10,11 @@ import Foundation
 import StripeTerminal
 
 public class StripeTerminalUtils {
+    static func translateJSLogLevel(_ level: Int) -> LogLevel {
+        // The iOS SDK only exposes none/verbose, so any enabled level maps to verbose.
+        return level == 0 ? .none : .verbose
+    }
+
     static func translateJSDeviceType(_ type: Int) -> DeviceType? {
         switch type {
         case 0: return .chipper2X
