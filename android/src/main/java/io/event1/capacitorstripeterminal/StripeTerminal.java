@@ -204,7 +204,7 @@ public class StripeTerminal
     cancelInstallUpdate();
 
     LogLevel logLevel = TerminalUtils.translateJSLogLevel(
-      call.getInt("logLevel")
+      call.getString("logLevel")
     );
     ConnectionTokenProvider tokenProvider = this;
     TerminalListener terminalListener = this;
@@ -269,7 +269,7 @@ public class StripeTerminal
       String locationId = call.getString("locationId", null);
       DiscoveryConfiguration discoveryConfiguration =
         TerminalUtils.translateDiscoveryMethod(
-          call.getInt("discoveryMethod", 0),
+          call.getString("discoveryMethod", "bluetoothScan"),
           simulated,
           locationId
         );
@@ -667,11 +667,7 @@ public class StripeTerminal
     ConnectionStatus status = Terminal.getInstance().getConnectionStatus();
 
     JSObject ret = new JSObject();
-    ret.put(
-      "status",
-      TerminalUtils.translateConnectionStatusToJS(status.ordinal())
-    );
-    ret.put("isAndroid", true);
+    ret.put("status", TerminalUtils.serializeConnectionStatus(status));
     call.resolve(ret);
   }
 
@@ -680,10 +676,7 @@ public class StripeTerminal
     PaymentStatus status = Terminal.getInstance().getPaymentStatus();
 
     JSObject ret = new JSObject();
-    ret.put(
-      "status",
-      TerminalUtils.translatePaymentStatusToJS(status.ordinal())
-    );
+    ret.put("status", TerminalUtils.serializePaymentStatus(status));
     call.resolve(ret);
   }
 
@@ -1500,8 +1493,10 @@ public class StripeTerminal
 
   @PluginMethod
   public void setSimulatorConfiguration(@NonNull final PluginCall call) {
-    Integer availableReaderUpdateInt = call.getInt("availableReaderUpdate");
-    Integer simulatedCardInt = call.getInt("simulatedCard");
+    String availableReaderUpdateString = call.getString(
+      "availableReaderUpdate"
+    );
+    String simulatedCardString = call.getString("simulatedCard");
 
     SimulatorConfiguration currentConfig =
       Terminal.getInstance().getSimulatorConfiguration();
@@ -1509,14 +1504,28 @@ public class StripeTerminal
     SimulateReaderUpdate availableReaderUpdate = currentConfig.getUpdate();
     SimulatedCard simulatedCard = currentConfig.getSimulatedCard();
 
-    if (availableReaderUpdateInt != null) {
-      availableReaderUpdate = SimulateReaderUpdate.values()[
-        availableReaderUpdateInt
-      ];
+    if (availableReaderUpdateString != null) {
+      availableReaderUpdate = TerminalUtils.translateJSSimulateReaderUpdate(
+        availableReaderUpdateString
+      );
+      if (availableReaderUpdate == null) {
+        call.reject(
+          "Invalid availableReaderUpdate: " + availableReaderUpdateString
+        );
+        return;
+      }
     }
 
-    if (simulatedCardInt != null) {
-      SimulatedCardType type = SimulatedCardType.values()[simulatedCardInt];
+    if (simulatedCardString != null) {
+      SimulatedCardType type = TerminalUtils.translateJSSimulatedCardType(
+        simulatedCardString
+      );
+      if (type == null) {
+        call.reject(
+          "Unsupported simulatedCard on Android: " + simulatedCardString
+        );
+        return;
+      }
       simulatedCard = new SimulatedCard(type);
     }
 
@@ -1562,11 +1571,14 @@ public class StripeTerminal
 
   @PluginMethod
   public void supportsReadersOfType(final PluginCall call) {
-    Integer deviceTypeInt = call.getInt("deviceType");
-    Integer discoveryMethodInt = call.getInt("discoveryMethod", 0);
+    String deviceTypeString = call.getString("deviceType");
+    String discoveryMethodString = call.getString(
+      "discoveryMethod",
+      "bluetoothScan"
+    );
     Boolean simulated = call.getBoolean("simulated", false);
 
-    if (deviceTypeInt == null) {
+    if (deviceTypeString == null) {
       JSObject result = new JSObject();
       result.put("isSupported", false);
       result.put("error", "Must provide a device type");
@@ -1574,18 +1586,20 @@ public class StripeTerminal
       return;
     }
 
-    DeviceType deviceType = TerminalUtils.translateJSDeviceType(deviceTypeInt);
+    DeviceType deviceType = TerminalUtils.translateJSDeviceType(
+      deviceTypeString
+    );
     if (deviceType == null) {
       JSObject result = new JSObject();
       result.put("isSupported", false);
-      result.put("error", "Invalid device type: " + deviceTypeInt);
+      result.put("error", "Invalid device type: " + deviceTypeString);
       call.resolve(result);
       return;
     }
 
     DiscoveryConfiguration discoveryConfiguration =
       TerminalUtils.translateDiscoveryMethod(
-        discoveryMethodInt,
+        discoveryMethodString,
         simulated != null ? simulated : false,
         null
       );
@@ -1622,16 +1636,15 @@ public class StripeTerminal
     JSObject ret = new JSObject();
     ret.put(
       "status",
-      TerminalUtils.translateConnectionStatusToJS(connectionStatus.ordinal())
+      TerminalUtils.serializeConnectionStatus(connectionStatus)
     );
-    ret.put("isAndroid", true);
     notifyListeners("didChangeConnectionStatus", ret);
   }
 
   @Override
   public void onPaymentStatusChange(@NonNull PaymentStatus paymentStatus) {
     JSObject ret = new JSObject();
-    ret.put("status", paymentStatus.ordinal());
+    ret.put("status", TerminalUtils.serializePaymentStatus(paymentStatus));
 
     notifyListeners("didChangePaymentStatus", ret);
   }
@@ -1690,12 +1703,9 @@ public class StripeTerminal
   ) {
     JSObject ret = new JSObject();
     ret.put(
-      "value",
-      TerminalUtils.translateReaderDisplayMessageToJS(
-        readerDisplayMessage.ordinal()
-      )
+      "result",
+      TerminalUtils.serializeReaderDisplayMessage(readerDisplayMessage)
     );
-    ret.put("text", readerDisplayMessage.toString());
 
     notifyListeners("didRequestReaderDisplayMessage", ret);
   }
@@ -1761,7 +1771,10 @@ public class StripeTerminal
 
     JSObject ret = new JSObject();
     ret.put("batteryLevel", batteryLevel);
-    ret.put("batteryStatus", batteryStatus.ordinal());
+    ret.put(
+      "batteryStatus",
+      TerminalUtils.serializeBatteryStatus(batteryStatus)
+    );
     ret.put("isCharging", isCharging);
 
     notifyListeners("didUpdateBatteryLevel", ret);

@@ -103,7 +103,6 @@ _Hint: If the user denies Location permission the first time you ask for it, And
 import {
   StripeTerminalPlugin,
   StripeTerminalError,
-  DiscoveryMethod,
 } from 'capacitor-stripe-terminal'
 
 // First, initialize the SDK
@@ -127,7 +126,7 @@ const terminal = await StripeTerminalPlugin.create({
 const discoverHandle = await terminal.discoverReaders(
   {
     simulated: false,
-    discoveryMethod: DiscoveryMethod.BluetoothScan,
+    discoveryMethod: 'bluetoothScan',
   },
   (readers) => {
     if (readers.length) {

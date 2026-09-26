@@ -8,8 +8,6 @@ import {
   PaymentStatus,
   DeviceType,
   ReaderNetworkStatus,
-  BatteryStatus,
-  LocationStatus,
   ListLocationsParameters,
   Location,
   SimulatedCardType,
@@ -83,68 +81,67 @@ interface ConfirmPaymentIntentResult {
  * @ignore
  */
 const deviceTypes: { [type: string]: DeviceType } = {
-  ['chipper_2X']: DeviceType.Chipper2X,
-  ['bbpos_wisepos_e']: DeviceType.WisePosE,
-  ['stripe_s700']: DeviceType.StripeS700,
-  ['stripe_s700_devkit']: DeviceType.StripeS700DevKit,
-  ['stripe_s710']: DeviceType.StripeS710,
-  ['stripe_s710_devkit']: DeviceType.StripeS710DevKit,
+  ['chipper_2X']: 'chipper2X',
+  ['bbpos_wisepos_e']: 'wisePosE',
+  ['simulated_wisepos_e']: 'wisePosE',
+  ['stripe_s700']: 'stripeS700',
+  ['stripe_s700_devkit']: 'stripeS700Devkit',
+  ['stripe_s710']: 'stripeS710',
+  ['stripe_s710_devkit']: 'stripeS710Devkit',
 }
 
 /**
  * @ignore
  */
 const readerStatuses: { [status: string]: ReaderNetworkStatus } = {
-  online: ReaderNetworkStatus.Online,
-  offline: ReaderNetworkStatus.Offline,
+  online: 'online',
+  offline: 'offline',
 }
 
 /**
  * @ignore
  */
 const connectionStatus: { [status: string]: ConnectionStatus } = {
-  connecting: ConnectionStatus.Connecting,
-  connected: ConnectionStatus.Connected,
-  not_connected: ConnectionStatus.NotConnected,
-  reconnecting: ConnectionStatus.Reconnecting,
+  connecting: 'connecting',
+  connected: 'connected',
+  not_connected: 'notConnected',
+  reconnecting: 'reconnecting',
 }
 
 /**
  * @ignore
  */
 const testPaymentMethodMap: { [method: string]: SimulatedCardType } = {
-  visa: SimulatedCardType.Visa,
-  visa_debit: SimulatedCardType.VisaDebit,
-  mastercard: SimulatedCardType.Mastercard,
-  mastercard_debit: SimulatedCardType.MasterDebit,
-  mastercard_prepaid: SimulatedCardType.MastercardPrepaid,
-  amex: SimulatedCardType.Amex,
-  amex2: SimulatedCardType.Amex2,
-  discover: SimulatedCardType.Discover,
-  discover2: SimulatedCardType.Discover2,
-  diners: SimulatedCardType.Diners,
-  diners_14digits: SimulatedCardType.Diners14Digit,
-  jcb: SimulatedCardType.Jcb,
-  unionpay: SimulatedCardType.UnionPay,
-  interac: SimulatedCardType.Interac,
-  charge_declined: SimulatedCardType.ChargeDeclined,
-  charge_declined_insufficient_funds:
-    SimulatedCardType.ChargeDeclinedInsufficientFunds,
-  charge_declined_lost_card: SimulatedCardType.ChargeDeclinedLostCard,
-  charge_declined_stolen_card: SimulatedCardType.ChargeDeclinedStolenCard,
-  charge_declined_expired_card: SimulatedCardType.ChargeDeclinedExpiredCard,
-  charge_declined_processing_error:
-    SimulatedCardType.ChargeDeclinedProcessingError,
-  refund_fail: SimulatedCardType.RefundFailed,
+  visa: 'visa',
+  visa_debit: 'visaDebit',
+  mastercard: 'mastercard',
+  mastercard_debit: 'masterDebit',
+  mastercard_prepaid: 'mastercardPrepaid',
+  amex: 'amex',
+  amex2: 'amex2',
+  discover: 'discover',
+  discover2: 'discover2',
+  diners: 'diners',
+  diners_14digits: 'diners14Digit',
+  jcb: 'jcb',
+  unionpay: 'unionPay',
+  interac: 'interac',
+  charge_declined: 'chargeDeclined',
+  charge_declined_insufficient_funds: 'chargeDeclinedInsufficientFunds',
+  charge_declined_lost_card: 'chargeDeclinedLostCard',
+  charge_declined_stolen_card: 'chargeDeclinedStolenCard',
+  charge_declined_expired_card: 'chargeDeclinedExpiredCard',
+  charge_declined_processing_error: 'chargeDeclinedProcessingError',
+  refund_fail: 'refundFailed',
 }
 
 /**
  * @ignore
  */
 const chargeStatus: { [status: string]: ChargeStatus } = {
-  succeeded: ChargeStatus.Succeeded,
-  pending: ChargeStatus.Pending,
-  failed: ChargeStatus.Failed,
+  succeeded: 'succeeded',
+  pending: 'pending',
+  failed: 'failed',
 }
 
 /**
@@ -156,7 +153,7 @@ function serializeCharge(c: Stripe.Charge): Charge {
     stripeId: c.id,
     amount: c.amount,
     currency: c.currency,
-    status: chargeStatus[c.status] ?? ChargeStatus.Failed,
+    status: chargeStatus[c.status] ?? 'failed',
     metadata: c.metadata ?? {},
     stripeDescription: c.description ?? null,
     statementDescriptorSuffix: c.statement_descriptor_suffix ?? null,
@@ -285,22 +282,23 @@ function serializeCardPresentDetails(details: any): CardPresentDetails | null {
  * @ignore
  */
 const paymentIntentStatus: { [status: string]: PaymentIntentStatus } = {
-  requires_payment_method: PaymentIntentStatus.RequiresPaymentMethod,
-  requires_confirmation: PaymentIntentStatus.RequiresConfirmation,
-  requires_capture: PaymentIntentStatus.RequiresCapture,
-  processing: PaymentIntentStatus.Processing,
-  canceled: PaymentIntentStatus.Canceled,
-  succeeded: PaymentIntentStatus.Succeeded,
+  requires_payment_method: 'requiresPaymentMethod',
+  requires_confirmation: 'requiresConfirmation',
+  requires_capture: 'requiresCapture',
+  requires_action: 'requiresAction',
+  processing: 'processing',
+  canceled: 'canceled',
+  succeeded: 'succeeded',
 }
 
 /**
  * @ignore
  */
 const paymentStatus: { [status: string]: PaymentStatus } = {
-  not_ready: PaymentStatus.NotReady,
-  ready: PaymentStatus.Ready,
-  waiting_for_input: PaymentStatus.WaitingForInput,
-  processing: PaymentStatus.Processing,
+  not_ready: 'notReady',
+  ready: 'ready',
+  waiting_for_input: 'waitingForInput',
+  processing: 'processing',
 }
 
 /**
@@ -397,7 +395,7 @@ export class StripeTerminalWeb extends WebPlugin {
       },
       onPaymentStatusChange: async (event) => {
         this.notifyListeners('didChangePaymentStatus', {
-          status: event.status,
+          status: paymentStatus[event.status],
         })
       },
     })
@@ -411,10 +409,8 @@ export class StripeTerminalWeb extends WebPlugin {
     return {
       id: sdkReader.id,
       stripeId: sdkReader.id,
-      deviceType: deviceTypes[sdkReader.device_type],
-      status: sdkReader.status
-        ? readerStatuses[sdkReader.status]
-        : ReaderNetworkStatus.Offline,
+      deviceType: deviceTypes[sdkReader.device_type] ?? 'unknown',
+      status: sdkReader.status ? readerStatuses[sdkReader.status] : 'offline',
       serialNumber: sdkReader.serial_number,
       ipAddress: sdkReader.ip_address,
       locationId: this.isInstanceOfLocation(sdkReader.location)
@@ -430,10 +426,10 @@ export class StripeTerminalWeb extends WebPlugin {
         : null,
       label: sdkReader.label,
       deviceSoftwareVersion: sdkReader.device_sw_version,
-      batteryStatus: BatteryStatus.Unknown,
+      batteryStatus: 'unknown',
       batteryLevel: null,
       isCharging: null,
-      locationStatus: LocationStatus.Unknown,
+      locationStatus: 'unknown',
       livemode: sdkReader.livemode,
       simulated: this.simulated,
     }

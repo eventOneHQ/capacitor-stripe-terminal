@@ -11,12 +11,12 @@ import Foundation
 import StripeTerminal
 
 public class StripeTerminalUtils {
-    static func translateJSLogLevel(_ level: Int) -> LogLevel {
+    static func translateJSLogLevel(_ level: String?) -> LogLevel {
         switch level {
-        case 1: return .error
-        case 2: return .warning
-        case 3: return .info
-        case 4: return .verbose
+        case "error": return .error
+        case "warning": return .warning
+        case "info": return .info
+        case "verbose": return .verbose
         default: return .none
         }
     }
@@ -395,66 +395,242 @@ public class StripeTerminalUtils {
         return jsonObject
     }
 
-    static func translateJSDeviceType(_ type: Int) -> DeviceType? {
+    static func translateJSDeviceType(_ type: String) -> DeviceType? {
         switch type {
-        case 0: return .chipper2X
-        case 2: return .wisePad3
-        case 3: return .stripeM2
-        case 4: return .wisePosE
-        case 5: return .wisePosEDevKit
-        case 9: return .stripeS700
-        case 10: return .stripeS700DevKit
-        case 11: return .tapToPay
-        case 12: return .stripeS710
-        case 13: return .stripeS710DevKit
+        case "chipper1X": return .chipper1X
+        case "chipper2X": return .chipper2X
+        case "etna": return .etna
+        case "stripeM2": return .stripeM2
+        case "stripeS700": return .stripeS700
+        case "stripeS700Devkit": return .stripeS700DevKit
+        case "stripeS710": return .stripeS710
+        case "stripeS710Devkit": return .stripeS710DevKit
+        case "stripeT600": return .stripeT600
+        case "stripeT600Devkit": return .stripeT600DevKit
+        case "stripeT610": return .stripeT610
+        case "stripeT610Devkit": return .stripeT610DevKit
+        case "stripeU200": return .stripeU200
+        case "tapToPay": return .tapToPay
+        case "verifoneM425": return .verifoneM425
+        case "verifoneM450": return .verifoneM450
+        case "verifoneP630": return .verifoneP630
+        case "verifoneUX700": return .verifoneUX700
+        case "verifoneUX700Devkit": return .verifoneUX700DevKit
+        case "verifoneV660p": return .verifoneV660p
+        case "verifoneV660pDevkit": return .verifoneV660pDevKit
+        case "verifoneVL110": return .verifoneVL110
+        case "verifoneVM100": return .verifoneVM100
+        case "verifoneVM110": return .verifoneVM110
+        case "verifoneVP100": return .verifoneVP100
+        case "verifoneVP110": return .verifoneVP110
+        case "wiseCube": return .wiseCube
+        case "wisePad3": return .wisePad3
+        case "wisePosE": return .wisePosE
+        case "wisePosEDevkit": return .wisePosEDevKit
         default: return nil
         }
     }
 
-    static func translateJSDiscoveryMethod(_ method: Int) -> DiscoveryMethod? {
+    static func translateJSDiscoveryMethod(_ method: String) -> DiscoveryMethod? {
         switch method {
-        case 0: return .bluetoothScan
-        case 1: return .bluetoothProximity
-        case 2: return .internet
-        case 6: return .tapToPay
+        case "bluetoothScan": return .bluetoothScan
+        case "bluetoothProximity": return .bluetoothProximity
+        case "internet": return .internet
+        case "tapToPay": return .tapToPay
         default: return nil
         }
     }
 
-    static func translateDeviceTypeToJS(_ deviceType: DeviceType) -> Int {
+    static func serializeDeviceType(_ deviceType: DeviceType) -> String {
         switch deviceType {
-        case .chipper2X: return 0
-        case .wisePad3: return 2
-        case .stripeM2: return 3
-        case .wisePosE: return 4
-        case .wisePosEDevKit: return 5
-        case .stripeS700: return 9
-        case .stripeS700DevKit: return 10
-        case .tapToPay: return 11
-        case .stripeS710: return 12
-        case .stripeS710DevKit: return 13
-        default: return 6
+        case .chipper1X: return "chipper1X"
+        case .chipper2X: return "chipper2X"
+        case .etna: return "etna"
+        case .stripeM2: return "stripeM2"
+        case .stripeS700: return "stripeS700"
+        case .stripeS700DevKit: return "stripeS700Devkit"
+        case .stripeS710: return "stripeS710"
+        case .stripeS710DevKit: return "stripeS710Devkit"
+        case .stripeT600: return "stripeT600"
+        case .stripeT600DevKit: return "stripeT600Devkit"
+        case .stripeT610: return "stripeT610"
+        case .stripeT610DevKit: return "stripeT610Devkit"
+        case .stripeU200: return "stripeU200"
+        case .tapToPay: return "tapToPay"
+        case .verifoneM425: return "verifoneM425"
+        case .verifoneM450: return "verifoneM450"
+        case .verifoneP630: return "verifoneP630"
+        case .verifoneUX700: return "verifoneUX700"
+        case .verifoneUX700DevKit: return "verifoneUX700Devkit"
+        case .verifoneV660p: return "verifoneV660p"
+        case .verifoneV660pDevKit: return "verifoneV660pDevkit"
+        case .verifoneVL110: return "verifoneVL110"
+        case .verifoneVM100: return "verifoneVM100"
+        case .verifoneVM110: return "verifoneVM110"
+        case .verifoneVP100: return "verifoneVP100"
+        case .verifoneVP110: return "verifoneVP110"
+        case .wiseCube: return "wiseCube"
+        case .wisePad3: return "wisePad3"
+        case .wisePosE: return "wisePosE"
+        case .wisePosEDevKit: return "wisePosEDevkit"
+        case .unknown: return "unknown"
+        @unknown default: return "unknown"
+        }
+    }
+
+    static func serializeConnectionStatus(_ status: ConnectionStatus) -> String {
+        switch status {
+        case .notConnected: return "notConnected"
+        case .discovering: return "discovering"
+        case .connecting: return "connecting"
+        case .connected: return "connected"
+        case .reconnecting: return "reconnecting"
+        @unknown default: return "notConnected"
+        }
+    }
+
+    static func serializePaymentStatus(_ status: PaymentStatus) -> String {
+        switch status {
+        case .notReady: return "notReady"
+        case .ready: return "ready"
+        case .waitingForInput: return "waitingForInput"
+        case .processing: return "processing"
+        @unknown default: return "notReady"
+        }
+    }
+
+    static func serializeReaderDisplayMessage(_ message: ReaderDisplayMessage) -> String {
+        switch message {
+        case .retryCard: return "retryCard"
+        case .insertCard: return "insertCard"
+        case .insertOrSwipeCard: return "insertOrSwipeCard"
+        case .swipeCard: return "swipeCard"
+        case .removeCard: return "removeCard"
+        case .multipleContactlessCardsDetected: return "multipleContactlessCardsDetected"
+        case .tryAnotherReadMethod: return "tryAnotherReadMethod"
+        case .tryAnotherCard: return "tryAnotherCard"
+        case .cardRemovedTooEarly: return "cardRemovedTooEarly"
+        @unknown default: return "retryCard"
+        }
+    }
+
+    static func serializePaymentIntentStatus(_ status: PaymentIntentStatus) -> String {
+        switch status {
+        case .requiresPaymentMethod: return "requiresPaymentMethod"
+        case .requiresConfirmation: return "requiresConfirmation"
+        case .requiresCapture: return "requiresCapture"
+        case .requiresAction: return "requiresAction"
+        case .requiresReauthorization: return "requiresReauthorization"
+        case .processing: return "processing"
+        case .canceled: return "canceled"
+        case .succeeded: return "succeeded"
+        @unknown default: return "unknown"
+        }
+    }
+
+    static func serializeChargeStatus(_ status: ChargeStatus) -> String {
+        switch status {
+        case .succeeded: return "succeeded"
+        case .pending: return "pending"
+        case .failed: return "failed"
+        @unknown default: return "failed"
+        }
+    }
+
+    static func serializeLocationStatus(_ status: LocationStatus) -> String {
+        switch status {
+        case .notSet: return "notSet"
+        case .set: return "set"
+        case .unknown: return "unknown"
+        @unknown default: return "unknown"
+        }
+    }
+
+    static func serializeNetworkStatus(_ status: ReaderNetworkStatus) -> String {
+        switch status {
+        case .online: return "online"
+        case .offline: return "offline"
+        case .unknown: return "unknown"
+        @unknown default: return "unknown"
+        }
+    }
+
+    static func serializeBatteryStatus(_ status: BatteryStatus) -> String {
+        switch status {
+        case .critical: return "critical"
+        case .low: return "low"
+        case .nominal: return "nominal"
+        case .unknown: return "unknown"
+        @unknown default: return "unknown"
+        }
+    }
+
+    static func serializeSimulateReaderUpdate(_ update: SimulateReaderUpdate) -> String {
+        switch update {
+        case .available: return "available"
+        case .required: return "required"
+        case .lowBattery: return "lowBattery"
+        case .random: return "random"
+        default: return "none"
+        }
+    }
+
+    static func translateJSSimulateReaderUpdate(_ update: String) -> SimulateReaderUpdate? {
+        switch update {
+        case "available": return .available
+        case "none": return SimulateReaderUpdate.none
+        case "required": return .required
+        case "lowBattery": return .lowBattery
+        case "random": return .random
+        default: return nil
+        }
+    }
+
+    static func translateJSSimulatedCardType(_ type: String) -> SimulatedCardType? {
+        switch type {
+        case "visa": return .visa
+        case "visaDebit": return .visaDebit
+        case "mastercard": return .mastercard
+        case "masterDebit": return .masterDebit
+        case "mastercardPrepaid": return .mastercardPrepaid
+        case "amex": return .amex
+        case "amex2": return .amex2
+        case "discover": return .discover
+        case "discover2": return .discover2
+        case "diners": return .diners
+        case "diners14Digit": return .diners14Digit
+        case "jcb": return .jcb
+        case "unionPay": return .unionPay
+        case "interac": return .interac
+        case "chargeDeclined": return .chargeDeclined
+        case "chargeDeclinedInsufficientFunds": return .chargeDeclinedInsufficientFunds
+        case "chargeDeclinedLostCard": return .chargeDeclinedLostCard
+        case "chargeDeclinedStolenCard": return .chargeDeclinedStolenCard
+        case "chargeDeclinedExpiredCard": return .chargeDeclinedExpiredCard
+        case "chargeDeclinedProcessingError": return .chargeDeclinedProcessingError
+        case "refundFailed": return .refundFailed
+        default: return nil
         }
     }
 
     static func serializeReader(reader: Reader) -> [String: Any] {
         var jsonObject: [String: Any] = [
-            "deviceType": translateDeviceTypeToJS(reader.deviceType),
+            "deviceType": serializeDeviceType(reader.deviceType),
             "simulated": reader.simulated,
             "id": reader.stripeId as Any,
             "stripeId": reader.stripeId as Any,
             "locationId": reader.locationId as Any,
-            "locationStatus": reader.locationStatus.rawValue,
+            "locationStatus": serializeLocationStatus(reader.locationStatus),
             "serialNumber": reader.serialNumber,
             // Bluetooth reader props
             "deviceSoftwareVersion": reader.deviceSoftwareVersion as Any,
             "isAvailableUpdate": reader.availableUpdate != nil,
             "batteryLevel": reader.batteryLevel?.decimalValue as Any,
-            "batteryStatus": reader.batteryStatus.rawValue,
+            "batteryStatus": serializeBatteryStatus(reader.batteryStatus),
             "isCharging": reader.isCharging as Any,
             // Internet reader props
             "ipAddress": reader.ipAddress as Any,
-            "status": reader.status.rawValue,
+            "status": serializeNetworkStatus(reader.status),
             "label": reader.label as Any,
         ]
 
@@ -584,7 +760,7 @@ public class StripeTerminalUtils {
                 "stripeId": charge.stripeId,
                 "amount": charge.amount,
                 "currency": charge.currency,
-                "status": charge.status.rawValue,
+                "status": serializeChargeStatus(charge.status),
                 "metadata": charge.metadata,
                 "stripeDescription": charge.stripeDescription as Any,
                 "statementDescriptorSuffix": charge.statementDescriptorSuffix as Any,
@@ -618,7 +794,7 @@ public class StripeTerminalUtils {
             "id": intent.stripeId,
             "stripeId": intent.stripeId,
             "created": intent.created.timeIntervalSince1970,
-            "status": intent.status.rawValue,
+            "status": serializePaymentIntentStatus(intent.status),
             "amount": intent.amount,
             "currency": intent.currency,
             "amountTip": intent.amountTip as Any,
@@ -660,7 +836,7 @@ public class StripeTerminalUtils {
             jsonObject["paymentMethod"] = [
                 "id": paymentMethod.stripeId,
                 "stripeId": paymentMethod.stripeId,
-                "type": paymentMethod.type.rawValue,
+                "type": serializePaymentMethodType(paymentMethod.type),
                 "customer": paymentMethod.customer as Any,
                 "metadata": paymentMethod.metadata,
                 "livemode": paymentMethod.livemode,
@@ -701,11 +877,9 @@ public class StripeTerminalUtils {
     }
     
     static func serializeSimulatorConfiguration(simulatorConfig: SimulatorConfiguration) -> [String: Any] {
-        let jsonObject: [String: Any] = [
-            "availableReaderUpdate": simulatorConfig.availableReaderUpdate.rawValue,
-            "simulatedCard": "\(simulatorConfig.simulatedCard)" as Any,
+        // The SDK doesn't expose the simulated card's type, so it can't be reported back.
+        return [
+            "availableReaderUpdate": serializeSimulateReaderUpdate(simulatorConfig.availableReaderUpdate),
         ]
-                
-        return jsonObject
     }
 }

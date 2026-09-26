@@ -109,7 +109,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
                 Terminal.setLogListener { logline in
                     self.onLogEntry(logline: logline)
                 }
-                Terminal.shared.logLevel = StripeTerminalUtils.translateJSLogLevel(call.getInt("logLevel") ?? 0)
+                Terminal.shared.logLevel = StripeTerminalUtils.translateJSLogLevel(call.getString("logLevel"))
 
                 self.cancelDiscoverReaders()
                 self.cancelInstallUpdate()
@@ -148,27 +148,27 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         cancelDiscoverReaders()
 
         let simulated = call.getBool("simulated") ?? true
-        let method = UInt(call.getInt("discoveryMethod") ?? 0)
+        let method = call.getString("discoveryMethod") ?? "bluetoothScan"
         let locationId = call.getString("locationId") ?? nil
 
         let config: DiscoveryConfiguration
         do {
             switch method {
-            case 0: // BluetoothScan
+            case "bluetoothScan":
                 config = try BluetoothScanDiscoveryConfigurationBuilder().setSimulated(simulated).build()
-            case 1: // BluetoothProximity
+            case "bluetoothProximity":
                 config = try BluetoothProximityDiscoveryConfigurationBuilder().setSimulated(simulated).build()
-            case 2: // Internet
+            case "internet":
                 let builder = InternetDiscoveryConfigurationBuilder().setSimulated(simulated)
                 if let locationId = locationId { _ = builder.setLocationId(locationId) }
                 config = try builder.build()
-            case 4: // USB
+            case "usb":
                 call.reject("The USB discovery method is only supported on Android.")
                 return
-            case 5: // AppsOnDevices
+            case "appsOnDevices":
                 call.reject("The AppsOnDevices discovery method is only supported on Android.")
                 return
-            case 6: // TapToPay
+            case "tapToPay":
                 config = try TapToPayDiscoveryConfigurationBuilder().setSimulated(simulated).build()
             default:
                 call.reject("Unsupported discovery method: \(method)")
@@ -480,11 +480,11 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     @objc func getConnectionStatus(_ call: CAPPluginCall) {
-        call.resolve(["status": Terminal.shared.connectionStatus.rawValue])
+        call.resolve(["status": StripeTerminalUtils.serializeConnectionStatus(Terminal.shared.connectionStatus)])
     }
 
     @objc func getPaymentStatus(_ call: CAPPluginCall) {
-        call.resolve(["status": Terminal.shared.paymentStatus.rawValue])
+        call.resolve(["status": StripeTerminalUtils.serializePaymentStatus(Terminal.shared.paymentStatus)])
     }
 
     @objc func getConnectedReader(_ call: CAPPluginCall) {
@@ -1030,20 +1030,22 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     @objc func setSimulatorConfiguration(_ call: CAPPluginCall) {
-        let availableReaderUpdateInt = call.getInt("availableReaderUpdate")
-        let simulatedCardInt = call.getInt("simulatedCard")
-
-        if availableReaderUpdateInt != nil {
-            let availableReaderUpdate = SimulateReaderUpdate(rawValue: UInt(availableReaderUpdateInt ?? 0)) ?? Terminal.shared.simulatorConfiguration.availableReaderUpdate
+        if let availableReaderUpdateString = call.getString("availableReaderUpdate") {
+            guard let availableReaderUpdate = StripeTerminalUtils.translateJSSimulateReaderUpdate(availableReaderUpdateString) else {
+                call.reject("Invalid availableReaderUpdate: \(availableReaderUpdateString)")
+                return
+            }
 
             Terminal.shared.simulatorConfiguration.availableReaderUpdate = availableReaderUpdate
         }
 
-        if simulatedCardInt != nil {
-            let simulatedCardType = SimulatedCardType(rawValue: UInt(simulatedCardInt ?? 0)) ?? SimulatedCardType.visa
-            let simulatedCard = SimulatedCard(type: simulatedCardType)
+        if let simulatedCardString = call.getString("simulatedCard") {
+            guard let simulatedCardType = StripeTerminalUtils.translateJSSimulatedCardType(simulatedCardString) else {
+                call.reject("Invalid simulatedCard: \(simulatedCardString)")
+                return
+            }
 
-            Terminal.shared.simulatorConfiguration.simulatedCard = simulatedCard
+            Terminal.shared.simulatorConfiguration.simulatedCard = SimulatedCard(type: simulatedCardType)
         }
 
         return getSimulatorConfiguration(call)
@@ -1067,17 +1069,17 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     @objc func supportsReadersOfType(_ call: CAPPluginCall) {
-        let deviceTypeInt = call.getInt("deviceType") ?? -1
-        let discoveryMethodInt = call.getInt("discoveryMethod") ?? 0
+        let deviceTypeString = call.getString("deviceType") ?? ""
+        let discoveryMethodString = call.getString("discoveryMethod") ?? "bluetoothScan"
         let simulated = call.getBool("simulated") ?? false
 
-        guard let deviceType = StripeTerminalUtils.translateJSDeviceType(deviceTypeInt) else {
-            call.resolve(["isSupported": false, "error": "Invalid device type: \(deviceTypeInt)"])
+        guard let deviceType = StripeTerminalUtils.translateJSDeviceType(deviceTypeString) else {
+            call.resolve(["isSupported": false, "error": "Invalid device type: \(deviceTypeString)"])
             return
         }
 
-        guard let discoveryMethod = StripeTerminalUtils.translateJSDiscoveryMethod(discoveryMethodInt) else {
-            call.resolve(["isSupported": false, "error": "Invalid discovery method: \(discoveryMethodInt)"])
+        guard let discoveryMethod = StripeTerminalUtils.translateJSDiscoveryMethod(discoveryMethodString) else {
+            call.resolve(["isSupported": false, "error": "Invalid discovery method: \(discoveryMethodString)"])
             return
         }
 
@@ -1110,11 +1112,11 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     // MARK: TerminalDelegate
 
     public func terminal(_: Terminal, didChangeConnectionStatus status: ConnectionStatus) {
-        notifyListeners("didChangeConnectionStatus", data: ["status": status.rawValue])
+        notifyListeners("didChangeConnectionStatus", data: ["status": StripeTerminalUtils.serializeConnectionStatus(status)])
     }
 
     public func terminal(_: Terminal, didChangePaymentStatus status: PaymentStatus) {
-        notifyListeners("didChangePaymentStatus", data: ["status": status.rawValue])
+        notifyListeners("didChangePaymentStatus", data: ["status": StripeTerminalUtils.serializePaymentStatus(status)])
     }
 
     // MARK: MobileReaderDelegate
@@ -1148,7 +1150,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     public func reader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
-        notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
+        notifyListeners("didRequestReaderDisplayMessage", data: ["result": StripeTerminalUtils.serializeReaderDisplayMessage(displayMessage)])
     }
 
     public func reader(_: Reader, didReportReaderEvent event: ReaderEvent, info _: [AnyHashable: Any]?) {
@@ -1162,7 +1164,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     public func reader(_: Reader, didReportBatteryLevel batteryLevel: Float, status: BatteryStatus, isCharging: Bool) {
         notifyListeners("didUpdateBatteryLevel", data: [
             "batteryLevel": batteryLevel,
-            "batteryStatus": status.rawValue,
+            "batteryStatus": StripeTerminalUtils.serializeBatteryStatus(status),
             "isCharging": isCharging,
         ])
     }
@@ -1193,7 +1195,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     public func tapToPayReader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
-        notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
+        notifyListeners("didRequestReaderDisplayMessage", data: ["result": StripeTerminalUtils.serializeReaderDisplayMessage(displayMessage)])
     }
 
     public func tapToPayReaderDidAcceptTermsOfService(_: Reader) {

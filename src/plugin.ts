@@ -194,21 +194,6 @@ export class StripeTerminalPlugin {
     this.isInitialized = true
   }
 
-  private translateReaderInput(data: {
-    result?: string[]
-  }): ReaderInputOptions {
-    const map: Record<string, ReaderInputOptions> = {
-      swipeCard: ReaderInputOptions.SwipeCard,
-      insertCard: ReaderInputOptions.InsertCard,
-      tapCard: ReaderInputOptions.TapCard,
-    }
-
-    return (data?.result ?? []).reduce(
-      (acc, s) => acc | (map[s] ?? ReaderInputOptions.None),
-      ReaderInputOptions.None,
-    )
-  }
-
   private async _addListener<T>(
     name:
       | 'didRequestReaderDisplayMessage'
@@ -379,7 +364,7 @@ export class StripeTerminalPlugin {
     // reset the sdk type
     this.selectedSdkType = 'native'
 
-    if (options.discoveryMethod === DiscoveryMethod.Internet) {
+    if (options.discoveryMethod === 'internet') {
       this.selectedSdkType = 'js'
     }
 
@@ -401,12 +386,12 @@ export class StripeTerminalPlugin {
     const nativeOptions: DiscoveryConfiguration = {
       ...options,
       discoveryMethod:
-        options.discoveryMethod === DiscoveryMethod.Both
-          ? DiscoveryMethod.BluetoothScan
+        options.discoveryMethod === 'both'
+          ? 'bluetoothScan'
           : options.discoveryMethod,
     }
 
-    if (nativeOptions.discoveryMethod !== DiscoveryMethod.Internet) {
+    if (nativeOptions.discoveryMethod !== 'internet') {
       // remove locationId if the native discovery method is not internet
       nativeOptions.locationId = undefined
     }
@@ -424,10 +409,7 @@ export class StripeTerminalPlugin {
       })
 
     // if using the both method, search with the js sdk as well
-    if (
-      options.discoveryMethod === DiscoveryMethod.Both &&
-      this.stripeTerminalWeb
-    ) {
+    if (options.discoveryMethod === 'both' && this.stripeTerminalWeb) {
       this.listeners['readersDiscoveredJs'] =
         await this.stripeTerminalWeb.addListener(
           'readersDiscovered',
@@ -442,7 +424,7 @@ export class StripeTerminalPlugin {
 
       const jsOptions: DiscoveryConfiguration = {
         ...options,
-        discoveryMethod: DiscoveryMethod.Internet, // discovery method is always going to be internet for the js sdk, although, it really doesn't matter because it will be ignored anyway
+        discoveryMethod: 'internet', // discovery method is always going to be internet for the js sdk, although, it really doesn't matter because it will be ignored anyway
       }
 
       // TODO: figure out what to do with errors and completion on this method. maybe just ignore them?
@@ -709,10 +691,12 @@ export class StripeTerminalPlugin {
   }
 
   public async didRequestReaderInput(
-    callback: (options: ReaderInputOptions) => void,
+    callback: (options: ReaderInputOptions[]) => void,
   ): Promise<PluginListenerHandle> {
-    return this._addListener('didRequestReaderInput', callback, (data: any) =>
-      this.translateReaderInput(data),
+    return this._addListener(
+      'didRequestReaderInput',
+      callback,
+      (data: { result?: ReaderInputOptions[] }) => data?.result ?? [],
     )
   }
 
@@ -722,7 +706,7 @@ export class StripeTerminalPlugin {
     return this._addListener(
       'didRequestReaderDisplayMessage',
       callback,
-      (data: any) => parseFloat(data.value),
+      (data: { result: ReaderDisplayMessage }) => data?.result,
     )
   }
 
@@ -1092,26 +1076,14 @@ export class StripeTerminalPlugin {
     return data
   }
 
-  private simulatedCardTypeStringToEnum(cardType: any): SimulatedCardType {
-    // the simulated card type comes back as a string of the enum name so that needs to be converted back to an enum
-    const enumSimulatedCard: any = SimulatedCardType[cardType]
-
-    return enumSimulatedCard as SimulatedCardType
-  }
-
   public async getSimulatorConfiguration() {
     this.ensureInitialized()
     const config = await this.sdk.getSimulatorConfiguration()
 
-    if (config?.simulatedCard !== null && config?.simulatedCard !== undefined) {
-      // the simulated card type comes back as a string of the enum name so that needs to be converted back to an enum
-      config.simulatedCard = this.simulatedCardTypeStringToEnum(
-        config.simulatedCard,
-      )
-
+    if (config?.simulatedCard) {
       this.simulatedCardType = config.simulatedCard
     } else if (this.simulatedCardType) {
-      // use the stored simulated card type if it doesn't exist, probably because we are on android where you can't get it
+      // the native SDKs can't report the simulated card, so use the last one that was set
       config.simulatedCard = this.simulatedCardType
     }
 
@@ -1124,20 +1096,11 @@ export class StripeTerminalPlugin {
     const newConfig = await this.sdk.setSimulatorConfiguration(config)
 
     if (config?.simulatedCard) {
-      // store the simulated card type because we can't get it from android
       this.simulatedCardType = config.simulatedCard
     }
 
-    if (
-      newConfig?.simulatedCard !== null &&
-      newConfig?.simulatedCard !== undefined
-    ) {
-      // the simulated card type comes back as a string of the enum name so that needs to be converted back to an enum
-      newConfig.simulatedCard = this.simulatedCardTypeStringToEnum(
-        newConfig.simulatedCard,
-      )
-    } else if (this.objectExists(newConfig)) {
-      newConfig.simulatedCard = config.simulatedCard
+    if (!newConfig?.simulatedCard && this.objectExists(newConfig)) {
+      newConfig.simulatedCard = this.simulatedCardType ?? undefined
     }
 
     return this.objectExists(newConfig)
@@ -1206,18 +1169,18 @@ export class StripeTerminalPlugin {
   ): Promise<boolean> {
     this.ensureInitialized()
 
-    if (discoveryMethod === DiscoveryMethod.Both) {
+    if (discoveryMethod === 'both') {
       // Both is a plugin-level concept combining BluetoothScan + Internet.
       // Check each underlying method and return true if either is supported.
       const [bluetoothResult, internetResult] = await Promise.all([
         StripeTerminal.supportsReadersOfType({
           deviceType,
-          discoveryMethod: DiscoveryMethod.BluetoothScan,
+          discoveryMethod: 'bluetoothScan',
           simulated,
         }),
         StripeTerminal.supportsReadersOfType({
           deviceType,
-          discoveryMethod: DiscoveryMethod.Internet,
+          discoveryMethod: 'internet',
           simulated,
         }),
       ])
@@ -1240,26 +1203,18 @@ export class StripeTerminalPlugin {
   }
 
   public static getDeviceStyleFromDeviceType(type: DeviceType): DeviceStyle {
-    if (
-      type === DeviceType.Chipper2X ||
-      type === DeviceType.StripeM2 ||
-      type === DeviceType.WisePad3
-    ) {
-      return DeviceStyle.Bluetooth
-    } else if (type === DeviceType.TapToPay) {
-      return DeviceStyle.Local
-    } else if (
-      type === DeviceType.WisePosE ||
-      type === DeviceType.WisePosEDevKit ||
-      type === DeviceType.StripeS700 ||
-      type === DeviceType.StripeS700DevKit ||
-      type === DeviceType.StripeS710 ||
-      type === DeviceType.StripeS710DevKit
-    ) {
-      return DeviceStyle.Internet
+    switch (type) {
+      case 'chipper1X':
+      case 'chipper2X':
+      case 'stripeM2':
+      case 'wisePad3':
+      case 'wisePad3s':
+        return 'bluetooth'
+      case 'tapToPay':
+        return 'local'
+      default:
+        return 'internet'
     }
-
-    return DeviceStyle.Internet
   }
 
   public static async checkPermissions(): Promise<PermissionStatus> {
