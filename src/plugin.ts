@@ -16,6 +16,8 @@ import {
   PaymentStatus,
   ReaderDisplayMessage,
   ReaderInputOptions,
+  DisconnectReason,
+  ReaderEvent,
   PaymentIntent,
   Cart,
   ListLocationsParameters,
@@ -64,12 +66,13 @@ export class StripeTerminalPlugin {
 
   private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
-  private _onUnexpectedReaderDisconnect: () => void = () => {
-    // reset the sdk type
-    this.selectedSdkType = 'native'
+  private _onUnexpectedReaderDisconnect: (reason?: DisconnectReason) => void =
+    () => {
+      // reset the sdk type
+      this.selectedSdkType = 'native'
 
-    return Promise.reject('You must initialize StripeTerminalPlugin first.')
-  }
+      return Promise.reject('You must initialize StripeTerminalPlugin first.')
+    }
 
   private isDiscovering = false
   private isCollectingPaymentMethod = false
@@ -163,8 +166,8 @@ export class StripeTerminalPlugin {
     this.listeners['unexpectedReaderDisconnectListenerNative'] =
       await StripeTerminal.addListener(
         'didReportUnexpectedReaderDisconnect',
-        () => {
-          this._onUnexpectedReaderDisconnect()
+        (data) => {
+          this._onUnexpectedReaderDisconnect(data?.reason)
         },
       )
 
@@ -177,8 +180,8 @@ export class StripeTerminalPlugin {
       this.listeners['unexpectedReaderDisconnectListenerJs'] =
         await this.stripeTerminalWeb.addListener(
           'didReportUnexpectedReaderDisconnect',
-          () => {
-            this._onUnexpectedReaderDisconnect()
+          (data: { reason?: DisconnectReason }) => {
+            this._onUnexpectedReaderDisconnect(data?.reason)
           },
         )
     }
@@ -191,25 +194,19 @@ export class StripeTerminalPlugin {
     this.isInitialized = true
   }
 
-  private translateAndroidReaderInput(data: {
-    value: string
-    isAndroid?: boolean
+  private translateReaderInput(data: {
+    result?: string[]
   }): ReaderInputOptions {
-    if (data.isAndroid) {
-      const map: Record<string, ReaderInputOptions> = {
-        Swipe: ReaderInputOptions.SwipeCard,
-        Tap: ReaderInputOptions.TapCard,
-        Insert: ReaderInputOptions.InsertCard,
-      }
-      return data.value
-        .split('/')
-        .reduce(
-          (acc, s) => acc | (map[s.trim()] ?? ReaderInputOptions.None),
-          ReaderInputOptions.None,
-        )
+    const map: Record<string, ReaderInputOptions> = {
+      swipeCard: ReaderInputOptions.SwipeCard,
+      insertCard: ReaderInputOptions.InsertCard,
+      tapCard: ReaderInputOptions.TapCard,
     }
 
-    return parseFloat(data.value) as ReaderInputOptions
+    return (data?.result ?? []).reduce(
+      (acc, s) => acc | (map[s] ?? ReaderInputOptions.None),
+      ReaderInputOptions.None,
+    )
   }
 
   private async _addListener<T>(
@@ -223,7 +220,11 @@ export class StripeTerminalPlugin {
       | 'didUpdateBatteryLevel'
       | 'didStartReaderReconnect'
       | 'didSucceedReaderReconnect'
-      | 'didFailReaderReconnect',
+      | 'didFailReaderReconnect'
+      | 'didDisconnect'
+      | 'didReportReaderEvent'
+      | 'didReportLowBatteryWarning'
+      | 'didAcceptTermsOfService',
     callback: (data: T) => void,
     transformFunc?: (data: any) => T,
   ): Promise<PluginListenerHandle> {
@@ -711,7 +712,7 @@ export class StripeTerminalPlugin {
     callback: (options: ReaderInputOptions) => void,
   ): Promise<PluginListenerHandle> {
     return this._addListener('didRequestReaderInput', callback, (data: any) =>
-      this.translateAndroidReaderInput(data),
+      this.translateReaderInput(data),
     )
   }
 
@@ -734,6 +735,56 @@ export class StripeTerminalPlugin {
     callback: (batteryLevel: BatteryLevel) => void,
   ): Promise<PluginListenerHandle> {
     return this._addListener('didUpdateBatteryLevel', callback)
+  }
+
+  /**
+   * The reader's battery is low.
+   *
+   * Bluetooth and USB readers only.
+   */
+  public async didReportLowBatteryWarning(
+    callback: () => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener('didReportLowBatteryWarning', () => callback())
+  }
+
+  /**
+   * A card was inserted into or removed from the reader.
+   *
+   * Bluetooth and USB readers only.
+   */
+  public async didReportReaderEvent(
+    callback: (event: ReaderEvent) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didReportReaderEvent',
+      callback,
+      (data: { result: ReaderEvent }) => data?.result,
+    )
+  }
+
+  /**
+   * The connected reader disconnected, for any reason, including disconnects your app requested.
+   */
+  public async didDisconnect(
+    callback: (reason: DisconnectReason) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didDisconnect',
+      callback,
+      (data: { reason?: DisconnectReason }) => data?.reason ?? 'unknown',
+    )
+  }
+
+  /**
+   * The merchant accepted the Tap to Pay terms of service during connection.
+   *
+   * iOS only.
+   */
+  public async didAcceptTermsOfService(
+    callback: () => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener('didAcceptTermsOfService', () => callback())
   }
 
   public async didReportAvailableUpdate(

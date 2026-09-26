@@ -145,12 +145,12 @@ await terminal.confirmPaymentIntent()
 
 All `LocalMobile` identifiers have been renamed to `TapToPay` to align with the Stripe Terminal SDK.
 
-| Before                                            | After                                          |
-| ------------------------------------------------- | ---------------------------------------------- |
-| `DiscoveryMethod.LocalMobile`                     | `DiscoveryMethod.TapToPay`                     |
-| `LocalMobileConnectionConfiguration`              | `TapToPayConnectionConfiguration`              |
-| `connectLocalMobileReader()`                      | `connectTapToPayReader()`                      |
-| event: `localMobileReaderDidAcceptTermsOfService` | event: `tapToPayReaderDidAcceptTermsOfService` |
+| Before                                            | After                                                                              |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `DiscoveryMethod.LocalMobile`                     | `DiscoveryMethod.TapToPay`                                                         |
+| `LocalMobileConnectionConfiguration`              | `TapToPayConnectionConfiguration`                                                  |
+| `connectLocalMobileReader()`                      | `connectTapToPayReader()`                                                          |
+| event: `localMobileReaderDidAcceptTermsOfService` | event: `didAcceptTermsOfService` (or `terminal.didAcceptTermsOfService(callback)`) |
 
 ```typescript
 // Before
@@ -177,7 +177,7 @@ terminal.connectTapToPayReader(
   reader,
   config as TapToPayConnectionConfiguration,
 )
-terminal.addListener('tapToPayReaderDidAcceptTermsOfService', handler)
+await terminal.didAcceptTermsOfService(handler)
 ```
 
 ### 4. `DeviceType.AppleBuiltIn` renamed to `DeviceType.TapToPay`; new device types added
@@ -428,6 +428,22 @@ const terminal = await StripeTerminalPlugin.create({
 
 `DiscoveryMethod.USB` previously fell back to a Bluetooth scan on iOS without any error, and `connectUsbReader` / `connectAppsOnDevicesReader` were not implemented there at all. Both now reject with a clear message. USB and AppsOnDevices readers are Android-only — USB is gated behind a private preview flag in the public iOS SDK.
 
+### 17. Reader disconnect and reader event changes
+
+These events now fire the same way on iOS, Android and web. Their payloads match the [Stripe Terminal React Native SDK](https://github.com/stripe/stripe-terminal-react-native).
+
+- `onUnexpectedReaderDisconnect` now fires on iOS. It also now fires for Internet readers on Android. It no longer fires on Android when your app calls `disconnectReader()` or `rebootReader()`. The callback now receives a `DisconnectReason` argument.
+- New `terminal.didDisconnect(callback)`. It fires on every disconnect, including ones your app requested, and passes the `DisconnectReason`.
+- New `terminal.didReportReaderEvent(callback)` (`'cardInserted' | 'cardRemoved'`) and `terminal.didReportLowBatteryWarning(callback)`. Both now work on iOS as well as Android.
+- The `tapToPayReaderDidAcceptTermsOfService` event has been renamed to `didAcceptTermsOfService`. Use `terminal.didAcceptTermsOfService(callback)` to listen for it.
+- The Android-only `didReportBatteryLevel` event has been removed. Use `terminal.didUpdateBatteryLevel(callback)` instead.
+- If you listen to raw native events with `addListener`, these payloads have changed:
+  - `didReportUnexpectedReaderDisconnect` is now `{ reason }` (it used to be `{ reader }`).
+  - `didRequestReaderInput` is now `{ result: ('swipeCard' | 'insertCard' | 'tapCard')[] }`.
+  - `didReportReaderEvent` is now `{ result: 'cardInserted' | 'cardRemoved' }`.
+
+  `terminal.didRequestReaderInput(callback)` still passes a `ReaderInputOptions` bitmask.
+
 ## Testing Your Migration
 
 After upgrading, test the following scenarios:
@@ -460,7 +476,7 @@ This upgrade primarily updates the underlying SDKs while maintaining most API co
 - Handle the new `Reconnecting` connection status if you monitor connection state
 - On Android: replace `DiscoveryMethod.Embedded` and `DiscoveryMethod.Handoff` with `DiscoveryMethod.AppsOnDevices`; replace `connectHandoffReader` calls with `connectAppsOnDevicesReader`
 - Remove any usage of `DeviceType.VerifoneP400` — the Verifone P400 reader is no longer supported
-- Rename `DiscoveryMethod.LocalMobile` → `DiscoveryMethod.TapToPay`, `LocalMobileConnectionConfiguration` → `TapToPayConnectionConfiguration`, `connectLocalMobileReader()` → `connectTapToPayReader()`, and the `localMobileReaderDidAcceptTermsOfService` event → `tapToPayReaderDidAcceptTermsOfService`
+- Rename `DiscoveryMethod.LocalMobile` → `DiscoveryMethod.TapToPay`, `LocalMobileConnectionConfiguration` → `TapToPayConnectionConfiguration`, `connectLocalMobileReader()` → `connectTapToPayReader()`, and the `localMobileReaderDidAcceptTermsOfService` event → `didAcceptTermsOfService`
 - Rename `DeviceType.AppleBuiltIn` → `DeviceType.TapToPay` (now covers both iOS and Android Tap to Pay readers)
 - **Remove `rxjs` from your dependencies** and update all Observable-based call sites to use the new callback + `PluginListenerHandle` pattern (call `handle.remove()` instead of `subscription.unsubscribe()`)
 - Rename `processPayment()` → `confirmPaymentIntent()` (matches the native Stripe Terminal SDK function name)

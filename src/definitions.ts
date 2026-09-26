@@ -250,8 +250,10 @@ export interface StripeTerminalConfig {
 
   /**
    * An event handler called [when a reader disconnects](https://stripe.com/docs/terminal/readers/connecting/verifone-p400#handling-disconnects) from your app.
+   *
+   * Not called for disconnects your app requested (`disconnectRequested`, `rebootRequested`). Use `didDisconnect` to observe every disconnect.
    */
-  onUnexpectedReaderDisconnect: () => void
+  onUnexpectedReaderDisconnect: (reason?: DisconnectReason) => void
 
   /**
    * The log level for the native SDK console output.
@@ -663,6 +665,31 @@ export enum ReaderDisplayMessage {
    */
   TryAnotherCard,
 }
+
+/**
+ * The reason a reader disconnected.
+ *
+ * @category Reader
+ */
+export type DisconnectReason =
+  | 'disconnectRequested'
+  | 'rebootRequested'
+  | 'securityReboot'
+  | 'criticallyLowBattery'
+  | 'poweredOff'
+  | 'bluetoothDisabled'
+  | 'bluetoothSignalLost'
+  | 'peerRemovedPairingInformation'
+  | 'usbDisconnected'
+  | 'idlePowerDown'
+  | 'unknown'
+
+/**
+ * A card event reported by a mobile reader.
+ *
+ * @category Reader
+ */
+export type ReaderEvent = 'cardInserted' | 'cardRemoved'
 
 /**
  * This represents all of the input methods available to your user when the reader begins waiting for input.
@@ -2029,7 +2056,17 @@ export interface StripeTerminalInterface {
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
-    eventName: 'didReportUnexpectedReaderDisconnect',
+    eventName: 'didReportUnexpectedReaderDisconnect' | 'didDisconnect',
+    listenerFunc: (data: { reason: DisconnectReason }) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didReportReaderEvent',
+    listenerFunc: (data: { result: ReaderEvent }) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didReportLowBatteryWarning' | 'didAcceptTermsOfService',
     listenerFunc: () => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 

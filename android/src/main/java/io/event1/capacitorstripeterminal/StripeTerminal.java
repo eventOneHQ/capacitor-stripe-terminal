@@ -23,6 +23,7 @@ import com.stripe.stripeterminal.external.callable.CollectedDataCallback;
 import com.stripe.stripeterminal.external.callable.ConnectionTokenCallback;
 import com.stripe.stripeterminal.external.callable.ConnectionTokenProvider;
 import com.stripe.stripeterminal.external.callable.DiscoveryListener;
+import com.stripe.stripeterminal.external.callable.InternetReaderListener;
 import com.stripe.stripeterminal.external.callable.LocationListCallback;
 import com.stripe.stripeterminal.external.callable.MobileReaderListener;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
@@ -109,6 +110,7 @@ public class StripeTerminal
     DiscoveryListener,
     MobileReaderListener,
     TapToPayReaderListener,
+    InternetReaderListener,
     AppsOnDevicesListener
 {
 
@@ -406,7 +408,7 @@ public class StripeTerminal
     // Boolean allowCustomerCancel = call.getBoolean("allowCustomerCancel", false);
 
     InternetConnectionConfiguration connectionConfig =
-      new InternetConnectionConfiguration(null, failIfInUse);
+      new InternetConnectionConfiguration(this, failIfInUse);
 
     Terminal.getInstance().connectReader(
       reader,
@@ -1508,8 +1510,9 @@ public class StripeTerminal
     SimulatedCard simulatedCard = currentConfig.getSimulatedCard();
 
     if (availableReaderUpdateInt != null) {
-      availableReaderUpdate =
-        SimulateReaderUpdate.values()[availableReaderUpdateInt];
+      availableReaderUpdate = SimulateReaderUpdate.values()[
+        availableReaderUpdateInt
+      ];
     }
 
     if (simulatedCardInt != null) {
@@ -1635,14 +1638,16 @@ public class StripeTerminal
 
   @Override
   public void onReportLowBatteryWarning() {
-    notifyListeners("didReportLowBatteryWarning", new JSObject());
+    JSObject ret = new JSObject();
+    ret.put("result", "LOW BATTERY");
+    notifyListeners("didReportLowBatteryWarning", ret);
   }
 
   @Override
   public void onReportReaderEvent(@NonNull ReaderEvent readerEvent) {
     lastReaderEvent = readerEvent;
     JSObject ret = new JSObject();
-    ret.put("event", readerEvent.ordinal());
+    ret.put("result", TerminalUtils.serializeReaderEvent(readerEvent));
     notifyListeners("didReportReaderEvent", ret);
   }
 
@@ -1651,7 +1656,14 @@ public class StripeTerminal
     lastBatteryLevel = null;
     lastBatteryStatus = null;
     lastIsCharging = null;
-    notifyListeners("didReportUnexpectedReaderDisconnect", new JSObject());
+
+    JSObject ret = new JSObject();
+    ret.put("reason", TerminalUtils.serializeDisconnectReason(reason));
+    notifyListeners("didDisconnect", ret);
+
+    if (!TerminalUtils.isRequestedDisconnect(reason)) {
+      notifyListeners("didReportUnexpectedReaderDisconnect", ret);
+    }
   }
 
   @Override
@@ -1693,8 +1705,10 @@ public class StripeTerminal
     @NonNull ReaderInputOptions readerInputOptions
   ) {
     JSObject ret = new JSObject();
-    ret.put("value", readerInputOptions.toString());
-    ret.put("isAndroid", true);
+    ret.put(
+      "result",
+      TerminalUtils.serializeReaderInputOptions(readerInputOptions)
+    );
 
     notifyListeners("didRequestReaderInput", ret);
   }
@@ -1751,7 +1765,6 @@ public class StripeTerminal
     ret.put("isCharging", isCharging);
 
     notifyListeners("didUpdateBatteryLevel", ret);
-    notifyListeners("didReportBatteryLevel", ret);
   }
 
   @Override

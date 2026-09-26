@@ -18,6 +18,7 @@ import com.stripe.stripeterminal.external.models.CollectedData;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.CustomerCancellation;
 import com.stripe.stripeterminal.external.models.DeviceType;
+import com.stripe.stripeterminal.external.models.DisconnectReason;
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
 import com.stripe.stripeterminal.external.models.EmailInput;
 import com.stripe.stripeterminal.external.models.EmailResult;
@@ -36,6 +37,7 @@ import com.stripe.stripeterminal.external.models.PhoneResult;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderAccessibility;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
+import com.stripe.stripeterminal.external.models.ReaderEvent;
 import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSettings;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
@@ -1363,5 +1365,70 @@ public class TerminalUtils {
     } else {
       return 0;
     }
+  }
+
+  public static String serializeDisconnectReason(DisconnectReason reason) {
+    switch (reason) {
+      case DISCONNECT_REQUESTED:
+        return "disconnectRequested";
+      case REBOOT_REQUESTED:
+        return "rebootRequested";
+      case SECURITY_REBOOT:
+        return "securityReboot";
+      case CRITICALLY_LOW_BATTERY:
+        return "criticallyLowBattery";
+      case POWERED_OFF:
+        return "poweredOff";
+      case BLUETOOTH_DISABLED:
+        return "bluetoothDisabled";
+      case USB_DISCONNECTED:
+        return "usbDisconnected";
+      case IDLE_POWER_DOWN:
+        return "idlePowerDown";
+      case BLUETOOTH_PEER_REMOVED_PAIRING_INFORMATION:
+        return "peerRemovedPairingInformation";
+      default:
+        return "unknown";
+    }
+  }
+
+  public static boolean isRequestedDisconnect(DisconnectReason reason) {
+    return (
+      reason == DisconnectReason.DISCONNECT_REQUESTED ||
+      reason == DisconnectReason.REBOOT_REQUESTED
+    );
+  }
+
+  public static String serializeReaderEvent(ReaderEvent event) {
+    switch (event) {
+      case CARD_INSERTED:
+        return "cardInserted";
+      case CARD_REMOVED:
+        return "cardRemoved";
+      default:
+        return "unknown";
+    }
+  }
+
+  public static JSArray serializeReaderInputOptions(
+    ReaderInputOptions options
+  ) {
+    JSArray result = new JSArray();
+    for (ReaderInputOptions.ReaderInputOption option : options.getOptions()) {
+      switch (option) {
+        case SWIPE:
+          result.put("swipeCard");
+          break;
+        case INSERT:
+          result.put("insertCard");
+          break;
+        case TAP:
+          result.put("tapCard");
+          break;
+        default:
+          break;
+      }
+    }
+    return result;
   }
 }

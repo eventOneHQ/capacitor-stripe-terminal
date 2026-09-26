@@ -1109,11 +1109,6 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
 
     // MARK: TerminalDelegate
 
-    public func terminal(_: Terminal, didReportUnexpectedReaderDisconnect reader: Reader) {
-        logMsg(items: "didReportUnexpectedReaderDisconnect \(reader)")
-        notifyListeners("didReportUnexpectedReaderDisconnect", data: ["reader": StripeTerminalUtils.serializeReader(reader: reader)])
-    }
-
     public func terminal(_: Terminal, didChangeConnectionStatus status: ConnectionStatus) {
         notifyListeners("didChangeConnectionStatus", data: ["status": status.rawValue])
     }
@@ -1149,11 +1144,19 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     public func reader(_: Reader, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
-        notifyListeners("didRequestReaderInput", data: ["value": inputOptions.rawValue])
+        notifyListeners("didRequestReaderInput", data: ["result": StripeTerminalUtils.serializeReaderInputOptions(inputOptions)])
     }
 
     public func reader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
         notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
+    }
+
+    public func reader(_: Reader, didReportReaderEvent event: ReaderEvent, info _: [AnyHashable: Any]?) {
+        notifyListeners("didReportReaderEvent", data: ["result": StripeTerminalUtils.serializeReaderEvent(event)])
+    }
+
+    public func readerDidReportLowBatteryWarning(_: Reader) {
+        notifyListeners("didReportLowBatteryWarning", data: ["result": "LOW BATTERY"])
     }
 
     public func reader(_: Reader, didReportBatteryLevel batteryLevel: Float, status: BatteryStatus, isCharging: Bool) {
@@ -1186,7 +1189,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     public func tapToPayReader(_: Reader, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
-        notifyListeners("didRequestReaderInput", data: ["value": inputOptions.rawValue])
+        notifyListeners("didRequestReaderInput", data: ["result": StripeTerminalUtils.serializeReaderInputOptions(inputOptions)])
     }
 
     public func tapToPayReader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
@@ -1194,13 +1197,18 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     public func tapToPayReaderDidAcceptTermsOfService(_: Reader) {
-        notifyListeners("tapToPayReaderDidAcceptTermsOfService", data: nil)
+        notifyListeners("didAcceptTermsOfService", data: nil)
     }
 
     // MARK: ReaderDelegate
 
     public func reader(_: Reader, didDisconnect reason: DisconnectReason) {
-        // Handled by terminal(_:didReportUnexpectedReaderDisconnect:) for unexpected disconnects
+        let data: [String: Any] = ["reason": StripeTerminalUtils.serializeDisconnectReason(reason)]
+        notifyListeners("didDisconnect", data: data)
+
+        if reason != .disconnectRequested && reason != .rebootRequested {
+            notifyListeners("didReportUnexpectedReaderDisconnect", data: data)
+        }
     }
 
     public func reader(_ reader: Reader, didStartReconnect cancelable: Cancelable, disconnectReason reason: DisconnectReason) {

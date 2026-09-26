@@ -385,9 +385,10 @@ export class StripeTerminalWeb extends WebPlugin {
         })
       },
       onUnexpectedReaderDisconnect: async () => {
-        this.notifyListeners('didReportUnexpectedReaderDisconnect', {
-          reader: null,
-        })
+        // The JS SDK doesn't report a reason.
+        const data = { reason: 'unknown' }
+        this.notifyListeners('didDisconnect', data)
+        this.notifyListeners('didReportUnexpectedReaderDisconnect', data)
       },
       onConnectionStatusChange: async (event) => {
         this.notifyListeners('didChangeConnectionStatus', {
@@ -652,6 +653,8 @@ export class StripeTerminalWeb extends WebPlugin {
     const sdk = this.ensureInitialized()
 
     await sdk.disconnectReader()
+
+    this.notifyListeners('didDisconnect', { reason: 'disconnectRequested' })
   }
 
   async installAvailableUpdate(): Promise<void> {

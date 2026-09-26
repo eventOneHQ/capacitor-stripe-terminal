@@ -54,6 +54,38 @@ public class StripeTerminalUtils {
         }
     }
 
+    static func serializeDisconnectReason(_ reason: DisconnectReason) -> String {
+        switch reason {
+        case .disconnectRequested: return "disconnectRequested"
+        case .rebootRequested: return "rebootRequested"
+        case .securityReboot: return "securityReboot"
+        case .criticallyLowBattery: return "criticallyLowBattery"
+        case .poweredOff: return "poweredOff"
+        case .bluetoothDisabled: return "bluetoothDisabled"
+        case .bluetoothSignalLost: return "bluetoothSignalLost"
+        case .usbDisconnected: return "usbDisconnected"
+        case .idlePowerDown: return "idlePowerDown"
+        case .peerRemovedPairingInformation: return "peerRemovedPairingInformation"
+        default: return "unknown"
+        }
+    }
+
+    static func serializeReaderEvent(_ event: ReaderEvent) -> String {
+        switch event {
+        case .cardInserted: return "cardInserted"
+        case .cardRemoved: return "cardRemoved"
+        @unknown default: return "unknown"
+        }
+    }
+
+    static func serializeReaderInputOptions(_ options: ReaderInputOptions) -> [String] {
+        var result: [String] = []
+        if options.contains(.swipeCard) { result.append("swipeCard") }
+        if options.contains(.insertCard) { result.append("insertCard") }
+        if options.contains(.tapCard) { result.append("tapCard") }
+        return result
+    }
+
     static func serializeReaderSettings(settings: ReaderSettings) -> [String: Any] {
         var accessibility: [String: Any] = [:]
 
