@@ -28,10 +28,16 @@ import {
   CreateSetupIntentParams,
   CollectSetupIntentPaymentMethodParams,
   SetupIntent,
+  SetupIntentStatus,
+  SetupIntentUsage,
+  SetupAttempt,
+  SetupAttemptCardPresentDetails,
   RefundParams,
   Refund,
+  RefundStatus,
   ICollectInputsParameters,
   ICollectInputsResult,
+  DiscoveryMethod,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -45,8 +51,15 @@ import {
   IPaymentIntent,
   ISetReaderDisplayRequest,
   ICollectConfig,
+  IReaderSettings,
+  ICollectInputsParameters as SdkCollectInputsParameters,
 } from '@stripe/terminal-js'
 import { Stripe } from 'stripe'
+
+/**
+ * @ignore
+ */
+type SdkSetupIntent = Parameters<Terminal['confirmSetupIntent']>[0]
 
 /**
  * @ignore
@@ -304,6 +317,149 @@ const paymentStatus: { [status: string]: PaymentStatus } = {
 /**
  * @ignore
  */
+const setupIntentStatus: { [status: string]: SetupIntentStatus } = {
+  requires_payment_method: 'requiresPaymentMethod',
+  requires_confirmation: 'requiresConfirmation',
+  requires_action: 'requiresAction',
+  processing: 'processing',
+  succeeded: 'succeeded',
+  canceled: 'canceled',
+}
+
+/**
+ * @ignore
+ */
+const setupIntentUsage: { [usage: string]: SetupIntentUsage } = {
+  on_session: 'onSession',
+  off_session: 'offSession',
+}
+
+/**
+ * @ignore
+ */
+const refundStatus: { [status: string]: RefundStatus } = {
+  succeeded: 'succeeded',
+  failed: 'failed',
+  pending: 'pending',
+}
+
+/**
+ * @ignore
+ */
+function idOf(value: any): string | null {
+  if (!value) return null
+  return typeof value === 'string' ? value : (value.id ?? null)
+}
+
+/**
+ * @ignore
+ */
+function serializeSetupAttemptCardPresent(
+  details: any,
+): SetupAttemptCardPresentDetails | null {
+  if (!details) return null
+
+  return {
+    emvAuthData: details.emv_auth_data ?? null,
+    generatedCard: details.generated_card ?? null,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeSetupAttempt(attempt: any): SetupAttempt {
+  const details = attempt.payment_method_details
+
+  return {
+    id: attempt.id,
+    applicationId: idOf(attempt.application),
+    created: attempt.created ?? null,
+    customer: idOf(attempt.customer),
+    livemode: !!attempt.livemode,
+    onBehalfOfId: idOf(attempt.on_behalf_of),
+    paymentMethodId: idOf(attempt.payment_method),
+    setupIntentId: idOf(attempt.setup_intent),
+    status: attempt.status ?? null,
+    usage: setupIntentUsage[attempt.usage] ?? null,
+    paymentMethodDetails: details
+      ? {
+          type: paymentMethodType[details.type] ?? null,
+          cardPresent: serializeSetupAttemptCardPresent(details.card_present),
+          interacPresent: serializeSetupAttemptCardPresent(
+            details.interac_present,
+          ),
+        }
+      : null,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeSetupIntent(intent: any): SetupIntent {
+  const latestAttempt =
+    intent.latest_attempt && typeof intent.latest_attempt === 'object'
+      ? serializeSetupAttempt(intent.latest_attempt)
+      : null
+
+  return {
+    id: intent.id,
+    created: intent.created ?? null,
+    customer: idOf(intent.customer),
+    description: intent.description ?? null,
+    livemode: !!intent.livemode,
+    metadata: intent.metadata ?? null,
+    onBehalfOf: idOf(intent.on_behalf_of),
+    paymentMethodId: idOf(intent.payment_method),
+    paymentMethodTypes: (intent.payment_method_types ?? [])
+      .map((type: string) => paymentMethodType[type])
+      .filter(Boolean),
+    status: setupIntentStatus[intent.status] ?? 'unknown',
+    usage: setupIntentUsage[intent.usage] ?? null,
+    latestAttempt,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeRefund(refund: any): Refund {
+  return {
+    id: refund.id,
+    amount: refund.amount ?? null,
+    chargeId: idOf(refund.charge),
+    created: refund.created ?? null,
+    currency: refund.currency ?? null,
+    metadata: refund.metadata ?? null,
+    reason: refund.reason ?? null,
+    status: refundStatus[refund.status] ?? 'unknown',
+    failureReason: refund.failure_reason ?? null,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeReaderSettings(settings: IReaderSettings): ReaderSettings {
+  const accessibility = settings.accessibilitySettings
+
+  if ('textToSpeechStatus' in accessibility) {
+    return {
+      accessibility: { textToSpeechStatus: accessibility.textToSpeechStatus },
+    }
+  }
+
+  return {
+    accessibility: {
+      error: accessibility.message ?? 'Unable to read accessibility settings',
+    },
+  }
+}
+
+/**
+ * @ignore
+ */
 export class StripeTerminalWeb extends WebPlugin {
   private STRIPE_API_BASE = 'https://api.stripe.com'
   private instance: Terminal | null = null
@@ -311,6 +467,8 @@ export class StripeTerminalWeb extends WebPlugin {
   private simulated: boolean = false
   private currentClientSecret: string | null = null
   private currentPaymentIntent: ISdkManagedPaymentIntent | null = null
+  private currentSetupIntentClientSecret: string | null = null
+  private currentSetupIntent: SdkSetupIntent | null = null
   private currentConnectionToken: string | null = null
 
   private connectionTokenCallbacks: Array<(response: TokenResponse) => void> =
@@ -328,6 +486,15 @@ export class StripeTerminalWeb extends WebPlugin {
     }
 
     return this.instance
+  }
+
+  private unwrap<T>(result: T | ErrorResponse): T {
+    const error = (result as ErrorResponse)?.error
+    if (error) {
+      throw error
+    }
+
+    return result as T
   }
 
   async getPermissions(): Promise<PermissionStatus> {
@@ -540,12 +707,22 @@ export class StripeTerminalWeb extends WebPlugin {
     console.warn('rebootReader is only available on iOS and Android.')
   }
   async getReaderSettings(): Promise<ReaderSettings> {
-    throw new Error('getReaderSettings is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    return serializeReaderSettings(this.unwrap(await sdk.getReaderSettings()))
   }
   async setReaderSettings(
-    _options: ReaderSettingsParameters,
+    options: ReaderSettingsParameters,
   ): Promise<ReaderSettings> {
-    throw new Error('setReaderSettings is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    const result = await sdk.setReaderSettings({
+      accessibility_parameters: {
+        enableTextToSpeechSpeakers: options.textToSpeechViaSpeakers,
+      },
+    })
+
+    return serializeReaderSettings(this.unwrap(result))
   }
   async collectData(
     _options: CollectDataConfig,
@@ -565,52 +742,164 @@ export class StripeTerminalWeb extends WebPlugin {
   ): Promise<{ intent: SetupIntent | null }> {
     throw new Error('createSetupIntent is only available on iOS and Android.')
   }
-  async retrieveSetupIntent(_options: {
+  async retrieveSetupIntent(options: {
     clientSecret: string
   }): Promise<{ intent: SetupIntent | null }> {
-    throw new Error('retrieveSetupIntent is only available on iOS and Android.')
+    this.currentSetupIntentClientSecret = options.clientSecret
+    this.currentSetupIntent = null
+
+    // make sure fetch is supported
+    const isFetchSupported = 'fetch' in window
+    if (!isFetchSupported) {
+      return {
+        intent: null,
+      }
+    }
+
+    const setupIntentId = options.clientSecret.split('_secret')[0]
+
+    const stripeUrl = new URL(
+      `/v1/setup_intents/${setupIntentId}`,
+      this.STRIPE_API_BASE,
+    )
+    stripeUrl.searchParams.append('client_secret', options.clientSecret)
+
+    const response = await fetch(stripeUrl.href, {
+      headers: {
+        Authorization: `Bearer ${this.currentConnectionToken}`,
+      },
+    })
+
+    const json = await response.json()
+
+    if (!response.ok) {
+      throw new Error(json?.error?.message ?? json)
+    }
+
+    return { intent: serializeSetupIntent(json) }
   }
   async collectSetupIntentPaymentMethod(
-    _params?: CollectSetupIntentPaymentMethodParams,
+    params?: CollectSetupIntentPaymentMethodParams,
   ): Promise<{ intent: SetupIntent | null }> {
-    throw new Error(
-      'collectSetupIntentPaymentMethod is only available on iOS and Android.',
+    const sdk = this.ensureInitialized()
+
+    if (!this.currentSetupIntentClientSecret) {
+      throw new Error(
+        'No `clientSecret` was found. Make sure to run `retrieveSetupIntent` before running this method.',
+      )
+    }
+    if (params?.collectionReason === 'verify') {
+      throw new Error(
+        "collectionReason: 'verify' is only supported on iOS and Android.",
+      )
+    }
+
+    const result = this.unwrap(
+      await sdk.collectSetupIntentPaymentMethod(
+        this.currentSetupIntentClientSecret,
+        (params?.allowRedisplay ?? 'unspecified') as NonNullable<
+          ICollectConfig['allow_redisplay']
+        >,
+        {
+          enable_customer_cancellation:
+            params?.customerCancellation === 'enableIfAvailable'
+              ? true
+              : params?.customerCancellation === 'disableIfAvailable'
+                ? false
+                : undefined,
+        },
+      ),
     )
+
+    this.currentSetupIntent = result.setupIntent
+
+    return { intent: serializeSetupIntent(result.setupIntent) }
   }
   async cancelCollectSetupIntentPaymentMethod(): Promise<void> {
-    // no equivalent
-    console.warn(
-      'cancelCollectSetupIntentPaymentMethod is only available on iOS and Android.',
-    )
+    const sdk = this.ensureInitialized()
+
+    this.unwrap(await sdk.cancelCollectSetupIntentPaymentMethod())
   }
   async confirmSetupIntent(): Promise<{ intent: SetupIntent | null }> {
-    throw new Error('confirmSetupIntent is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    if (!this.currentSetupIntent) {
+      throw new Error(
+        'No `setupIntent` was found. Make sure to run `collectSetupIntentPaymentMethod` before running this method.',
+      )
+    }
+
+    const result = this.unwrap(
+      await sdk.confirmSetupIntent(this.currentSetupIntent),
+    )
+
+    this.currentSetupIntent = result.setupIntent
+
+    return { intent: serializeSetupIntent(result.setupIntent) }
   }
   async cancelSetupIntent(): Promise<{ intent: SetupIntent | null }> {
     throw new Error('cancelSetupIntent is only available on iOS and Android.')
   }
-  async collectRefundPaymentMethod(_params: RefundParams): Promise<void> {
-    throw new Error(
-      'collectRefundPaymentMethod is only available on iOS and Android.',
+  async collectRefundPaymentMethod(params: RefundParams): Promise<void> {
+    const sdk = this.ensureInitialized()
+
+    if (!('chargeId' in params)) {
+      throw new Error(
+        'Refunding by paymentIntentId is only supported on iOS and Android. Pass chargeId instead.',
+      )
+    }
+    // The JS SDK has no refund options for customer cancellation or metadata.
+    if (params.customerCancellation === 'disableIfAvailable') {
+      throw new Error(
+        "customerCancellation: 'disableIfAvailable' is only supported on iOS and Android.",
+      )
+    }
+    if (params.metadata) {
+      throw new Error('Refund metadata is only supported on iOS and Android.')
+    }
+
+    this.unwrap(
+      await sdk.collectRefundPaymentMethod(
+        params.chargeId,
+        params.amount,
+        params.currency,
+        {
+          refund_application_fee: params.refundApplicationFee,
+          reverse_transfer: params.reverseTransfer,
+        },
+      ),
     )
   }
   async cancelCollectRefundPaymentMethod(): Promise<void> {
-    // no equivalent
-    console.warn(
-      'cancelCollectRefundPaymentMethod is only available on iOS and Android.',
-    )
+    const sdk = this.ensureInitialized()
+
+    this.unwrap(await sdk.cancelCollectRefundPaymentMethod())
   }
   async confirmRefund(): Promise<{ refund: Refund | null }> {
-    throw new Error('confirmRefund is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    const result = this.unwrap(await sdk.processRefund())
+
+    return { refund: serializeRefund(result.refund) }
   }
   async collectInputs(
-    _params: ICollectInputsParameters,
+    params: ICollectInputsParameters,
   ): Promise<{ collectInputResults: ICollectInputsResult[] }> {
-    throw new Error('collectInputs is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    // The plugin's input and result shapes match the JS SDK's field for field.
+    const results = this.unwrap(
+      await sdk.collectInputs(params as unknown as SdkCollectInputsParameters),
+    )
+
+    return {
+      collectInputResults: results as unknown as ICollectInputsResult[],
+    }
   }
   async cancelCollectInputs(): Promise<void> {
-    // no equivalent
-    console.warn('cancelCollectInputs is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    this.unwrap(await sdk.cancelCollectInputs())
   }
   async getConnectedReader(): Promise<{ reader: Reader | null }> {
     const sdk = this.ensureInitialized()
@@ -951,9 +1240,9 @@ export class StripeTerminalWeb extends WebPlugin {
   }
 
   async supportsReadersOfType(_options: {
-    deviceType: number
-    discoveryMethod: number
-    simulated: boolean
+    deviceType: DeviceType
+    discoveryMethod: DiscoveryMethod
+    simulated?: boolean
   }): Promise<{ isSupported: boolean }> {
     // not supported on web
     return { isSupported: false }
