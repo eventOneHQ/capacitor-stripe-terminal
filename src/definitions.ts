@@ -252,6 +252,41 @@ export interface StripeTerminalConfig {
    * An event handler called [when a reader disconnects](https://stripe.com/docs/terminal/readers/connecting/verifone-p400#handling-disconnects) from your app.
    */
   onUnexpectedReaderDisconnect: () => void
+
+  /**
+   * The log level for the native SDK console output.
+   *
+   * The iOS SDK only distinguishes between `None` and verbose output, so any level other than `None` maps to verbose there.
+   *
+   * @default LogLevel.None
+   */
+  logLevel?: LogLevel
+}
+
+/**
+ * The verbosity of native SDK logging.
+ */
+export enum LogLevel {
+  /**
+   * No logs will be sent to the console.
+   */
+  None = 0,
+  /**
+   * Only errors.
+   */
+  Error = 1,
+  /**
+   * Errors and warnings.
+   */
+  Warning = 2,
+  /**
+   * Errors, warnings and informational messages.
+   */
+  Info = 3,
+  /**
+   * All logs.
+   */
+  Verbose = 4,
 }
 
 /**
@@ -312,7 +347,14 @@ export interface BluetoothConnectionConfiguration extends ConnectionConfiguratio
 /**
  * @category Reader
  */
-export interface UsbConnectionConfiguration extends ConnectionConfiguration {}
+export interface UsbConnectionConfiguration extends ConnectionConfiguration {
+  /**
+   * When set to true, the Terminal SDK will attempt to auto-reconnect on any unexpected disconnect.
+   *
+   * @default false
+   */
+  autoReconnectOnUnexpectedDisconnect?: boolean
+}
 
 /**
  * @category Reader
@@ -385,6 +427,13 @@ export interface Reader {
   /**
    * The Stripe unique identifier for the reader.
    */
+  id: string | null
+
+  /**
+   * The Stripe unique identifier for the reader.
+   *
+   * @deprecated Use `id` instead. This will be removed in v6.
+   */
   stripeId: string | null
 
   /**
@@ -417,6 +466,16 @@ export interface Reader {
    * True if there is an available update.
    */
   isAvailableUpdate?: boolean
+
+  /**
+   * The available update, if any.
+   */
+  availableUpdate?: ReaderSoftwareUpdate | null
+
+  /**
+   * The [Location](https://stripe.com/docs/api/terminal/locations/object) this reader is registered to, when the full object is available.
+   */
+  location?: Location | null
 
   /**
    * The reader's battery level, represented as a boxed float in the range `[0, 1]`. If the reader does not have a battery, or the battery level is unknown, this value is `null`. (Bluetooth readers only.)
@@ -452,7 +511,80 @@ export interface Reader {
    * Has the value true if the object exists in live mode or the value false if the object exists in test mode.
    */
   livemode?: boolean
+
+  /**
+   * The reader's current firmware version. (Android only.)
+   */
+  firmwareVersion?: string | null
+
+  /**
+   * The reader's current config version. (Android only.)
+   */
+  configVersion?: string | null
+
+  /**
+   * The reader's hardware version. (Android only.)
+   */
+  hardwareVersion?: string | null
+
+  /**
+   * The reader's bootloader version. (Android only.)
+   */
+  bootloaderVersion?: string | null
+
+  /**
+   * The reader's settings version. (Android only.)
+   */
+  settingsVersion?: string | null
+
+  /**
+   * The base URL the reader communicates with. (Android only.)
+   */
+  baseUrl?: string | null
+
+  /**
+   * The reader's EMV key profile ID. (Android only.)
+   */
+  emvKeyProfileId?: string | null
+
+  /**
+   * The reader's MAC key profile ID. (Android only.)
+   */
+  macKeyProfileId?: string | null
+
+  /**
+   * The reader's PIN key profile ID. (Android only.)
+   */
+  pinKeyProfileId?: string | null
+
+  /**
+   * The reader's track key profile ID. (Android only.)
+   */
+  trackKeyProfileId?: string | null
+
+  /**
+   * The reader's PIN keyset ID. (Android only.)
+   */
+  pinKeysetId?: string | null
 }
+
+/**
+ * A component included in a reader software update.
+ *
+ * @category Reader Updates
+ */
+export type UpdateComponent = 'firmware' | 'config' | 'keys' | 'incremental'
+
+/**
+ * An estimate of how long a reader software update will take.
+ *
+ * @category Reader Updates
+ */
+export type EstimatedUpdateTime =
+  | 'estimateLessThan1Minute'
+  | 'estimate1To2Minutes'
+  | 'estimate2To5Minutes'
+  | 'estimate5To15Minutes'
 
 /**
  * @category Reader Updates
@@ -461,12 +593,27 @@ export interface ReaderSoftwareUpdate {
   /**
    * The estimated amount of time for the update.
    */
-  estimatedUpdateTime: string
+  estimatedUpdateTime: EstimatedUpdateTime
+
+  /**
+   * A human readable description of `estimatedUpdateTime`, e.g. `"1-2 minutes"`.
+   */
+  estimatedUpdateTimeString: string
 
   /**
    * The target version for the update.
    */
   deviceSoftwareVersion: string
+
+  /**
+   * The components that will be updated.
+   */
+  components: UpdateComponent[]
+
+  /**
+   * The date after which the update will be required, in seconds since the Unix epoch.
+   */
+  requiredAt?: number | null
 }
 
 /**
@@ -569,12 +716,102 @@ export enum ChargeStatus {
 }
 
 /**
+ * A digital wallet used to present a card.
+ *
+ * @category Payment
+ */
+export interface Wallet {
+  type?: string | null
+}
+
+/**
+ * EMV receipt data required for printed receipts.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/terminal/checkout/receipts
+ */
+export interface ReceiptDetails {
+  accountType?: string | null
+  applicationCryptogram?: string | null
+  applicationPreferredName?: string | null
+  authorizationCode?: string | null
+  authorizationResponseCode?: string | null
+  /**
+   * The cardholder verification method used for the transaction.
+   */
+  cvm?: string | null
+  dedicatedFileName?: string | null
+  terminalVerificationResult?: string | null
+  transactionStatusInformation?: string | null
+}
+
+/**
+ * Details of a card presented to a reader.
+ *
+ * @category Payment
+ */
+export interface CardPresentDetails {
+  last4?: string | null
+  expMonth?: number | null
+  expYear?: number | null
+  cardholderName?: string | null
+  funding?: string | null
+  brand?: string | null
+  generatedCard?: string | null
+  receipt?: ReceiptDetails | null
+  emvAuthData?: string | null
+  country?: string | null
+  preferredLocales?: string[]
+  issuer?: string | null
+  iin?: string | null
+  network?: string | null
+  description?: string | null
+  wallet?: Wallet | null
+  location?: string | null
+  reader?: string | null
+  /**
+   * How the card was read, e.g. `contactlessEmv`. (iOS only.)
+   */
+  readMethod?: string | null
+}
+
+/**
+ * Details of a card used for an online payment.
+ *
+ * @category Payment
+ */
+export interface CardDetails {
+  brand?: string | null
+  country?: string | null
+  expMonth?: number | null
+  expYear?: number | null
+  funding?: string | null
+  last4?: string | null
+}
+
+/**
+ * Details about the payment method used for a charge.
+ *
+ * @category Payment
+ */
+export interface PaymentMethodDetails {
+  type?: PaymentMethodType | null
+  cardPresentDetails?: CardPresentDetails | null
+  interacPresentDetails?: CardPresentDetails | null
+  cardDetails?: CardDetails | null
+}
+
+/**
  * A Stripe Charge object.
  *
  * @category Payment
  * @see https://stripe.com/docs/api/charges/object
  */
 export interface Charge {
+  id: string
+  /**
+   * @deprecated Use `id` instead. This will be removed in v6.
+   */
   stripeId: string
   amount: number
   currency: string
@@ -591,6 +828,14 @@ export interface Charge {
   refunded: boolean
   customer: string | null
   paymentIntentId: string | null
+  balanceTransaction?: string | null
+  applicationFee?: string | null
+  applicationFeeAmount?: number | null
+  onBehalfOf?: string | null
+  /**
+   * Details about the payment method used for this charge, including the EMV data needed to print a receipt.
+   */
+  paymentMethodDetails?: PaymentMethodDetails | null
   receiptEmail: string | null
   receiptNumber: string | null
   receiptUrl: string | null
@@ -646,6 +891,12 @@ export enum PaymentIntentStatus {
 export interface PaymentIntent {
   /**
    * The unique identifier for the intent.
+   */
+  id: string
+  /**
+   * The unique identifier for the intent.
+   *
+   * @deprecated Use `id` instead. This will be removed in v6.
    */
   stripeId: string
   /**
@@ -706,6 +957,96 @@ export interface PaymentIntent {
    * Extra dynamic information about a PaymentIntent. This will appear concatenated with the statementDescriptor on your customer’s statement when this PaymentIntent succeeds in creating a charge.
    */
   statementDescriptorSuffix?: string
+
+  /**
+   * The amount that can be captured with a later capture call, provided in the currency's smallest unit.
+   */
+  amountCapturable?: number | null
+
+  /**
+   * The amount received by the merchant, provided in the currency's smallest unit.
+   */
+  amountReceived?: number | null
+
+  /**
+   * The amount originally requested, provided in the currency's smallest unit.
+   */
+  amountRequested?: number | null
+
+  /**
+   * The amount of the application fee collected, provided in the currency's smallest unit.
+   */
+  applicationFeeAmount?: number | null
+
+  /**
+   * When the intent was canceled, in seconds since the Unix epoch.
+   */
+  canceledAt?: number | null
+
+  /**
+   * The reason the intent was canceled.
+   */
+  cancellationReason?: string | null
+
+  /**
+   * When the funds will be captured, e.g. `automatic` or `manual`.
+   */
+  captureMethod?: string | null
+
+  /**
+   * The client secret of this PaymentIntent.
+   */
+  clientSecret?: string | null
+
+  /**
+   * How the PaymentIntent is confirmed.
+   */
+  confirmationMethod?: string | null
+
+  /**
+   * The ID of the customer this intent belongs to.
+   */
+  customer?: string | null
+
+  /**
+   * An arbitrary string attached to the intent.
+   */
+  description?: string | null
+
+  /**
+   * Whether the intent exists in live mode.
+   */
+  livemode?: boolean
+
+  /**
+   * The Stripe account ID this payment is on behalf of.
+   */
+  onBehalfOf?: string | null
+
+  /**
+   * The ID of the payment method attached to this intent.
+   */
+  paymentMethodId?: string | null
+
+  /**
+   * The payment method types this intent may use.
+   */
+  paymentMethodTypes?: PaymentMethodType[]
+
+  /**
+   * The email the receipt for the resulting payment will be sent to.
+   */
+  receiptEmail?: string | null
+
+  /**
+   * Indicates that you intend to make future payments with this intent's payment method.
+   */
+  setupFutureUsage?: string | null
+
+  /**
+   * A string identifying the resulting payment as part of a group.
+   */
+  transferGroup?: string | null
 }
 
 /**
@@ -805,6 +1146,12 @@ export interface Address {
 export interface Location {
   /**
    * The ID of the Location
+   */
+  id: string
+  /**
+   * The ID of the Location
+   *
+   * @deprecated Use `id` instead. This will be removed in v6.
    */
   stripeId: string
   /**
@@ -909,6 +1256,32 @@ export interface TippingConfig {
   eligibleAmount?: number | null
 }
 
+/**
+ * Controls whether customer-initiated cancellation is enabled during collection.
+ *
+ * Android-based internet readers support enabling and disabling customer cancellation. WisePad 3 and Tap to Pay always show customer cancellation and it cannot be disabled. Stripe M2 and Chipper 2X do not support customer cancellation.
+ */
+export type CustomerCancellation =
+  'enableIfAvailable' | 'disableIfAvailable' | 'unspecified'
+
+/**
+ * Indicates whether a payment method can be shown again to its customer in a checkout flow. Consent must be obtained before setting this field to anything other than `unspecified`.
+ *
+ * @see https://stripe.com/docs/api/payment_methods/object#payment_method_object-allow_redisplay
+ */
+export type AllowRedisplay = 'always' | 'limited' | 'unspecified'
+
+/**
+ * The type of payment method a PaymentIntent or SetupIntent may collect.
+ */
+export type PaymentMethodType =
+  'cardPresent' | 'interacPresent' | 'card' | 'wechatPay' | 'affirm'
+
+/**
+ * When to capture funds for a PaymentIntent.
+ */
+export type CaptureMethod = 'automatic' | 'manual'
+
 export interface CollectConfig {
   /**
    * Bypass tipping selection if it would have otherwise been shown.
@@ -930,6 +1303,569 @@ export interface CollectConfig {
    * @default false
    */
   updatePaymentIntent?: boolean
+
+  /**
+   * Whether to show a cancel button on the reader during collection.
+   *
+   * On the JS SDK, `'disableIfAvailable'` is not supported and throws an error.
+   *
+   * @default 'enableIfAvailable'
+   */
+  customerCancellation?: CustomerCancellation
+
+  /**
+   * Whether the collected payment method may be shown to the customer again in a future checkout flow.
+   *
+   * @default 'unspecified'
+   */
+  allowRedisplay?: AllowRedisplay
+
+  /**
+   * Whether to request dynamic currency conversion during collection.
+   *
+   * @default false
+   */
+  requestDynamicCurrencyConversion?: boolean
+}
+
+/**
+ * Parameters used to create a `PaymentIntent` on the device.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/payment_intents/create
+ */
+export interface CreatePaymentIntentParams {
+  /**
+   * The amount of the payment, provided in the currency's smallest unit.
+   */
+  amount: number
+  /**
+   * Three-letter ISO currency code, in lowercase.
+   */
+  currency: string
+  /**
+   * The payment method types this PaymentIntent may use.
+   *
+   * @default ['cardPresent']
+   */
+  paymentMethodTypes?: PaymentMethodType[]
+  /**
+   * When to capture the funds.
+   *
+   * @default 'automatic'
+   */
+  captureMethod?: CaptureMethod
+  /**
+   * Indicates that you intend to make future payments with this PaymentIntent's payment method.
+   */
+  setupFutureUsage?: 'off_session' | 'on_session'
+  /**
+   * The Stripe account ID for which this payment is intended.
+   */
+  onBehalfOf?: string
+  /**
+   * The account where funds from the payment will be transferred to upon payment success.
+   */
+  transferDataDestination?: string
+  /**
+   * A string that identifies the resulting payment as part of a group.
+   */
+  transferGroup?: string
+  /**
+   * The amount of the application fee collected, provided in the currency's smallest unit.
+   */
+  applicationFeeAmount?: number
+  /**
+   * An arbitrary string attached to the object, displayed alongside the payment in the Stripe dashboard.
+   */
+  description?: string
+  /**
+   * Extra information that will appear on your customer's statement.
+   */
+  statementDescriptor?: string
+  /**
+   * Extra dynamic information concatenated with `statementDescriptor` on your customer's statement.
+   */
+  statementDescriptorSuffix?: string
+  /**
+   * Email address that the receipt for the resulting payment will be sent to.
+   */
+  receiptEmail?: string
+  /**
+   * The ID of the customer this payment is for.
+   */
+  customer?: string
+  /**
+   * Set of key-value pairs attached to the object.
+   */
+  metadata?: Record<string, string>
+}
+
+/**
+ * The possible statuses of a `SetupIntent`.
+ *
+ * @category Payment
+ */
+export type SetupIntentStatus =
+  | 'requiresPaymentMethod'
+  | 'requiresConfirmation'
+  | 'requiresAction'
+  | 'processing'
+  | 'succeeded'
+  | 'canceled'
+  | 'unknown'
+
+/**
+ * Indicates how a saved payment method is intended to be used in the future.
+ *
+ * @category Payment
+ */
+export type SetupIntentUsage = 'onSession' | 'offSession'
+
+/**
+ * The reason a SetupIntent payment method is being collected.
+ *
+ * @category Payment
+ */
+export type CollectionReason = 'saveCard' | 'verify' | 'unspecified'
+
+/**
+ * Parameters used to create a `SetupIntent` on the device.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/setup_intents/create
+ */
+export interface CreateSetupIntentParams {
+  /**
+   * The ID of the customer this SetupIntent is for.
+   */
+  customer?: string
+  /**
+   * An arbitrary string attached to the object.
+   */
+  description?: string
+  /**
+   * Set of key-value pairs attached to the object.
+   */
+  metadata?: Record<string, string>
+  /**
+   * The Stripe account ID for which this SetupIntent is intended.
+   */
+  onBehalfOf?: string
+  /**
+   * The payment method types this SetupIntent may use.
+   *
+   * @default ['cardPresent']
+   */
+  paymentMethodTypes?: PaymentMethodType[]
+  /**
+   * How the saved payment method is intended to be used in the future.
+   */
+  usage?: SetupIntentUsage
+}
+
+/**
+ * Options for `collectSetupIntentPaymentMethod()`.
+ *
+ * @category Payment
+ */
+export interface CollectSetupIntentPaymentMethodParams {
+  /**
+   * Whether the collected payment method may be shown to the customer again in a future checkout flow.
+   *
+   * @default 'unspecified'
+   */
+  allowRedisplay?: AllowRedisplay
+  /**
+   * Whether to show a cancel button on the reader during collection.
+   */
+  customerCancellation?: CustomerCancellation
+  /**
+   * The reason the payment method is being collected.
+   */
+  collectionReason?: CollectionReason
+}
+
+/**
+ * Details of the card presented during a setup attempt.
+ *
+ * @category Payment
+ */
+export interface SetupAttemptCardPresentDetails {
+  emvAuthData?: string | null
+  generatedCard?: string | null
+}
+
+/**
+ * An attempt to set up a payment method.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/setup_attempts
+ */
+export interface SetupAttempt {
+  id: string
+  applicationId?: string | null
+  created?: number | null
+  customer?: string | null
+  livemode: boolean
+  onBehalfOfId?: string | null
+  paymentMethodId?: string | null
+  setupIntentId?: string | null
+  status?: string | null
+  usage?: SetupIntentUsage | null
+  paymentMethodDetails?: {
+    type?: PaymentMethodType | null
+    cardPresent?: SetupAttemptCardPresentDetails | null
+    interacPresent?: SetupAttemptCardPresentDetails | null
+  } | null
+}
+
+/**
+ * A `SetupIntent` guides you through the process of setting up a customer's payment credentials for future payments.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/setup_intents
+ */
+export interface SetupIntent {
+  id: string
+  created?: number | null
+  customer?: string | null
+  description?: string | null
+  livemode: boolean
+  metadata?: Record<string, string> | null
+  onBehalfOf?: string | null
+  paymentMethodId?: string | null
+  paymentMethodTypes?: PaymentMethodType[]
+  status?: SetupIntentStatus | null
+  usage?: SetupIntentUsage | null
+  latestAttempt?: SetupAttempt | null
+}
+
+/**
+ * The possible statuses of a `Refund`.
+ *
+ * @category Payment
+ */
+export type RefundStatus = 'succeeded' | 'failed' | 'pending' | 'unknown'
+
+/**
+ * Parameters used to refund a charge in person, identified by the PaymentIntent being refunded.
+ *
+ * @category Payment
+ */
+export interface RefundParamsWithPaymentIntentId {
+  paymentIntentId: string
+  clientSecret: string
+  amount: number
+  currency: string
+  refundApplicationFee?: boolean
+  reverseTransfer?: boolean
+  customerCancellation?: CustomerCancellation
+  metadata?: Record<string, string>
+}
+
+/**
+ * Parameters used to refund a charge in person, identified by the charge being refunded.
+ *
+ * @category Payment
+ */
+export interface RefundParamsWithChargeId {
+  chargeId: string
+  amount: number
+  currency: string
+  refundApplicationFee?: boolean
+  reverseTransfer?: boolean
+  customerCancellation?: CustomerCancellation
+  metadata?: Record<string, string>
+}
+
+/**
+ * Parameters used to refund a charge in person.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/terminal/features/refunds
+ */
+export type RefundParams =
+  RefundParamsWithPaymentIntentId | RefundParamsWithChargeId
+
+/**
+ * A `Refund` object, created by an in-person refund.
+ *
+ * @category Payment
+ * @see https://stripe.com/docs/api/refunds
+ */
+export interface Refund {
+  id: string
+  amount?: number | null
+  balanceTransaction?: string | null
+  chargeId?: string | null
+  created?: number | null
+  currency?: string | null
+  description?: string | null
+  failureBalanceTransaction?: string | null
+  failureReason?: string | null
+  metadata?: Record<string, string> | null
+  paymentIntentId?: string | null
+  reason?: string | null
+  receiptNumber?: string | null
+  sourceTransferReversal?: string | null
+  status?: RefundStatus | null
+  transferReversal?: string | null
+}
+
+/**
+ * The type of form to display on the reader during `collectInputs()`.
+ *
+ * @category Payment
+ */
+export enum FormType {
+  SELECTION = 'selection',
+  SIGNATURE = 'signature',
+  PHONE = 'phone',
+  EMAIL = 'email',
+  NUMERIC = 'numeric',
+  TEXT = 'text',
+}
+
+/**
+ * The visual style of a selection button.
+ *
+ * @category Payment
+ */
+export enum SelectionButtonStyle {
+  PRIMARY = 'primary',
+  SECONDARY = 'secondary',
+}
+
+/**
+ * The default state of a toggle shown alongside an input form.
+ *
+ * @category Payment
+ */
+export enum ToggleValue {
+  ENABLED = 'enabled',
+  DISABLED = 'disabled',
+}
+
+/**
+ * The state of a toggle after an input form was submitted or skipped.
+ *
+ * @category Payment
+ */
+export enum ToggleResult {
+  ENABLED = 'enabled',
+  DISABLED = 'disabled',
+  SKIPPED = 'skipped',
+}
+
+/**
+ * A button shown on a `FormType.SELECTION` form.
+ *
+ * @category Payment
+ */
+export interface ISelectionButton {
+  style: SelectionButtonStyle
+  text: string
+  id: string
+}
+
+/**
+ * A toggle shown alongside an input form.
+ *
+ * @category Payment
+ */
+export interface IToggle {
+  title?: string | null
+  description?: string | null
+  defaultValue: ToggleValue
+}
+
+/**
+ * A single form to display on the reader during `collectInputs()`.
+ *
+ * @category Payment
+ */
+export interface IInput {
+  formType: FormType
+  title: string
+  required?: boolean | null
+  description?: string | null
+  skipButtonText?: string | null
+  /**
+   * Not supported by `FormType.SELECTION`, which uses its selection buttons to submit.
+   */
+  submitButtonText?: string | null
+  toggles?: IToggle[] | null
+  /**
+   * Required for `FormType.SELECTION`, ignored for every other form type.
+   */
+  selectionButtons?: ISelectionButton[]
+}
+
+/**
+ * Parameters for `collectInputs()`.
+ *
+ * @category Payment
+ */
+export interface ICollectInputsParameters {
+  inputs: IInput[]
+}
+
+/**
+ * The result of a single form shown during `collectInputs()`.
+ *
+ * @category Payment
+ */
+export interface ICollectInputsResult {
+  formType: FormType
+  skipped: boolean
+  toggles: ToggleResult[]
+  /**
+   * The text of the selected button. Only set for `FormType.SELECTION`, and null if the form was skipped.
+   */
+  selection?: string | null
+  /**
+   * The id of the selected button. Only set for `FormType.SELECTION`, and null if the form was skipped.
+   */
+  selectionId?: string | null
+  /**
+   * The signature in SVG format. Only set for `FormType.SIGNATURE`, and null if the form was skipped.
+   */
+  signatureSvg?: string | null
+  /**
+   * The submitted phone number in E.164 format. Only set for `FormType.PHONE`, and null if the form was skipped.
+   */
+  phone?: string | null
+  /**
+   * The submitted email. Only set for `FormType.EMAIL`, and null if the form was skipped.
+   */
+  email?: string | null
+  /**
+   * The submitted text. Only set for `FormType.TEXT`, and null if the form was skipped.
+   */
+  text?: string | null
+  /**
+   * The submitted number as a string. Only set for `FormType.NUMERIC`, and null if the form was skipped.
+   */
+  numericString?: string | null
+}
+
+/**
+ * The text-to-speech status of a connected reader.
+ *
+ * @category Reader
+ */
+export type ReaderTextToSpeechStatus = 'off' | 'headphones' | 'speakers'
+
+/**
+ * Accessibility settings reported by the connected reader.
+ *
+ * Either `textToSpeechStatus` or `error` is set, never both.
+ *
+ * @category Reader
+ */
+export type ReaderAccessibility =
+  | {
+      textToSpeechStatus: ReaderTextToSpeechStatus
+      error?: undefined
+    }
+  | {
+      textToSpeechStatus?: undefined
+      error: string
+    }
+
+/**
+ * Settings reported by the connected reader.
+ *
+ * @category Reader
+ */
+export interface ReaderSettings {
+  accessibility: ReaderAccessibility
+}
+
+/**
+ * Settings to apply to the connected reader.
+ *
+ * @category Reader
+ */
+export interface ReaderSettingsParameters {
+  /**
+   * When true, text-to-speech is routed through the reader's speakers.
+   */
+  textToSpeechViaSpeakers: boolean
+}
+
+/**
+ * The type of data to collect from a card presented to the reader.
+ *
+ * @category Payment
+ */
+export type CollectDataType = 'magstripe' | 'nfcUid'
+
+/**
+ * Configuration for `collectData()`.
+ *
+ * @category Payment
+ */
+export interface CollectDataConfig {
+  /**
+   * The type of data to collect.
+   */
+  type: CollectDataType
+  /**
+   * Whether to show a cancel button on the reader during collection.
+   */
+  customerCancellation?: CustomerCancellation
+}
+
+/**
+ * Data collected from a card via `collectData()`.
+ *
+ * @category Payment
+ */
+export interface CollectedData {
+  /**
+   * When the data was collected, in seconds since the Unix epoch.
+   */
+  created: number
+  /**
+   * Whether the data was collected in live mode.
+   */
+  livemode: boolean
+  /**
+   * The Stripe identifier for the collected magstripe data. Only set when collecting `CollectDataType.Magstripe`.
+   */
+  id?: string | null
+  /**
+   * The Stripe identifier for the collected magstripe data. Only set when collecting `CollectDataType.Magstripe`.
+   *
+   * @deprecated Use `id` instead. This will be removed in v6.
+   */
+  stripeId?: string | null
+  /**
+   * The UID of the presented NFC card. Only set when collecting `CollectDataType.NfcUid`.
+   */
+  uid?: string | null
+}
+
+/**
+ * The battery state reported by a connected Bluetooth reader.
+ *
+ * @category Reader
+ */
+export interface BatteryLevel {
+  /**
+   * The reader's battery level in the range `[0, 1]`.
+   */
+  batteryLevel: number
+  /**
+   * The reader's battery status.
+   */
+  batteryStatus: BatteryStatus
+  /**
+   * Whether the reader is currently charging.
+   */
+  isCharging: boolean
 }
 
 /**
@@ -943,7 +1879,7 @@ export interface StripeTerminalInterface {
     errorMessage?: string,
   ): Promise<void>
 
-  initialize(): Promise<void>
+  initialize(options?: { logLevel?: LogLevel }): Promise<void>
 
   discoverReaders(options: DiscoveryConfiguration): Promise<void>
 
@@ -958,6 +1894,10 @@ export interface StripeTerminalInterface {
   connectInternetReader(options: {
     serialNumber: string
     ipAddress?: string
+    id?: string
+    /**
+     * @deprecated Use `id` instead. This will be removed in v6.
+     */
     stripeId?: string
     failIfInUse?: boolean
   }): Promise<{ reader: Reader | null }>
@@ -965,6 +1905,7 @@ export interface StripeTerminalInterface {
   connectUsbReader(options: {
     serialNumber: string
     locationId: string
+    autoReconnectOnUnexpectedDisconnect?: boolean
   }): Promise<{ reader: Reader | null }>
 
   connectAppsOnDevicesReader(options: {
@@ -990,9 +1931,21 @@ export interface StripeTerminalInterface {
 
   disconnectReader(): Promise<void>
 
+  rebootReader(): Promise<void>
+
+  getReaderSettings(): Promise<ReaderSettings>
+
+  setReaderSettings(options: ReaderSettingsParameters): Promise<ReaderSettings>
+
+  collectData(options: CollectDataConfig): Promise<{ data: CollectedData }>
+
   installAvailableUpdate(): Promise<void>
 
   cancelInstallUpdate(): Promise<void>
+
+  createPaymentIntent(
+    params: CreatePaymentIntentParams,
+  ): Promise<{ intent: PaymentIntent | null }>
 
   retrievePaymentIntent(options: {
     clientSecret: string
@@ -1005,6 +1958,38 @@ export interface StripeTerminalInterface {
   cancelCollectPaymentMethod(): Promise<void>
 
   confirmPaymentIntent(): Promise<{ intent: PaymentIntent }>
+
+  cancelPaymentIntent(): Promise<{ intent: PaymentIntent | null }>
+
+  createSetupIntent(
+    params: CreateSetupIntentParams,
+  ): Promise<{ intent: SetupIntent | null }>
+
+  retrieveSetupIntent(options: {
+    clientSecret: string
+  }): Promise<{ intent: SetupIntent | null }>
+
+  collectSetupIntentPaymentMethod(
+    params?: CollectSetupIntentPaymentMethodParams,
+  ): Promise<{ intent: SetupIntent | null }>
+
+  cancelCollectSetupIntentPaymentMethod(): Promise<void>
+
+  confirmSetupIntent(): Promise<{ intent: SetupIntent | null }>
+
+  cancelSetupIntent(): Promise<{ intent: SetupIntent | null }>
+
+  collectRefundPaymentMethod(params: RefundParams): Promise<void>
+
+  cancelCollectRefundPaymentMethod(): Promise<void>
+
+  confirmRefund(): Promise<{ refund: Refund | null }>
+
+  collectInputs(
+    params: ICollectInputsParameters,
+  ): Promise<{ collectInputResults: ICollectInputsResult[] }>
+
+  cancelCollectInputs(): Promise<void>
 
   clearCachedCredentials(): Promise<void>
 
@@ -1056,6 +2041,16 @@ export interface StripeTerminalInterface {
   addListener(
     eventName: 'didChangeConnectionStatus',
     listenerFunc: (status: any) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didChangePaymentStatus',
+    listenerFunc: (status: { status: PaymentStatus }) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didUpdateBatteryLevel',
+    listenerFunc: (data: BatteryLevel) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(

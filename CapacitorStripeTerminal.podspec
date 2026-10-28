@@ -10,5 +10,5 @@
     s.source_files = 'ios/Sources/StripeTerminalPlugin/**/*.{swift,h,m,c,cc,mm,cpp}'
     s.ios.deployment_target  = '15.0'
     s.dependency 'Capacitor'
-    s.dependency 'StripeTerminal', '5.3.0'
+    s.dependency 'StripeTerminal', '5.8.0'
   end

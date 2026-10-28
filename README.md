@@ -21,8 +21,8 @@
 
 - **Capacitor**: 8.x
 - **Stripe Terminal SDK**:
-  - iOS: 5.3.0 (requires iOS 15.0+)
-  - Android: 5.3.0 (requires Android API 23+)
+  - iOS: 5.8.0 (requires iOS 15.0+)
+  - Android: 5.8.1 (requires Android API 23+)
 
 > **📝 Upgrading from an earlier version?** See the [Migration Guide](MIGRATION_V5.md) for details on breaking changes and upgrade instructions.
 
