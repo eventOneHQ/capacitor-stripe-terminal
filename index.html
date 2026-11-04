@@ -1,0 +1,131 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>capacitor-stripe-terminal</title><meta name="description" content="Documentation for capacitor-stripe-terminal"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><script async src="assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container"><a href="index.html" class="title">capacitor-stripe-terminal</a>
+<div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
+<ul role="listbox" id="tsd-search-results"></ul>
+<div id="tsd-search-status" aria-live="polite" aria-atomic="true">
+<div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header>
+<div class="container container-main">
+<div class="col-content">
+<div class="tsd-page-title">
+<h1>capacitor-stripe-terminal</h1></div>
+<div class="tsd-panel tsd-typography"><p align="center"><br><img src="https://user-images.githubusercontent.com/236501/85893648-1c92e880-b7a8-11ea-926d-95355b8175c7.png" width="128" height="128" /></p>
+<h3 align="center">Capacitor Stripe Terminal</h3>
+<p align="center"><strong><code>capacitor-stripe-terminal</code></strong></p>
+<p align="center">
+  Capacitor plugin for <a href="https://stripe.com/terminal">Stripe Terminal</a> (unofficial)
+</p>
+<p align="center">
+  <img src="https://img.shields.io/maintenance/yes/2026?style=flat-square" />
+  <a href="https://github.com/eventOneHQ/capacitor-stripe-terminal/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/eventOneHQ/capacitor-stripe-terminal/release.yml?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/l/capacitor-stripe-terminal?style=flat-square" /></a>
+<br>
+  <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/dw/capacitor-stripe-terminal?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/capacitor-stripe-terminal"><img src="https://img.shields.io/npm/v/capacitor-stripe-terminal?style=flat-square" /></a>
+<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+<a href="#contributors-"><img src="https://img.shields.io/badge/all%20contributors-0-orange?style=flat-square" /></a>
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
+</p>
+<h2 id="requirements" class="tsd-anchor-link">Requirements<a href="#requirements" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<ul>
+<li><strong>Capacitor</strong>: 8.x</li>
+<li><strong>Stripe Terminal SDK</strong>:
+<ul>
+<li>iOS: 5.8.0 (requires iOS 15.0+)</li>
+<li>Android: 5.8.1 (requires Android API 23+)</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p><strong>📝 Upgrading from an earlier version?</strong> See the <a href="media/MIGRATION_V5.md">Migration Guide</a> for details on breaking changes and upgrade instructions.</p>
+</blockquote>
+<h2 id="maintainers" class="tsd-anchor-link">Maintainers<a href="#maintainers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<table>
+<thead>
+<tr>
+<th>Maintainer</th>
+<th>GitHub</th>
+<th>Social</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Noah Prail</td>
+<td><a href="https://github.com/nprail">nprail</a></td>
+<td><a href="https://twitter.com/NoahPrail">@NoahPrail</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="installation" class="tsd-anchor-link">Installation<a href="#installation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Using npm:</p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">capacitor-stripe-terminal</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Using yarn:</p>
+<pre><code class="bash"><span class="hl-0">yarn</span><span class="hl-1"> </span><span class="hl-2">add</span><span class="hl-1"> </span><span class="hl-2">capacitor-stripe-terminal</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Sync native files:</p>
+<pre><code class="bash"><span class="hl-0">npx</span><span class="hl-1"> </span><span class="hl-2">cap</span><span class="hl-1"> </span><span class="hl-2">sync</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="configuration" class="tsd-anchor-link">Configuration<a href="#configuration" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<h3 id="ios" class="tsd-anchor-link">iOS<a href="#ios" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Follow all Stripe instructions under <a href="https://stripe.com/docs/terminal/sdk/ios#configure">&quot;Configure your app&quot;</a>.</p>
+<h3 id="android" class="tsd-anchor-link">Android<a href="#android" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Add the <code>ACCESS_FINE_LOCATION</code> permission to your app's manifest:</p>
+<pre><code class="xml"><?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.stripe.example.app">
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+</manifest>
+</code><button type="button">Copy</button></pre>
+
+<p>On Android, you must also make sure that Location permission has been granted by the user:</p>
+<pre><code class="javascript"><span class="hl-3">if</span><span class="hl-1"> (</span><span class="hl-4">Capacitor</span><span class="hl-1">.</span><span class="hl-0">getPlatform</span><span class="hl-1">() === </span><span class="hl-2">&#39;android&#39;</span><span class="hl-1">) {</span><br/><span class="hl-1">  </span><span class="hl-5">// check if permission is required</span><br/><span class="hl-1">  </span><span class="hl-6">let</span><span class="hl-1"> </span><span class="hl-4">response</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">StripeTerminalPlugin</span><span class="hl-1">.</span><span class="hl-0">checkPermissions</span><span class="hl-1">();</span><br/><br/><span class="hl-1">  </span><span class="hl-3">if</span><span class="hl-1"> (</span><span class="hl-4">response</span><span class="hl-1">.</span><span class="hl-4">location</span><span class="hl-1"> === </span><span class="hl-2">&#39;prompt&#39;</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-5">// if it is required, request it</span><br/><span class="hl-1">    </span><span class="hl-4">response</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">StripeTerminalPlugin</span><span class="hl-1">.</span><span class="hl-0">requestPermissions</span><span class="hl-1">();</span><br/><br/><span class="hl-1">    </span><span class="hl-3">if</span><span class="hl-1"> (</span><span class="hl-4">response</span><span class="hl-1">.</span><span class="hl-4">location</span><span class="hl-1"> !== </span><span class="hl-2">&#39;granted&#39;</span><span class="hl-1">) {</span><br/><span class="hl-1">      </span><span class="hl-5">// if the request fails, show a message to the user</span><br/><span class="hl-1">      </span><span class="hl-3">throw</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">Error</span><span class="hl-1">(</span><span class="hl-2">&#39;Location permission is required.&#39;</span><span class="hl-1">)</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">terminal</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">StripeTerminalPlugin</span><span class="hl-1">.</span><span class="hl-0">create</span><span class="hl-1">({ ... })</span>
+</code><button type="button">Copy</button></pre>
+
+<p>If the user does not grant permission, <code>StripeTerminalPlugin</code> will throw an error when you try to initialize it so you will have to handle that.</p>
+<p><em>Hint: If the user denies Location permission the first time you ask for it, Android will not display a prompt to the user on subsequent requests for permission and <code>response</code> will always be <code>denied</code>. You will have to ask the user to go into the app's settings to allow Location permission.</em></p>
+<h2 id="usage" class="tsd-anchor-link">Usage<a href="#usage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="javascript"><span class="hl-3">import</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">StripeTerminalPlugin</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">StripeTerminalError</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">DiscoveryMethod</span><span class="hl-1">,</span><br/><span class="hl-1">} </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;capacitor-stripe-terminal&#39;</span><br/><br/><span class="hl-5">// First, initialize the SDK</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">terminal</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">StripeTerminalPlugin</span><span class="hl-1">.</span><span class="hl-0">create</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-0">fetchConnectionToken</span><span class="hl-4">:</span><span class="hl-1"> </span><span class="hl-6">async</span><span class="hl-1"> () </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">resp</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-0">fetch</span><span class="hl-1">(</span><span class="hl-2">&#39;https://your-backend.dev/token&#39;</span><span class="hl-1">, {</span><br/><span class="hl-1">      </span><span class="hl-4">method:</span><span class="hl-1"> </span><span class="hl-2">&#39;POST&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    })</span><br/><span class="hl-1">    </span><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">data</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">resp</span><span class="hl-1">.</span><span class="hl-0">json</span><span class="hl-1">()</span><br/><br/><span class="hl-1">    </span><span class="hl-3">return</span><span class="hl-1"> </span><span class="hl-4">data</span><span class="hl-1">.</span><span class="hl-4">secret</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-0">onUnexpectedReaderDisconnect</span><span class="hl-4">:</span><span class="hl-1"> () </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-5">// handle reader disconnect</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-5">// Start scanning for readers</span><br/><span class="hl-5">// To stop scanning, call handle.remove() on the returned handle.</span><br/><span class="hl-5">// You must connect to a reader while scanning</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">discoverHandle</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">terminal</span><span class="hl-1">.</span><span class="hl-0">discoverReaders</span><span class="hl-1">(</span><br/><span class="hl-1">  {</span><br/><span class="hl-1">    </span><span class="hl-4">simulated:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">discoveryMethod:</span><span class="hl-1"> </span><span class="hl-4">DiscoveryMethod</span><span class="hl-1">.</span><span class="hl-4">BluetoothScan</span><span class="hl-1">,</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  (</span><span class="hl-4">readers</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-3">if</span><span class="hl-1"> (</span><span class="hl-4">readers</span><span class="hl-1">.</span><span class="hl-4">length</span><span class="hl-1">) {</span><br/><span class="hl-1">      </span><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">selectedReader</span><span class="hl-1"> = </span><span class="hl-4">readers</span><span class="hl-1">[</span><span class="hl-8">0</span><span class="hl-1">]</span><br/><span class="hl-1">      </span><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">connectionConfig</span><span class="hl-1"> = {</span><br/><span class="hl-1">        </span><span class="hl-4">locationId:</span><span class="hl-1"> </span><span class="hl-2">&#39;{{LOCATION_ID}}&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">      </span><span class="hl-4">terminal</span><br/><span class="hl-1">        .</span><span class="hl-0">connectBluetoothReader</span><span class="hl-1">(</span><span class="hl-4">selectedReader</span><span class="hl-1">, </span><span class="hl-4">connectionConfig</span><span class="hl-1">)</span><br/><span class="hl-1">        .</span><span class="hl-0">then</span><span class="hl-1">((</span><span class="hl-4">connectedReader</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">          </span><span class="hl-5">// the reader is now connected and usable</span><br/><span class="hl-1">        })</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  (</span><span class="hl-4">error</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-2">&#39;discoverReaders error&#39;</span><span class="hl-1">, </span><span class="hl-4">error</span><span class="hl-1">)</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">)</span><br/><br/><span class="hl-5">// Once the reader is connected, collect a payment intent!</span><br/><br/><span class="hl-5">// listen to user instructions - these should be displayed to the user</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">displayHandle</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">terminal</span><span class="hl-1">.</span><span class="hl-0">didRequestReaderDisplayMessage</span><span class="hl-1">(</span><br/><span class="hl-1">  (</span><span class="hl-4">displayMessage</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">&#39;displayMessage&#39;</span><span class="hl-1">, </span><span class="hl-4">displayMessage</span><span class="hl-1">)</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">)</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">inputHandle</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">terminal</span><span class="hl-1">.</span><span class="hl-0">didRequestReaderInput</span><span class="hl-1">((</span><span class="hl-4">inputOptions</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">&#39;inputOptions&#39;</span><span class="hl-1">, </span><span class="hl-4">inputOptions</span><span class="hl-1">)</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-5">// retrieve the payment intent</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">terminal</span><span class="hl-1">.</span><span class="hl-0">retrievePaymentIntent</span><span class="hl-1">(</span><span class="hl-2">&#39;your client secret created server side&#39;</span><span class="hl-1">)</span><br/><br/><span class="hl-5">// collect the payment method</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">terminal</span><span class="hl-1">.</span><span class="hl-0">collectPaymentMethod</span><span class="hl-1">()</span><br/><br/><span class="hl-5">// and finally, confirm the payment intent</span><br/><span class="hl-3">try</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">terminal</span><span class="hl-1">.</span><span class="hl-0">confirmPaymentIntent</span><span class="hl-1">()</span><br/><span class="hl-1">} </span><span class="hl-3">catch</span><span class="hl-1"> (</span><span class="hl-4">err</span><span class="hl-1">) {</span><br/><span class="hl-1">  </span><span class="hl-3">if</span><span class="hl-1"> (</span><span class="hl-4">err</span><span class="hl-1"> </span><span class="hl-6">instanceof</span><span class="hl-1"> </span><span class="hl-9">StripeTerminalError</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-5">// structured decline data is available on card declines</span><br/><span class="hl-1">    </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-2">&#39;decline_code&#39;</span><span class="hl-1">, </span><span class="hl-4">err</span><span class="hl-1">.</span><span class="hl-4">decline_code</span><span class="hl-1">)</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">  </span><span class="hl-3">throw</span><span class="hl-1"> </span><span class="hl-4">err</span><br/><span class="hl-1">}</span><br/><br/><span class="hl-5">// once you are done, call destroy() to remove all listeners and reset the plugin (e.g. in ngOnDestroy)</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">terminal</span><span class="hl-1">.</span><span class="hl-0">destroy</span><span class="hl-1">()</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="api-reference" class="tsd-anchor-link">API Reference<a href="#api-reference" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>See the full API docs <a href="https://oss.eventone.page/capacitor-stripe-terminal">here</a>.</p>
+<h2 id="sponsors" class="tsd-anchor-link">Sponsors<a href="#sponsors" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>
+    <a href="https://event1.io/?utm_medium=opensource&utm_source=capacitor-stripe-terminal">
+        <img src="https://brand.event1.io/wordmark/wm-white.svg" width="200px">
+    </a>
+</p>
+<h2 id="acknowledgements" class="tsd-anchor-link">Acknowledgements<a href="#acknowledgements" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<ul>
+<li>Thanks <a href="https://stripe.com/terminal">Stripe</a> for creating such an amazing product</li>
+<li>Thanks <a href="https://github.com/theopolisme/react-native-stripe-terminal">react-native-stripe-terminal</a> for quite a few borrowed concepts</li>
+</ul>
+</div></div>
+<div class="col-sidebar">
+<div class="page-menu">
+<div class="tsd-navigation settings">
+<details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div>
+<div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div>
+<details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>On This Page</h3></summary>
+<div class="tsd-accordion-details"><a href="#requirements"><span>Requirements</span></a><a href="#maintainers"><span>Maintainers</span></a><a href="#installation"><span>Installation</span></a><a href="#configuration"><span>Configuration</span></a>
+<ul>
+<li><a href="#ios"><span>i<wbr/>OS</span></a></li>
+<li><a href="#android"><span>Android</span></a></li></ul><a href="#usage"><span>Usage</span></a><a href="#api-reference"><span>API <wbr/>Reference</span></a><a href="#sponsors"><span>Sponsors</span></a><a href="#acknowledgements"><span>Acknowledgements</span></a></div></details></div>
+<div class="site-menu">
+<nav class="tsd-navigation"><a href="modules.html">capacitor-stripe-terminal</a>
+<ul class="tsd-small-nested-navigation" id="tsd-nav-container">
+<li>Loading...</li></ul></nav></div></div></div><footer>
+<p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer>
+<div class="overlay"></div></body></html>
