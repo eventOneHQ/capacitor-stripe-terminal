@@ -1,0 +1,1220 @@
+import Capacitor
+import Foundation
+import StripeTerminal
+
+/**
+ * Please read the Capacitor iOS Plugin Development Guide
+ * here: https://capacitor.ionicframework.com/docs/plugins/ios
+ */
+@objc(StripeTerminal)
+public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, MobileReaderDelegate, TapToPayReaderDelegate, InternetReaderDelegate {
+    public let identifier = "StripeTerminal"
+    public let jsName = "StripeTerminal"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "initialize", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setConnectionToken", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "discoverReaders", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectBluetoothReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectUsbReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectAppsOnDevicesReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectInternetReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getConnectionStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getPaymentStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getConnectedReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelDiscoverReaders", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "disconnectReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "rebootReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getReaderSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setReaderSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "installAvailableUpdate", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelInstallUpdate", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelCollectPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "retrievePaymentIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "createPaymentIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelPaymentIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "createSetupIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "retrieveSetupIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectSetupIntentPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelCollectSetupIntentPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "confirmSetupIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelSetupIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectRefundPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelCollectRefundPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "confirmRefund", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectInputs", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelCollectInputs", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "collectPaymentMethod", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "confirmPaymentIntent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearCachedCredentials", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "checkPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setReaderDisplay", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearReaderDisplay", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listLocations", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getSimulatorConfiguration", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setSimulatorConfiguration", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connectTapToPayReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelAutoReconnect", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "supportsReadersOfType", returnType: CAPPluginReturnPromise)
+    ]
+
+    private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
+    private var pendingDiscoverReaders: Cancelable?
+    private var pendingInstallUpdate: Cancelable?
+    private var pendingCollectPaymentMethod: Cancelable?
+    private var pendingCollectData: Cancelable?
+    private var pendingCollectSetupIntentPaymentMethod: Cancelable?
+    private var pendingCollectRefundPaymentMethod: Cancelable?
+    private var pendingCollectInputs: Cancelable?
+    private var pendingReaderAutoReconnect: Cancelable?
+    private var currentUpdate: ReaderSoftwareUpdate?
+    private var currentPaymentIntent: PaymentIntent?
+    private var currentSetupIntent: SetupIntent?
+    private var cancelDiscoverReadersCall: CAPPluginCall?
+    private var isInitialized: Bool = false
+    private var thread = DispatchQueue.init(label: "CapacitorStripeTerminal")
+
+    private var readers: [Reader]?
+
+    func logMsg(items: Any...) {
+        print("SWIFT \(items)")
+    }
+
+    func onLogEntry(logline _: String) {
+        // self.notifyListeners("log", data: ["logline": logline])
+    }
+
+    @objc func getPermissions(_ call: CAPPluginCall) {
+        requestPermissions(call)
+    }
+
+    @objc override public func checkPermissions(_ call: CAPPluginCall) {
+        call.unimplemented("Permissions are handled automatically on iOS.")
+    }
+
+    @objc override public func requestPermissions(_ call: CAPPluginCall) {
+        call.unimplemented("Permissions are handled automatically on iOS.")
+    }
+
+    @objc func initialize(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            if !self.isInitialized {
+                // In Stripe Terminal SDK v5, Terminal.setTokenProvider is replaced with Terminal.initWithTokenProvider
+                // This must be called before accessing Terminal.shared
+                Terminal.initWithTokenProvider(self)
+                Terminal.shared.delegate = self
+
+                Terminal.setLogListener { logline in
+                    self.onLogEntry(logline: logline)
+                }
+                Terminal.shared.logLevel = StripeTerminalUtils.translateJSLogLevel(call.getInt("logLevel") ?? 0)
+
+                self.cancelDiscoverReaders()
+                self.cancelInstallUpdate()
+                self.isInitialized = true
+            }
+            call.resolve()
+        }
+    }
+
+    @objc func setConnectionToken(_ call: CAPPluginCall) {
+        let token = call.getString("token") ?? ""
+        let errorMessage = call.getString("errorMessage") ?? ""
+
+        if let completion = pendingConnectionTokenCompletionBlock {
+            if !errorMessage.isEmpty {
+                let error = NSError(domain: "io.event1.capacitor-stripe-terminal",
+                                    code: 1,
+                                    userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                completion(nil, error)
+            } else {
+                completion(token, nil)
+            }
+
+            pendingConnectionTokenCompletionBlock = nil
+            call.resolve()
+        }
+    }
+
+    public func fetchConnectionToken(_ completion: @escaping ConnectionTokenCompletionBlock) {
+        pendingConnectionTokenCompletionBlock = completion
+        notifyListeners("requestConnectionToken", data: [:])
+    }
+
+    @objc func discoverReaders(_ call: CAPPluginCall) {
+        // Attempt to cancel any pending discoverReader calls first.
+        cancelDiscoverReaders()
+
+        let simulated = call.getBool("simulated") ?? true
+        let method = UInt(call.getInt("discoveryMethod") ?? 0)
+        let locationId = call.getString("locationId") ?? nil
+
+        let config: DiscoveryConfiguration
+        do {
+            switch method {
+            case 0: // BluetoothScan
+                config = try BluetoothScanDiscoveryConfigurationBuilder().setSimulated(simulated).build()
+            case 1: // BluetoothProximity
+                config = try BluetoothProximityDiscoveryConfigurationBuilder().setSimulated(simulated).build()
+            case 2: // Internet
+                let builder = InternetDiscoveryConfigurationBuilder().setSimulated(simulated)
+                if let locationId = locationId { _ = builder.setLocationId(locationId) }
+                config = try builder.build()
+            case 4: // USB
+                call.reject("The USB discovery method is only supported on Android.")
+                return
+            case 5: // AppsOnDevices
+                call.reject("The AppsOnDevices discovery method is only supported on Android.")
+                return
+            case 6: // TapToPay
+                config = try TapToPayDiscoveryConfigurationBuilder().setSimulated(simulated).build()
+            default:
+                call.reject("Unsupported discovery method: \(method)")
+                return
+            }
+        } catch {
+            call.reject("Failed to build discovery configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+        
+        guard pendingDiscoverReaders == nil else {
+            call.reject("discoverReaders is busy")
+            return
+        }
+                
+        self.pendingDiscoverReaders = Terminal.shared.discoverReaders(config, delegate: self) { error in
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+                self.pendingDiscoverReaders = nil
+            } else {
+                call.resolve()
+                self.pendingDiscoverReaders = nil
+
+                // if cancelDiscoverReadersCall exists, resolve it since the discovery is complete now
+                self.cancelDiscoverReadersCall?.resolve()
+                self.cancelDiscoverReadersCall = nil
+            }
+        }
+    }
+
+    @objc func cancelDiscoverReaders(_ call: CAPPluginCall? = nil) {
+        guard let cancelable = pendingDiscoverReaders else {
+            call?.resolve()
+            return
+        }
+        
+        cancelable.cancel() { error in
+            if let error = error as NSError? {
+                call?.reject(error.localizedDescription, nil, error)
+                self.pendingDiscoverReaders = nil
+            } else {
+                // do not call resolve, let discoverReaders call it when it is actually complete
+                self.cancelDiscoverReadersCall = call
+            }
+        }
+        
+    }
+
+    @objc func connectBluetoothReader(_ call: CAPPluginCall) {
+        guard let serialNumber = call.getString("serialNumber") else {
+            call.reject("Must provide a serial number")
+            return
+        }
+
+        guard let locationId = call.getString("locationId") else {
+            call.reject("Must provide a location ID")
+            return
+        }
+
+        guard let reader = readers?.first(where: { $0.serialNumber == serialNumber }) else {
+            call.reject("No reader found")
+            return
+        }
+
+        let autoReconnectOnUnexpectedDisconnect = call.getBool("autoReconnectOnUnexpectedDisconnect", false)
+
+        let connectionConfig: BluetoothConnectionConfiguration
+        do {
+            connectionConfig = try BluetoothConnectionConfigurationBuilder(delegate: self, locationId: locationId)
+                .setAutoReconnectOnUnexpectedDisconnect(autoReconnectOnUnexpectedDisconnect)
+                .build()
+        } catch {
+            call.reject("Failed to build connection configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        // this must be run on the main thread
+        // https://stackoverflow.com/questions/44767778/main-thread-checker-ui-api-called-on-a-background-thread-uiapplication-appli
+        DispatchQueue.main.async {
+            Terminal.shared.connectReader(reader, connectionConfig: connectionConfig, completion: { reader, error in
+                if let reader = reader {
+                    call.resolve([
+                        "reader": StripeTerminalUtils.serializeReader(reader: reader),
+                    ])
+                } else if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                }
+            })
+        }
+    }
+
+    @objc func connectUsbReader(_ call: CAPPluginCall) {
+        // USB readers are gated behind SCP_USB_ENABLED and are not available in the public iOS SDK.
+        call.reject("USB readers are only supported on Android.")
+    }
+
+    @objc func connectAppsOnDevicesReader(_ call: CAPPluginCall) {
+        call.reject("AppsOnDevices readers are only supported on Android.")
+    }
+
+    @objc func connectInternetReader(_ call: CAPPluginCall) {
+        guard let serialNumber = call.getString("serialNumber") else {
+            call.reject("Must provide a serial number")
+            return
+        }
+
+        guard let reader = readers?.first(where: { $0.serialNumber == serialNumber }) else {
+            call.reject("No reader found")
+            return
+        }
+
+        let failIfInUse = call.getBool("failIfInUse") ?? false
+        let allowCustomerCancel = call.getBool("allowCustomerCancel") ?? false
+
+        let connectionConfig: InternetConnectionConfiguration
+        do {
+            connectionConfig = try InternetConnectionConfigurationBuilder(delegate: self)
+                .setFailIfInUse(failIfInUse)
+                .setAllowCustomerCancel(allowCustomerCancel)
+                .build()
+        } catch {
+            call.reject("Failed to build connection configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        // this must be run on the main thread
+        // https://stackoverflow.com/questions/44767778/main-thread-checker-ui-api-called-on-a-background-thread-uiapplication-appli
+        DispatchQueue.main.async {
+            Terminal.shared.connectReader(reader, connectionConfig: connectionConfig, completion: { reader, error in
+                if let reader = reader {
+                    call.resolve([
+                        "reader": StripeTerminalUtils.serializeReader(reader: reader),
+                    ])
+                } else if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                }
+            })
+        }
+    }
+
+    @objc func connectTapToPayReader(_ call: CAPPluginCall) {
+        guard let serialNumber = call.getString("serialNumber") else {
+            call.reject("Must provide a serial number")
+            return
+        }
+
+        guard let locationId = call.getString("locationId") else {
+            call.reject("Must provide a location ID")
+            return
+        }
+
+        guard let reader = readers?.first(where: { $0.serialNumber == serialNumber }) else {
+            call.reject("No reader found")
+            return
+        }
+        
+        let onBehalfOf = call.getString("onBehalfOf")
+        let merchantDisplayName = call.getString("merchantDisplayName")
+        let tosAcceptancePermitted = call.getBool("tosAcceptancePermitted", false)
+
+        let connectionConfig: TapToPayConnectionConfiguration
+        do {
+            let builder = TapToPayConnectionConfigurationBuilder(delegate: self, locationId: locationId)
+            if let onBehalfOf = onBehalfOf { _ = builder.setOnBehalfOf(onBehalfOf) }
+            if let merchantDisplayName = merchantDisplayName { _ = builder.setMerchantDisplayName(merchantDisplayName) }
+            _ = builder.setTosAcceptancePermitted(tosAcceptancePermitted)
+            connectionConfig = try builder.build()
+        } catch {
+            call.reject("Failed to build connection configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        // this must be run on the main thread
+        // https://stackoverflow.com/questions/44767778/main-thread-checker-ui-api-called-on-a-background-thread-uiapplication-appli
+        DispatchQueue.main.async {
+            Terminal.shared.connectReader(reader, connectionConfig: connectionConfig, completion: { reader, error in
+                if let reader = reader {
+                    call.resolve([
+                        "reader": StripeTerminalUtils.serializeReader(reader: reader),
+                    ])
+                } else if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                }
+            })
+        }
+    }
+
+    @objc func rebootReader(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            Terminal.shared.rebootReader { error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else {
+                    call.resolve()
+                }
+            }
+        }
+    }
+
+    @objc func getReaderSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            Terminal.shared.retrieveReaderSettings { settings, error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else if let settings = settings {
+                    call.resolve(StripeTerminalUtils.serializeReaderSettings(settings: settings))
+                } else {
+                    call.reject("Unable to retrieve reader settings")
+                }
+            }
+        }
+    }
+
+    @objc func setReaderSettings(_ call: CAPPluginCall) {
+        let textToSpeechViaSpeakers = call.getBool("textToSpeechViaSpeakers", false)
+
+        let params: ReaderAccessibilityParameters
+        do {
+            params = try ReaderAccessibilityParametersBuilder()
+                .setTextToSpeechViaSpeakers(textToSpeechViaSpeakers)
+                .build()
+        } catch {
+            call.reject("Failed to build reader settings: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        DispatchQueue.main.async {
+            Terminal.shared.setReaderSettings(params) { settings, error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else if let settings = settings {
+                    call.resolve(StripeTerminalUtils.serializeReaderSettings(settings: settings))
+                } else {
+                    call.reject("Unable to update reader settings")
+                }
+            }
+        }
+    }
+
+    @objc func collectData(_ call: CAPPluginCall) {
+        let config: CollectDataConfiguration
+        do {
+            let builder = CollectDataConfigurationBuilder()
+                .setCollectDataType(StripeTerminalUtils.translateJSCollectDataType(call.getString("type") ?? ""))
+            if let customerCancellation = call.getString("customerCancellation") {
+                _ = builder.setCustomerCancellation(StripeTerminalUtils.translateJSCustomerCancellation(customerCancellation))
+            }
+            config = try builder.build()
+        } catch {
+            call.reject("Failed to build collect data configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        pendingCollectData = Terminal.shared.collectData(config) { collectedData, error in
+            self.pendingCollectData = nil
+
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else if let collectedData = collectedData {
+                call.resolve(["data": StripeTerminalUtils.serializeCollectedData(data: collectedData)])
+            } else {
+                call.reject("No data was collected")
+            }
+        }
+    }
+
+    @objc func disconnectReader(_ call: CAPPluginCall) {
+        if Terminal.shared.connectedReader == nil {
+            call.resolve()
+            return
+        }
+
+        let semaphore = DispatchSemaphore(value: 0)
+        DispatchQueue.main.async {
+            Terminal.shared.disconnectReader { error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else {
+                    call.resolve()
+                }
+                semaphore.signal()
+            }
+        }
+        _ = semaphore.wait(timeout: .now() + 10)
+    }
+
+    @objc func installAvailableUpdate(_ call: CAPPluginCall) {
+        if currentUpdate != nil {
+            Terminal.shared.installAvailableUpdate()
+            call.resolve()
+        }
+    }
+
+    @objc func cancelInstallUpdate(_ call: CAPPluginCall? = nil) {
+        if let cancelable = pendingInstallUpdate {
+            cancelable.cancel { error in
+                if let error = error {
+                    call?.reject(error.localizedDescription, nil, error)
+                } else {
+                    self.pendingInstallUpdate = nil
+                    call?.resolve()
+                }
+            }
+
+            return
+        }
+
+        call?.resolve()
+    }
+
+    @objc func getConnectionStatus(_ call: CAPPluginCall) {
+        call.resolve(["status": Terminal.shared.connectionStatus.rawValue])
+    }
+
+    @objc func getPaymentStatus(_ call: CAPPluginCall) {
+        call.resolve(["status": Terminal.shared.paymentStatus.rawValue])
+    }
+
+    @objc func getConnectedReader(_ call: CAPPluginCall) {
+        if let reader = Terminal.shared.connectedReader {
+            let reader = StripeTerminalUtils.serializeReader(reader: reader)
+            call.resolve(["reader": reader])
+        } else {
+            call.resolve(["reader": nil])
+        }
+    }
+
+    @objc func retrievePaymentIntent(_ call: CAPPluginCall) {
+        guard let clientSecret = call.getString("clientSecret") else {
+            call.reject("Must provide a clientSecret")
+            return
+        }
+
+        let semaphore = DispatchSemaphore(value: 0)
+        thread.async {
+            Terminal.shared.retrievePaymentIntent(clientSecret: clientSecret) { retrieveResult, retrieveError in
+                self.currentPaymentIntent = retrieveResult
+
+                if let error = retrieveError {
+                    call.reject(error.localizedDescription, nil, error)
+                } else if let paymentIntent = retrieveResult {
+                    call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
+                }
+                semaphore.signal()
+            }
+        }
+        _ = semaphore.wait(timeout: .now() + 10)
+    }
+
+    @objc func cancelCollectPaymentMethod(_ call: CAPPluginCall? = nil) {
+        if let cancelable = pendingCollectPaymentMethod {
+            cancelable.cancel { error in
+                if let error = error {
+                    call?.reject(error.localizedDescription, nil, error)
+                } else {
+                    self.pendingCollectPaymentMethod = nil
+                    call?.resolve()
+                }
+            }
+
+            return
+        }
+
+        call?.resolve()
+    }
+
+    @objc func collectPaymentMethod(_ call: CAPPluginCall) {
+        let collectConfig: CollectPaymentIntentConfiguration
+        do {
+            collectConfig = try StripeTerminalUtils.buildCollectPaymentIntentConfiguration(call)
+        } catch {
+            call.reject("Failed to build collect configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        if let intent = currentPaymentIntent {
+            pendingCollectPaymentMethod = Terminal.shared.collectPaymentMethod(intent, collectConfig: collectConfig) { collectResult, collectError in
+                self.pendingCollectPaymentMethod = nil
+
+                if let error = collectError {
+                    call.reject(error.localizedDescription, nil, error)
+                } else if let paymentIntent = collectResult {
+                    self.currentPaymentIntent = collectResult
+                    call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
+                }
+            }
+        } else {
+            call.reject("There is no active payment intent. Make sure you called retrievePaymentIntent first")
+        }
+    }
+
+    @objc func confirmPaymentIntent(_ call: CAPPluginCall) {
+        thread.async {
+            if let intent = self.currentPaymentIntent {
+                Terminal.shared.confirmPaymentIntent(intent) { paymentIntent, error in
+                    if let error = error {
+                        var data: PluginCallResultData = [:]
+                        if let confirmError = error as? ConfirmPaymentIntentError {
+                            if let failedIntent = confirmError.paymentIntent {
+                                data["payment_intent"] = StripeTerminalUtils.serializePaymentIntent(intent: failedIntent)
+                            }
+                            if let declineCode = confirmError.declineCode {
+                                data["decline_code"] = declineCode
+                            }
+                        }
+                        call.reject(error.localizedDescription, nil, error, data.isEmpty ? nil : data)
+                    } else if let paymentIntent = paymentIntent {
+                        self.currentPaymentIntent = paymentIntent
+                        call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent)])
+                    }
+                }
+            } else {
+                call.reject("There is no active payment intent. Make sure you called retrievePaymentIntent first")
+            }
+        }
+    }
+
+    @objc func createPaymentIntent(_ call: CAPPluginCall) {
+        guard let rawAmount = call.getInt("amount"), let currency = call.getString("currency") else {
+            call.reject("Must provide an amount and a currency")
+            return
+        }
+        guard let amount = UInt(exactly: rawAmount) else {
+            call.reject("Amount must be a non-negative integer")
+            return
+        }
+
+        let params: PaymentIntentParameters
+        do {
+            let paymentMethodTypes = call.getArray("paymentMethodTypes", String.self) ?? ["cardPresent"]
+            let builder = PaymentIntentParametersBuilder(amount: amount, currency: currency)
+            _ = builder.setPaymentMethodTypes(StripeTerminalUtils.translateJSPaymentMethodTypes(paymentMethodTypes))
+
+            if let captureMethod = call.getString("captureMethod") {
+                _ = builder.setCaptureMethod(captureMethod == "manual" ? .manual : .automatic)
+            }
+            if let setupFutureUsage = call.getString("setupFutureUsage") { _ = builder.setSetupFutureUsage(setupFutureUsage) }
+            if let onBehalfOf = call.getString("onBehalfOf") { _ = builder.setOnBehalfOf(onBehalfOf) }
+            if let transferDataDestination = call.getString("transferDataDestination") { _ = builder.setTransferDataDestination(transferDataDestination) }
+            if let transferGroup = call.getString("transferGroup") { _ = builder.setTransferGroup(transferGroup) }
+            if let applicationFeeAmount = call.getInt("applicationFeeAmount") { _ = builder.setApplicationFeeAmount(NSNumber(value: applicationFeeAmount)) }
+            if let description = call.getString("description") { _ = builder.setStripeDescription(description) }
+            if let statementDescriptor = call.getString("statementDescriptor") { _ = builder.setStatementDescriptor(statementDescriptor) }
+            if let statementDescriptorSuffix = call.getString("statementDescriptorSuffix") { _ = builder.setStatementDescriptorSuffix(statementDescriptorSuffix) }
+            if let receiptEmail = call.getString("receiptEmail") { _ = builder.setReceiptEmail(receiptEmail) }
+            if let customer = call.getString("customer") { _ = builder.setCustomer(customer) }
+            if let metadata = call.getObject("metadata") as? [String: String] { _ = builder.setMetadata(metadata) }
+
+            params = try builder.build()
+        } catch {
+            call.reject("Failed to build payment intent parameters: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        Terminal.shared.createPaymentIntent(params) { intent, error in
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else if let intent = intent {
+                self.currentPaymentIntent = intent
+                call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: intent)])
+            } else {
+                call.reject("Unable to create payment intent")
+            }
+        }
+    }
+
+    @objc func cancelPaymentIntent(_ call: CAPPluginCall) {
+        guard let intent = currentPaymentIntent else {
+            call.reject("There is no active payment intent. Make sure you called retrievePaymentIntent or createPaymentIntent first")
+            return
+        }
+
+        Terminal.shared.cancelPaymentIntent(intent) { canceledIntent, error in
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else if let canceledIntent = canceledIntent {
+                self.currentPaymentIntent = nil
+                call.resolve(["intent": StripeTerminalUtils.serializePaymentIntent(intent: canceledIntent)])
+            } else {
+                call.reject("Unable to cancel payment intent")
+            }
+        }
+    }
+
+    @objc func createSetupIntent(_ call: CAPPluginCall) {
+        let params: SetupIntentParameters
+        do {
+            let builder = SetupIntentParametersBuilder()
+
+            if let paymentMethodTypes = call.getArray("paymentMethodTypes", String.self) {
+                _ = builder.setPaymentMethodTypes(StripeTerminalUtils.translateJSPaymentMethodTypes(paymentMethodTypes))
+            }
+            if let customer = call.getString("customer") { _ = builder.setCustomer(customer) }
+            if let description = call.getString("description") { _ = builder.setStripeDescription(description) }
+            if let onBehalfOf = call.getString("onBehalfOf") { _ = builder.setOnBehalfOf(onBehalfOf) }
+            if let usage = call.getString("usage") { _ = builder.setUsage(StripeTerminalUtils.translateJSSetupIntentUsage(usage)) }
+            if let metadata = call.getObject("metadata") as? [String: String] { _ = builder.setMetadata(metadata) }
+
+            params = try builder.build()
+        } catch {
+            call.reject("Failed to build setup intent parameters: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        Terminal.shared.createSetupIntent(params) { intent, error in
+            self.resolveSetupIntent(call, intent, error, "Unable to create setup intent")
+        }
+    }
+
+    @objc func retrieveSetupIntent(_ call: CAPPluginCall) {
+        guard let clientSecret = call.getString("clientSecret") else {
+            call.reject("Client secret cannot be null")
+            return
+        }
+
+        Terminal.shared.retrieveSetupIntent(clientSecret: clientSecret) { intent, error in
+            self.resolveSetupIntent(call, intent, error, "Unable to retrieve setup intent")
+        }
+    }
+
+    @objc func collectSetupIntentPaymentMethod(_ call: CAPPluginCall) {
+        guard let intent = currentSetupIntent else {
+            call.reject("There is no active setup intent. Make sure you called retrieveSetupIntent or createSetupIntent first")
+            return
+        }
+
+        let allowRedisplay = StripeTerminalUtils.translateJSAllowRedisplay(call.getString("allowRedisplay") ?? "unspecified")
+
+        let config: CollectSetupIntentConfiguration
+        do {
+            let builder = CollectSetupIntentConfigurationBuilder()
+            if let customerCancellation = call.getString("customerCancellation") {
+                _ = builder.setCustomerCancellation(StripeTerminalUtils.translateJSCustomerCancellation(customerCancellation))
+            }
+            if let collectionReason = call.getString("collectionReason"),
+               let reason = StripeTerminalUtils.translateJSCollectionReason(collectionReason) {
+                _ = builder.setCollectionReason(reason)
+            }
+            config = try builder.build()
+        } catch {
+            call.reject("Failed to build collect configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        pendingCollectSetupIntentPaymentMethod = Terminal.shared.collectSetupIntentPaymentMethod(
+            intent,
+            allowRedisplay: allowRedisplay,
+            setupConfig: config
+        ) { collectedIntent, error in
+            self.pendingCollectSetupIntentPaymentMethod = nil
+            self.resolveSetupIntent(call, collectedIntent, error, "Unable to collect setup intent payment method")
+        }
+    }
+
+    @objc func cancelCollectSetupIntentPaymentMethod(_ call: CAPPluginCall? = nil) {
+        guard let cancelable = pendingCollectSetupIntentPaymentMethod else {
+            call?.resolve()
+            return
+        }
+
+        cancelable.cancel { error in
+            if let error = error {
+                call?.reject(error.localizedDescription, nil, error)
+            } else {
+                self.pendingCollectSetupIntentPaymentMethod = nil
+                call?.resolve()
+            }
+        }
+    }
+
+    @objc func confirmSetupIntent(_ call: CAPPluginCall) {
+        guard let intent = currentSetupIntent else {
+            call.reject("There is no active setup intent. Make sure you called retrieveSetupIntent or createSetupIntent first")
+            return
+        }
+
+        thread.async {
+            Terminal.shared.confirmSetupIntent(intent) { confirmedIntent, error in
+                self.resolveSetupIntent(call, confirmedIntent, error, "Unable to confirm setup intent")
+            }
+        }
+    }
+
+    @objc func cancelSetupIntent(_ call: CAPPluginCall) {
+        guard let intent = currentSetupIntent else {
+            call.reject("There is no active setup intent. Make sure you called retrieveSetupIntent or createSetupIntent first")
+            return
+        }
+
+        Terminal.shared.cancelSetupIntent(intent) { canceledIntent, error in
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else if let canceledIntent = canceledIntent {
+                self.currentSetupIntent = nil
+                call.resolve(["intent": StripeTerminalUtils.serializeSetupIntent(intent: canceledIntent)])
+            } else {
+                call.reject("Unable to cancel setup intent")
+            }
+        }
+    }
+
+    private func resolveSetupIntent(_ call: CAPPluginCall, _ intent: SetupIntent?, _ error: Error?, _ fallbackMessage: String) {
+        if let error = error {
+            call.reject(error.localizedDescription, nil, error)
+        } else if let intent = intent {
+            currentSetupIntent = intent
+            call.resolve(["intent": StripeTerminalUtils.serializeSetupIntent(intent: intent)])
+        } else {
+            call.reject(fallbackMessage)
+        }
+    }
+
+    @objc func collectRefundPaymentMethod(_ call: CAPPluginCall) {
+        guard let rawAmount = call.getInt("amount"), let currency = call.getString("currency") else {
+            call.reject("Must provide an amount and a currency")
+            return
+        }
+        guard let amount = UInt(exactly: rawAmount) else {
+            call.reject("Amount must be a non-negative integer")
+            return
+        }
+
+        let params: RefundParameters
+        do {
+            let builder: RefundParametersBuilder
+            if let chargeId = call.getString("chargeId") {
+                builder = RefundParametersBuilder(chargeId: chargeId, amount: amount, currency: currency)
+            } else if let paymentIntentId = call.getString("paymentIntentId"),
+                      let clientSecret = call.getString("clientSecret") {
+                builder = RefundParametersBuilder(
+                    paymentIntentId: paymentIntentId,
+                    clientSecret: clientSecret,
+                    amount: amount,
+                    currency: currency
+                )
+            } else {
+                call.reject("Must provide either a chargeId, or a paymentIntentId together with its clientSecret")
+                return
+            }
+
+            if let metadata = call.getObject("metadata") as? [String: String] { _ = builder.setMetadata(metadata) }
+            _ = builder.setReverseTransfer(call.getBool("reverseTransfer", false))
+            _ = builder.setRefundApplicationFee(call.getBool("refundApplicationFee", false))
+
+            params = try builder.build()
+        } catch {
+            call.reject("Failed to build refund parameters: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        let config: CollectRefundConfiguration
+        do {
+            let builder = CollectRefundConfigurationBuilder()
+            if let customerCancellation = call.getString("customerCancellation") {
+                _ = builder.setCustomerCancellation(StripeTerminalUtils.translateJSCustomerCancellation(customerCancellation))
+            }
+            config = try builder.build()
+        } catch {
+            call.reject("Failed to build collect refund configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        pendingCollectRefundPaymentMethod = Terminal.shared.collectRefundPaymentMethod(
+            params,
+            refundConfig: config
+        ) { error in
+            self.pendingCollectRefundPaymentMethod = nil
+
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else {
+                call.resolve()
+            }
+        }
+    }
+
+    @objc func cancelCollectRefundPaymentMethod(_ call: CAPPluginCall? = nil) {
+        guard let cancelable = pendingCollectRefundPaymentMethod else {
+            call?.resolve()
+            return
+        }
+
+        cancelable.cancel { error in
+            if let error = error {
+                call?.reject(error.localizedDescription, nil, error)
+            } else {
+                self.pendingCollectRefundPaymentMethod = nil
+                call?.resolve()
+            }
+        }
+    }
+
+    @objc func confirmRefund(_ call: CAPPluginCall) {
+        thread.async {
+            Terminal.shared.confirmRefund { refund, error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else if let refund = refund {
+                    call.resolve(["refund": StripeTerminalUtils.serializeRefund(refund: refund)])
+                } else {
+                    call.reject("Unable to confirm refund")
+                }
+            }
+        }
+    }
+
+    @objc func collectInputs(_ call: CAPPluginCall) {
+        let params: CollectInputsParameters
+        do {
+            let inputs = try (call.getArray("inputs") as? [[String: Any]] ?? []).map {
+                try StripeTerminalUtils.buildInput($0)
+            }
+            params = try CollectInputsParametersBuilder(inputs: inputs).build()
+        } catch {
+            call.reject("Failed to build collect inputs parameters: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        pendingCollectInputs = Terminal.shared.collectInputs(params) { results, error in
+            self.pendingCollectInputs = nil
+
+            if let error = error {
+                call.reject(error.localizedDescription, nil, error)
+            } else {
+                call.resolve([
+                    "collectInputResults": (results ?? []).map {
+                        StripeTerminalUtils.serializeCollectInputsResult(result: $0)
+                    },
+                ])
+            }
+        }
+    }
+
+    @objc func cancelCollectInputs(_ call: CAPPluginCall? = nil) {
+        guard let cancelable = pendingCollectInputs else {
+            call?.resolve()
+            return
+        }
+
+        cancelable.cancel { error in
+            if let error = error {
+                call?.reject(error.localizedDescription, nil, error)
+            } else {
+                self.pendingCollectInputs = nil
+                call?.resolve()
+            }
+        }
+    }
+
+    @objc func clearCachedCredentials(_ call: CAPPluginCall) {
+        let result = Terminal.shared.clearCachedCredentials()
+        switch result {
+        case .success:
+            call.resolve()
+        case .failure(let error):
+            call.reject("Failed to clear cached credentials", nil, error)
+        }
+    }
+
+    @objc func setReaderDisplay(_ call: CAPPluginCall) {
+        let lineItems = call.getArray("lineItems", [String: Any].self) ?? [[String: Any]]()
+        let currency = call.getString("currency") ?? "usd"
+        let tax = call.getInt("tax") ?? 0
+        let total = call.getInt("total") ?? 0
+
+        var lineItemObjects: [CartLineItem] = []
+        for item in lineItems {
+            if let displayName = item["displayName"] as? String,
+               let quantity = item["quantity"] as? Int,
+               let amount = item["amount"] as? Int,
+               let lineItem = try? CartLineItemBuilder(displayName: displayName).setQuantity(quantity).setAmount(amount).build() {
+                lineItemObjects.append(lineItem)
+            }
+        }
+
+        let cart: Cart
+        do {
+            cart = try CartBuilder(currency: currency)
+                .setTax(tax)
+                .setTotal(total)
+                .setLineItems(lineItemObjects)
+                .build()
+        } catch {
+            call.reject("Failed to build cart: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        let semaphore = DispatchSemaphore(value: 0)
+        thread.async {
+            Terminal.shared.setReaderDisplay(cart) { error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else {
+                    call.resolve()
+                }
+                semaphore.signal()
+            }
+        }
+        _ = semaphore.wait(timeout: .now() + 10)
+    }
+
+    @objc func clearReaderDisplay(_ call: CAPPluginCall) {
+        let semaphore = DispatchSemaphore(value: 0)
+        thread.async {
+            Terminal.shared.clearReaderDisplay { error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else {
+                    call.resolve()
+                }
+                semaphore.signal()
+            }
+        }
+        _ = semaphore.wait(timeout: .now() + 10)
+    }
+
+    @objc func listLocations(_ call: CAPPluginCall) {
+        let limit = call.getInt("limit")
+        let endingBefore = call.getString("endingBefore")
+        let startingAfter = call.getString("startingAfter")
+
+        var params: ListLocationsParameters?
+
+        if limit != nil || endingBefore != nil || startingAfter != nil {
+            let builder = ListLocationsParametersBuilder()
+            if let limit = limit { _ = builder.setLimit(UInt(limit)) }
+            if let endingBefore = endingBefore { _ = builder.setEndingBefore(endingBefore) }
+            if let startingAfter = startingAfter { _ = builder.setStartingAfter(startingAfter) }
+            params = try? builder.build()
+        }
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        thread.async {
+            Terminal.shared.listLocations(parameters: params) { locations, hasMore, error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else {
+                    let locationsJSON = locations?.map {
+                        (location: Location) -> [String: Any] in
+                        StripeTerminalUtils.serializeLocation(location: location)
+                    }
+
+                    call.resolve([
+                        "hasMore": hasMore,
+                        "locations": locationsJSON as Any,
+                    ])
+                }
+                semaphore.signal()
+            }
+        }
+        _ = semaphore.wait(timeout: .now() + 10)
+    }
+
+    @objc func getSimulatorConfiguration(_ call: CAPPluginCall) {
+        let config = Terminal.shared.simulatorConfiguration
+        let serialized = StripeTerminalUtils.serializeSimulatorConfiguration(simulatorConfig: config)
+
+        call.resolve(serialized)
+    }
+
+    @objc func setSimulatorConfiguration(_ call: CAPPluginCall) {
+        let availableReaderUpdateInt = call.getInt("availableReaderUpdate")
+        let simulatedCardInt = call.getInt("simulatedCard")
+
+        if availableReaderUpdateInt != nil {
+            let availableReaderUpdate = SimulateReaderUpdate(rawValue: UInt(availableReaderUpdateInt ?? 0)) ?? Terminal.shared.simulatorConfiguration.availableReaderUpdate
+
+            Terminal.shared.simulatorConfiguration.availableReaderUpdate = availableReaderUpdate
+        }
+
+        if simulatedCardInt != nil {
+            let simulatedCardType = SimulatedCardType(rawValue: UInt(simulatedCardInt ?? 0)) ?? SimulatedCardType.visa
+            let simulatedCard = SimulatedCard(type: simulatedCardType)
+
+            Terminal.shared.simulatorConfiguration.simulatedCard = simulatedCard
+        }
+
+        return getSimulatorConfiguration(call)
+    }
+    
+    @objc func cancelAutoReconnect(_ call: CAPPluginCall) {
+        if let cancelable = pendingReaderAutoReconnect {
+            cancelable.cancel { error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else {
+                    self.pendingReaderAutoReconnect = nil
+                    call.resolve()
+                }
+            }
+
+            return
+        }
+
+        call.resolve()
+    }
+
+    @objc func supportsReadersOfType(_ call: CAPPluginCall) {
+        let deviceTypeInt = call.getInt("deviceType") ?? -1
+        let discoveryMethodInt = call.getInt("discoveryMethod") ?? 0
+        let simulated = call.getBool("simulated") ?? false
+
+        guard let deviceType = StripeTerminalUtils.translateJSDeviceType(deviceTypeInt) else {
+            call.resolve(["isSupported": false, "error": "Invalid device type: \(deviceTypeInt)"])
+            return
+        }
+
+        guard let discoveryMethod = StripeTerminalUtils.translateJSDiscoveryMethod(discoveryMethodInt) else {
+            call.resolve(["isSupported": false, "error": "Invalid discovery method: \(discoveryMethodInt)"])
+            return
+        }
+
+        do {
+            let result = Terminal.shared.supportsReaders(of: deviceType, discoveryMethod: discoveryMethod, simulated: simulated)
+            switch result {
+            case .success:
+                call.resolve(["isSupported": true])
+            case .failure(let error):
+                call.resolve(["isSupported": false, "error": error.localizedDescription])
+            }
+        } catch {
+            call.resolve(["isSupported": false, "error": error.localizedDescription])
+        }
+    }
+
+    // MARK: DiscoveryDelegate
+
+    public func terminal(_: Terminal, didUpdateDiscoveredReaders readers: [Reader]) {
+        self.readers = readers
+
+        let readersJSON = readers.map {
+            (reader: Reader) -> [String: Any] in
+            StripeTerminalUtils.serializeReader(reader: reader)
+        }
+
+        notifyListeners("readersDiscovered", data: ["readers": readersJSON])
+    }
+
+    // MARK: TerminalDelegate
+
+    public func terminal(_: Terminal, didReportUnexpectedReaderDisconnect reader: Reader) {
+        logMsg(items: "didReportUnexpectedReaderDisconnect \(reader)")
+        notifyListeners("didReportUnexpectedReaderDisconnect", data: ["reader": StripeTerminalUtils.serializeReader(reader: reader)])
+    }
+
+    public func terminal(_: Terminal, didChangeConnectionStatus status: ConnectionStatus) {
+        notifyListeners("didChangeConnectionStatus", data: ["status": status.rawValue])
+    }
+
+    public func terminal(_: Terminal, didChangePaymentStatus status: PaymentStatus) {
+        notifyListeners("didChangePaymentStatus", data: ["status": status.rawValue])
+    }
+
+    // MARK: MobileReaderDelegate
+
+    public func reader(_: Reader, didReportAvailableUpdate update: ReaderSoftwareUpdate) {
+        currentUpdate = update
+        notifyListeners("didReportAvailableUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
+    }
+
+    public func reader(_: Reader, didStartInstallingUpdate update: ReaderSoftwareUpdate, cancelable: Cancelable?) {
+        pendingInstallUpdate = cancelable
+        currentUpdate = update
+        notifyListeners("didStartInstallingUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
+    }
+
+    public func reader(_: Reader, didReportReaderSoftwareUpdateProgress progress: Float) {
+        notifyListeners("didReportReaderSoftwareUpdateProgress", data: ["progress": progress])
+    }
+
+    public func reader(_: Reader, didFinishInstallingUpdate update: ReaderSoftwareUpdate?, error: Error?) {
+        if let error = error {
+            notifyListeners("didFinishInstallingUpdate", data: ["error": error.localizedDescription as Any])
+        } else if let update = update {
+            notifyListeners("didFinishInstallingUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
+            currentUpdate = nil
+        }
+    }
+
+    public func reader(_: Reader, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
+        notifyListeners("didRequestReaderInput", data: ["value": inputOptions.rawValue])
+    }
+
+    public func reader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
+        notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
+    }
+
+    public func reader(_: Reader, didReportBatteryLevel batteryLevel: Float, status: BatteryStatus, isCharging: Bool) {
+        notifyListeners("didUpdateBatteryLevel", data: [
+            "batteryLevel": batteryLevel,
+            "batteryStatus": status.rawValue,
+            "isCharging": isCharging,
+        ])
+    }
+        
+    // MARK: TapToPayReaderDelegate
+
+    public func tapToPayReader(_ reader: Reader, didStartInstallingUpdate update: ReaderSoftwareUpdate, cancelable: Cancelable?) {
+        pendingInstallUpdate = cancelable
+        currentUpdate = update
+        notifyListeners("didStartInstallingUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
+    }
+
+    public func tapToPayReader(_ reader: Reader, didReportReaderSoftwareUpdateProgress progress: Float) {
+        notifyListeners("didReportReaderSoftwareUpdateProgress", data: ["progress": progress])
+    }
+
+    public func tapToPayReader(_ reader: Reader, didFinishInstallingUpdate update: ReaderSoftwareUpdate?, error: Error?) {
+        if let error = error {
+            notifyListeners("didFinishInstallingUpdate", data: ["error": error.localizedDescription as Any])
+        } else if let update = update {
+            notifyListeners("didFinishInstallingUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
+            currentUpdate = nil
+        }
+    }
+
+    public func tapToPayReader(_: Reader, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
+        notifyListeners("didRequestReaderInput", data: ["value": inputOptions.rawValue])
+    }
+
+    public func tapToPayReader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
+        notifyListeners("didRequestReaderDisplayMessage", data: ["value": displayMessage.rawValue])
+    }
+
+    public func tapToPayReaderDidAcceptTermsOfService(_: Reader) {
+        notifyListeners("tapToPayReaderDidAcceptTermsOfService", data: nil)
+    }
+
+    // MARK: ReaderDelegate
+
+    public func reader(_: Reader, didDisconnect reason: DisconnectReason) {
+        // Handled by terminal(_:didReportUnexpectedReaderDisconnect:) for unexpected disconnects
+    }
+
+    public func reader(_ reader: Reader, didStartReconnect cancelable: Cancelable, disconnectReason reason: DisconnectReason) {
+        pendingReaderAutoReconnect = cancelable
+        notifyListeners("didStartReaderReconnect", data: nil)
+    }
+
+    public func readerDidSucceedReconnect(_ reader: Reader) {
+        pendingReaderAutoReconnect = nil
+        notifyListeners("didSucceedReaderReconnect", data: nil)
+    }
+
+    public func readerDidFailReconnect(_ reader: Reader) {
+        pendingReaderAutoReconnect = nil
+        notifyListeners("didFailReaderReconnect", data: nil)
+    }
+}
