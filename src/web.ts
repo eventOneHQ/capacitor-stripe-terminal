@@ -38,6 +38,7 @@ import {
   ICollectInputsParameters,
   ICollectInputsResult,
   DiscoveryMethod,
+  OfflineStatus,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -1114,6 +1115,14 @@ export class StripeTerminalWeb extends WebPlugin {
     const sdk = this.ensureInitialized()
 
     await sdk.clearCachedCredentials()
+  }
+
+  private nativeOnly(method: string): never {
+    throw new Error(`${method} is only available on iOS and Android.`)
+  }
+
+  async getOfflineStatus(): Promise<OfflineStatus> {
+    return this.nativeOnly('getOfflineStatus')
   }
 
   async setReaderDisplay(cart: Cart): Promise<void> {

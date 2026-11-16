@@ -26,6 +26,7 @@ import com.stripe.stripeterminal.external.callable.DiscoveryListener;
 import com.stripe.stripeterminal.external.callable.InternetReaderListener;
 import com.stripe.stripeterminal.external.callable.LocationListCallback;
 import com.stripe.stripeterminal.external.callable.MobileReaderListener;
+import com.stripe.stripeterminal.external.callable.OfflineListener;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
 import com.stripe.stripeterminal.external.callable.ReaderCallback;
 import com.stripe.stripeterminal.external.callable.ReaderSettingsCallback;
@@ -51,11 +52,14 @@ import com.stripe.stripeterminal.external.models.ConnectionConfiguration.TapToPa
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.UsbConnectionConfiguration;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.ConnectionTokenException;
+import com.stripe.stripeterminal.external.models.CreateConfiguration;
 import com.stripe.stripeterminal.external.models.DeviceType;
 import com.stripe.stripeterminal.external.models.DisconnectReason;
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
 import com.stripe.stripeterminal.external.models.ListLocationsParameters;
 import com.stripe.stripeterminal.external.models.Location;
+import com.stripe.stripeterminal.external.models.OfflineBehavior;
+import com.stripe.stripeterminal.external.models.OfflineStatus;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentParameters;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
@@ -75,8 +79,6 @@ import com.stripe.stripeterminal.external.models.SetupIntentParameters;
 import com.stripe.stripeterminal.external.models.SimulateReaderUpdate;
 import com.stripe.stripeterminal.external.models.SimulatedCard;
 import com.stripe.stripeterminal.external.models.SimulatedCardType;
-import com.stripe.stripeterminal.external.models.SimulatedCollectInputsResult;
-import com.stripe.stripeterminal.external.models.SimulatedCollectInputsSkipBehavior;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.TerminalException;
 import com.stripe.stripeterminal.log.LogLevel;
@@ -107,6 +109,7 @@ public class StripeTerminal
   implements
     ConnectionTokenProvider,
     TerminalListener,
+    OfflineListener,
     DiscoveryListener,
     MobileReaderListener,
     TapToPayReaderListener,
@@ -216,7 +219,7 @@ public class StripeTerminal
         logLevel,
         tokenProvider,
         terminalListener,
-        null
+        this
       );
       lastReaderEvent = ReaderEvent.CARD_REMOVED;
       isInitialized = true;
@@ -899,6 +902,22 @@ public class StripeTerminal
       );
       if (metadata != null) builder.setMetadata(metadata);
 
+      String offlineBehaviorString = call.getString("offlineBehavior");
+      if (offlineBehaviorString != null) {
+        OfflineBehavior offlineBehavior =
+          TerminalUtils.translateJSOfflineBehavior(offlineBehaviorString);
+        if (offlineBehavior == null) {
+          call.reject("Invalid offlineBehavior: " + offlineBehaviorString);
+          return;
+        }
+        Terminal.getInstance().createPaymentIntent(
+          builder.build(),
+          createPaymentIntentCallback(call),
+          new CreateConfiguration(offlineBehavior)
+        );
+        return;
+      }
+
       Terminal.getInstance().createPaymentIntent(
         builder.build(),
         createPaymentIntentCallback(call)
@@ -1328,6 +1347,15 @@ public class StripeTerminal
   }
 
   @PluginMethod
+  public void getOfflineStatus(@NonNull PluginCall call) {
+    call.resolve(
+      TerminalUtils.serializeOfflineStatus(
+        Terminal.getInstance().getOfflineStatus()
+      )
+    );
+  }
+
+  @PluginMethod
   public void installAvailableUpdate(final PluginCall call) {
     if (currentUpdate != null) {
       Terminal.getInstance().installAvailableUpdate();
@@ -1532,11 +1560,9 @@ public class StripeTerminal
     SimulatorConfiguration newConfig = new SimulatorConfiguration(
       availableReaderUpdate,
       simulatedCard,
-      null,
-      false,
-      new SimulatedCollectInputsResult.SimulatedCollectInputsResultSucceeded(
-        SimulatedCollectInputsSkipBehavior.NONE
-      )
+      currentConfig.getSimulatedTipAmount(),
+      call.getBoolean("offlineEnabled", currentConfig.getOfflineEnabled()),
+      currentConfig.getSimulatedCollectInputsResult()
     );
 
     Terminal.getInstance().setSimulatorConfiguration(newConfig);
@@ -1654,6 +1680,36 @@ public class StripeTerminal
     JSObject ret = new JSObject();
     ret.put("result", "LOW BATTERY");
     notifyListeners("didReportLowBatteryWarning", ret);
+  }
+
+  @Override
+  public void onOfflineStatusChange(@NonNull OfflineStatus offlineStatus) {
+    JSObject ret = new JSObject();
+    ret.put("result", TerminalUtils.serializeOfflineStatus(offlineStatus));
+    notifyListeners("didChangeOfflineStatus", ret);
+  }
+
+  @Override
+  public void onPaymentIntentForwarded(
+    @NonNull PaymentIntent paymentIntent,
+    TerminalException e
+  ) {
+    JSObject ret = new JSObject();
+    ret.put(
+      "result",
+      TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+    );
+    if (e != null) {
+      ret.put("error", e.getErrorMessage());
+    }
+    notifyListeners("didForwardPaymentIntent", ret);
+  }
+
+  @Override
+  public void onForwardingFailure(@NonNull TerminalException e) {
+    JSObject ret = new JSObject();
+    ret.put("error", e.getErrorMessage());
+    notifyListeners("didReportForwardingError", ret);
   }
 
   @Override

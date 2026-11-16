@@ -773,6 +773,11 @@ export interface PaymentIntent {
   amountDetails?: Stripe.PaymentIntent.AmountDetails
 
   /**
+   * Set when the PaymentIntent was created or confirmed while offline. Offline PaymentIntents have no `id` until they are forwarded, so use `metadata` to track them.
+   */
+  offlineDetails?: OfflineDetails | null
+
+  /**
    * Indicates how much the user intends to tip in addition to the amount by at confirmation time. This is only non-null in the `PaymentIntent` instance returned during collect when using `updatePaymentIntent` set to true in the `CollectConfig`.
    *
    * After `processPaymentIntent` the amount will have this tip `amount` added to it and the `amountDetails` will contain the breakdown of how much of the `amount` was a tip.
@@ -1032,6 +1037,10 @@ export interface ListLocationsParameters {
 export interface SimulatorConfiguration {
   availableReaderUpdate?: SimulateReaderUpdate
   simulatedCard?: SimulatedCardType
+  /**
+   * Simulates the device being offline, so payments are stored and forwarded later. (iOS and Android only.)
+   */
+  offlineEnabled?: boolean
 }
 
 /**
@@ -1107,6 +1116,68 @@ export type AllowRedisplay = 'always' | 'limited' | 'unspecified'
  */
 export type PaymentMethodType =
   'cardPresent' | 'interacPresent' | 'card' | 'wechatPay' | 'affirm'
+
+/**
+ * How a PaymentIntent created on the device behaves when the device is offline.
+ *
+ * - `prefer_online`: Transact online when possible, and offline otherwise.
+ * - `require_online`: Only transact when online.
+ * - `force_offline`: Always transact offline, even when online.
+ *
+ * @category Offline
+ */
+export type OfflineBehavior =
+  'prefer_online' | 'require_online' | 'force_offline'
+
+/**
+ * Offline status and statistics for the SDK or the connected reader.
+ *
+ * @category Offline
+ */
+export interface OfflineStatusDetails {
+  networkStatus: 'online' | 'offline' | 'unknown'
+  /**
+   * The number of payments stored offline, waiting to be forwarded.
+   */
+  offlinePaymentsCount: number
+  /**
+   * The total amount of payments stored offline, keyed by lowercase currency code, in the currency's smallest unit.
+   */
+  offlinePaymentAmountsByCurrency: Record<string, number>
+}
+
+/**
+ * Offline status for the SDK and the connected smart reader.
+ *
+ * @category Offline
+ */
+export interface OfflineStatus {
+  /**
+   * Status of this device, which stores and forwards payments for mobile readers.
+   */
+  sdk: OfflineStatusDetails
+  /**
+   * Status of the connected smart reader. Not set when no smart reader is connected.
+   */
+  reader?: OfflineStatusDetails
+}
+
+/**
+ * Details of a PaymentIntent created or confirmed while offline.
+ *
+ * @category Offline
+ */
+export interface OfflineDetails {
+  /**
+   * When the payment was collected, in milliseconds since the Unix epoch.
+   */
+  storedAtMs: number | null
+  /**
+   * Whether the PaymentIntent still needs to be forwarded to Stripe.
+   */
+  requiresUpload: boolean
+}
+
 
 /**
  * When to capture funds for a PaymentIntent.
@@ -1230,6 +1301,12 @@ export interface CreatePaymentIntentParams {
    * Set of key-value pairs attached to the object.
    */
   metadata?: Record<string, string>
+  /**
+   * How the PaymentIntent behaves when the device is offline.
+   *
+   * @default 'prefer_online'
+   */
+  offlineBehavior?: OfflineBehavior
 }
 
 /**
@@ -1821,6 +1898,8 @@ export interface StripeTerminalInterface {
 
   clearCachedCredentials(): Promise<void>
 
+  getOfflineStatus(): Promise<OfflineStatus>
+
   setReaderDisplay(cart: Cart): Promise<void>
 
   clearReaderDisplay(): Promise<void>
@@ -1870,6 +1949,22 @@ export interface StripeTerminalInterface {
     eventName: 'didReportLowBatteryWarning' | 'didAcceptTermsOfService',
     listenerFunc: () => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didChangeOfflineStatus',
+    listenerFunc: (data: { result: OfflineStatus }) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didForwardPaymentIntent',
+    listenerFunc: (data: { result: PaymentIntent; error?: string }) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'didReportForwardingError',
+    listenerFunc: (data: { error: string }) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
 
   addListener(
     eventName: 'readersDiscovered',

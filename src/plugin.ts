@@ -42,6 +42,7 @@ import {
   PermissionStatus,
   ReaderSoftwareUpdate,
   CollectConfig,
+  OfflineStatus,
 } from './definitions'
 
 import { StripeTerminal } from './plugin-registration'
@@ -209,7 +210,10 @@ export class StripeTerminalPlugin {
       | 'didDisconnect'
       | 'didReportReaderEvent'
       | 'didReportLowBatteryWarning'
-      | 'didAcceptTermsOfService',
+      | 'didAcceptTermsOfService'
+      | 'didChangeOfflineStatus'
+      | 'didForwardPaymentIntent'
+      | 'didReportForwardingError',
     callback: (data: T) => void,
     transformFunc?: (data: any) => T,
   ): Promise<PluginListenerHandle> {
@@ -769,6 +773,64 @@ export class StripeTerminalPlugin {
     callback: () => void,
   ): Promise<PluginListenerHandle> {
     return this._addListener('didAcceptTermsOfService', () => callback())
+  }
+
+  /**
+   * Returns the offline status of this device and of the connected smart reader.
+   *
+   * iOS and Android only.
+   *
+   * @see https://stripe.com/docs/terminal/features/operate-offline/overview
+   */
+  public async getOfflineStatus(): Promise<OfflineStatus> {
+    this.ensureInitialized()
+
+    return await StripeTerminal.getOfflineStatus()
+  }
+
+  /**
+   * The offline status of this device or the connected smart reader changed.
+   *
+   * iOS and Android only.
+   */
+  public async didChangeOfflineStatus(
+    callback: (status: OfflineStatus) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didChangeOfflineStatus',
+      callback,
+      (data: { result: OfflineStatus }) => data?.result,
+    )
+  }
+
+  /**
+   * A PaymentIntent stored while offline was forwarded to Stripe. `error` is set if forwarding failed.
+   *
+   * iOS and Android only.
+   */
+  public async didForwardPaymentIntent(
+    callback: (paymentIntent: PaymentIntent, error?: string) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didForwardPaymentIntent',
+      (data: { result: PaymentIntent; error?: string }) =>
+        callback(data.result, data.error),
+    )
+  }
+
+  /**
+   * Forwarding offline payments failed for a reason not tied to a single PaymentIntent, such as failing to fetch a connection token.
+   *
+   * iOS and Android only.
+   */
+  public async didReportForwardingError(
+    callback: (error: string) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didReportForwardingError',
+      callback,
+      (data: { error: string }) => data?.error,
+    )
   }
 
   public async didReportAvailableUpdate(

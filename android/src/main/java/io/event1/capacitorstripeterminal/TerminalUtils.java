@@ -25,8 +25,13 @@ import com.stripe.stripeterminal.external.models.EmailResult;
 import com.stripe.stripeterminal.external.models.Input;
 import com.stripe.stripeterminal.external.models.Location;
 import com.stripe.stripeterminal.external.models.LocationStatus;
+import com.stripe.stripeterminal.external.models.NetworkStatus;
 import com.stripe.stripeterminal.external.models.NumericInput;
 import com.stripe.stripeterminal.external.models.NumericResult;
+import com.stripe.stripeterminal.external.models.OfflineBehavior;
+import com.stripe.stripeterminal.external.models.OfflineDetails;
+import com.stripe.stripeterminal.external.models.OfflineStatus;
+import com.stripe.stripeterminal.external.models.OfflineStatusDetails;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
 import com.stripe.stripeterminal.external.models.PaymentMethod;
@@ -272,6 +277,61 @@ public class TerminalUtils {
       default:
         return "cardPresent";
     }
+  }
+
+  public static OfflineBehavior translateJSOfflineBehavior(String value) {
+    switch (value) {
+      case "prefer_online":
+        return OfflineBehavior.PREFER_ONLINE;
+      case "require_online":
+        return OfflineBehavior.REQUIRE_ONLINE;
+      case "force_offline":
+        return OfflineBehavior.FORCE_OFFLINE;
+      default:
+        return null;
+    }
+  }
+
+  public static String serializeOfflineNetworkStatus(NetworkStatus status) {
+    if (status == null) return "unknown";
+    switch (status) {
+      case ONLINE:
+        return "online";
+      case OFFLINE:
+        return "offline";
+      default:
+        return "unknown";
+    }
+  }
+
+  public static JSObject serializeOfflineStatusDetails(
+    OfflineStatusDetails details
+  ) {
+    JSObject object = new JSObject();
+    object.put(
+      "networkStatus",
+      serializeOfflineNetworkStatus(details.getNetworkStatus())
+    );
+    object.put("offlinePaymentsCount", details.getOfflinePaymentsCount());
+
+    JSObject amounts = new JSObject();
+    for (Map.Entry<String, Long> entry : details
+      .getOfflinePaymentAmountsByCurrency()
+      .entrySet()) {
+      amounts.put(entry.getKey(), entry.getValue());
+    }
+    object.put("offlinePaymentAmountsByCurrency", amounts);
+
+    return object;
+  }
+
+  public static JSObject serializeOfflineStatus(OfflineStatus status) {
+    JSObject object = new JSObject();
+    object.put("sdk", serializeOfflineStatusDetails(status.getSdk()));
+    if (status.getReader() != null) {
+      object.put("reader", serializeOfflineStatusDetails(status.getReader()));
+    }
+    return object;
   }
 
   private static PaymentMethodType translateApiPaymentMethodType(String value) {
@@ -997,6 +1057,17 @@ public class TerminalUtils {
       object.put("amountDetails", amountDetailsJson);
     }
 
+    OfflineDetails offlineDetails = paymentIntent.getOfflineDetails();
+    if (offlineDetails != null) {
+      JSObject offlineDetailsJson = new JSObject();
+      offlineDetailsJson.put("storedAtMs", offlineDetails.getStoredAtMs());
+      offlineDetailsJson.put(
+        "requiresUpload",
+        offlineDetails.getRequiresUpload()
+      );
+      object.put("offlineDetails", offlineDetailsJson);
+    }
+
     if (paymentMethod != null) {
       JSObject paymentMethodJson = new JSObject();
       paymentMethodJson.put("id", paymentMethod.getId());
@@ -1191,6 +1262,7 @@ public class TerminalUtils {
       "availableReaderUpdate",
       serializeSimulateReaderUpdate(config.getUpdate())
     );
+    object.put("offlineEnabled", config.getOfflineEnabled());
 
     return object;
   }

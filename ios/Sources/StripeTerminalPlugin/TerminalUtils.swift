@@ -182,6 +182,40 @@ public class StripeTerminalUtils {
         }
     }
 
+    static func translateJSOfflineBehavior(_ value: String) -> OfflineBehavior? {
+        switch value {
+        case "prefer_online": return .preferOnline
+        case "require_online": return .requireOnline
+        case "force_offline": return .forceOffline
+        default: return nil
+        }
+    }
+
+    static func serializeOfflineNetworkStatus(_ status: NetworkStatus) -> String {
+        switch status {
+        case .online: return "online"
+        case .offline: return "offline"
+        case .unknown: return "unknown"
+        @unknown default: return "unknown"
+        }
+    }
+
+    static func serializeOfflineStatusDetails(_ details: OfflineStatusDetails) -> [String: Any] {
+        return [
+            "networkStatus": serializeOfflineNetworkStatus(details.networkStatus),
+            "offlinePaymentsCount": details.paymentsCount?.intValue ?? 0,
+            "offlinePaymentAmountsByCurrency": details.paymentAmountsByCurrency.mapValues { $0.intValue },
+        ]
+    }
+
+    static func serializeOfflineStatus(_ status: OfflineStatus) -> [String: Any] {
+        var jsonObject: [String: Any] = ["sdk": serializeOfflineStatusDetails(status.sdk)]
+        if let reader = status.reader {
+            jsonObject["reader"] = serializeOfflineStatusDetails(reader)
+        }
+        return jsonObject
+    }
+
     static func serializeSetupAttempt(attempt: SetupAttempt) -> [String: Any] {
         var jsonObject: [String: Any] = [
             "id": attempt.stripeId,
@@ -832,6 +866,14 @@ public class StripeTerminalUtils {
             jsonObject["amountDetails"] = amountDetailsJson
         }
 
+        if let offlineDetails = intent.offlineDetails {
+            var offlineDetailsJson: [String: Any] = ["requiresUpload": offlineDetails.requiresUpload]
+            if let storedAt = offlineDetails.storedAt {
+                offlineDetailsJson["storedAtMs"] = Int64(storedAt.timeIntervalSince1970 * 1000)
+            }
+            jsonObject["offlineDetails"] = offlineDetailsJson
+        }
+
         if let paymentMethod = intent.paymentMethod {
             jsonObject["paymentMethod"] = [
                 "id": paymentMethod.stripeId,
@@ -880,6 +922,7 @@ public class StripeTerminalUtils {
         // The SDK doesn't expose the simulated card's type, so it can't be reported back.
         return [
             "availableReaderUpdate": serializeSimulateReaderUpdate(simulatorConfig.availableReaderUpdate),
+            "offlineEnabled": simulatorConfig.offlineEnabled,
         ]
     }
 }

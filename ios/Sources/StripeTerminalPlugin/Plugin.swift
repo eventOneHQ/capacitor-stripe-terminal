@@ -7,7 +7,7 @@ import StripeTerminal
  * here: https://capacitor.ionicframework.com/docs/plugins/ios
  */
 @objc(StripeTerminal)
-public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, MobileReaderDelegate, TapToPayReaderDelegate, InternetReaderDelegate {
+public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, OfflineDelegate, MobileReaderDelegate, TapToPayReaderDelegate, InternetReaderDelegate {
     public let identifier = "StripeTerminal"
     public let jsName = "StripeTerminal"
     public let pluginMethods: [CAPPluginMethod] = [
@@ -57,7 +57,8 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "setSimulatorConfiguration", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "connectTapToPayReader", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelAutoReconnect", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "supportsReadersOfType", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "supportsReadersOfType", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getOfflineStatus", returnType: CAPPluginReturnPromise)
     ]
 
     private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
@@ -105,6 +106,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
                 // This must be called before accessing Terminal.shared
                 Terminal.initWithTokenProvider(self)
                 Terminal.shared.delegate = self
+                Terminal.shared.offlineDelegate = self
 
                 Terminal.setLogListener { logline in
                     self.onLogEntry(logline: logline)
@@ -623,7 +625,23 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             return
         }
 
-        Terminal.shared.createPaymentIntent(params) { intent, error in
+        let createConfig: CreateConfiguration?
+        do {
+            if let offlineBehaviorString = call.getString("offlineBehavior") {
+                guard let offlineBehavior = StripeTerminalUtils.translateJSOfflineBehavior(offlineBehaviorString) else {
+                    call.reject("Invalid offlineBehavior: \(offlineBehaviorString)")
+                    return
+                }
+                createConfig = try CreateConfigurationBuilder().setOfflineBehavior(offlineBehavior).build()
+            } else {
+                createConfig = nil
+            }
+        } catch {
+            call.reject("Failed to build create configuration: \(error.localizedDescription)", nil, error)
+            return
+        }
+
+        Terminal.shared.createPaymentIntent(params, createConfig: createConfig) { intent, error in
             if let error = error {
                 call.reject(error.localizedDescription, nil, error)
             } else if let intent = intent {
@@ -928,6 +946,10 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         }
     }
 
+    @objc func getOfflineStatus(_ call: CAPPluginCall) {
+        call.resolve(StripeTerminalUtils.serializeOfflineStatus(Terminal.shared.offlineStatus))
+    }
+
     @objc func setReaderDisplay(_ call: CAPPluginCall) {
         let lineItems = call.getArray("lineItems", [String: Any].self) ?? [[String: Any]]()
         let currency = call.getString("currency") ?? "usd"
@@ -1048,6 +1070,10 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             Terminal.shared.simulatorConfiguration.simulatedCard = SimulatedCard(type: simulatedCardType)
         }
 
+        if let offlineEnabled = call.getBool("offlineEnabled") {
+            Terminal.shared.simulatorConfiguration.offlineEnabled = offlineEnabled
+        }
+
         return getSimulatorConfiguration(call)
     }
     
@@ -1119,6 +1145,24 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         notifyListeners("didChangePaymentStatus", data: ["status": StripeTerminalUtils.serializePaymentStatus(status)])
     }
 
+    // MARK: OfflineDelegate
+
+    public func terminal(_: Terminal, didChange offlineStatus: OfflineStatus) {
+        notifyListeners("didChangeOfflineStatus", data: ["result": StripeTerminalUtils.serializeOfflineStatus(offlineStatus)])
+    }
+
+    public func terminal(_: Terminal, didForwardPaymentIntent intent: PaymentIntent, error: Error?) {
+        var data: [String: Any] = ["result": StripeTerminalUtils.serializePaymentIntent(intent: intent)]
+        if let error = error {
+            data["error"] = error.localizedDescription
+        }
+        notifyListeners("didForwardPaymentIntent", data: data)
+    }
+
+    public func terminal(_: Terminal, didReportForwardingError error: Error) {
+        notifyListeners("didReportForwardingError", data: ["error": error.localizedDescription])
+    }
+
     // MARK: MobileReaderDelegate
 
     public func reader(_: Reader, didReportAvailableUpdate update: ReaderSoftwareUpdate) {
@@ -1168,6 +1212,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             "isCharging": isCharging,
         ])
     }
+
         
     // MARK: TapToPayReaderDelegate
 
