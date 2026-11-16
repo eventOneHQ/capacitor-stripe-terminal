@@ -203,7 +203,6 @@ public class TerminalUtils {
 
     if (data instanceof CollectedData.Magstripe) {
       object.put("id", ((CollectedData.Magstripe) data).getId());
-      object.put("stripeId", ((CollectedData.Magstripe) data).getId());
     } else if (data instanceof CollectedData.NfcUid) {
       object.put("uid", ((CollectedData.NfcUid) data).getUid());
     }
@@ -824,7 +823,6 @@ public class TerminalUtils {
 
     // stripe id
     object.put("id", reader.getId());
-    object.put("stripeId", reader.getId());
 
     // location id
     String locationId = null;
@@ -1047,7 +1045,6 @@ public class TerminalUtils {
     JSObject object = new JSObject();
 
     object.put("id", paymentIntent.getId());
-    object.put("stripeId", paymentIntent.getId());
     object.put("created", paymentIntent.getCreated());
     object.put(
       "status",
@@ -1117,7 +1114,6 @@ public class TerminalUtils {
     if (paymentMethod != null) {
       JSObject paymentMethodJson = new JSObject();
       paymentMethodJson.put("id", paymentMethod.getId());
-      paymentMethodJson.put("stripeId", paymentMethod.getId());
       paymentMethodJson.put(
         "type",
         serializePaymentMethodType(paymentMethod.getType())
@@ -1145,7 +1141,6 @@ public class TerminalUtils {
       for (Charge charge : java.util.Collections.singletonList(latestCharge)) {
         JSObject chargeJson = new JSObject();
         chargeJson.put("id", charge.getId());
-        chargeJson.put("stripeId", charge.getId());
         chargeJson.put("amount", charge.getAmount());
         chargeJson.put("currency", charge.getCurrency());
         chargeJson.put("status", serializeChargeStatus(charge.getStatus()));
@@ -1265,7 +1260,6 @@ public class TerminalUtils {
     JSObject object = new JSObject();
 
     object.put("id", location.getId());
-    object.put("stripeId", location.getId());
     object.put("displayName", location.getDisplayName());
     object.put("livemode", location.getLivemode());
 

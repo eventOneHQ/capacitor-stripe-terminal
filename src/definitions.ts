@@ -369,13 +369,6 @@ export interface Reader {
   id: string | null
 
   /**
-   * The Stripe unique identifier for the reader.
-   *
-   * @deprecated Use `id` instead. This will be removed in v6.
-   */
-  stripeId: string | null
-
-  /**
    * The ID of the reader’s [Location](https://stripe.com/docs/api/terminal/locations/object).
    *
    * Internet readers remain registered to the location specified when registering the reader to your account. For internet readers, this field represents that location. If you need to change your internet reader's location, re-register the reader and specify the new location id in the `location` param. See https://stripe.com/docs/api/terminal/readers/create
@@ -719,10 +712,6 @@ export interface PaymentMethodDetails {
  */
 export interface Charge {
   id: string
-  /**
-   * @deprecated Use `id` instead. This will be removed in v6.
-   */
-  stripeId: string
   amount: number
   currency: string
   status: ChargeStatus
@@ -791,12 +780,6 @@ export interface PaymentIntent {
    * The unique identifier for the intent.
    */
   id: string
-  /**
-   * The unique identifier for the intent.
-   *
-   * @deprecated Use `id` instead. This will be removed in v6.
-   */
-  stripeId: string
   /**
    * When the intent was created.
    */
@@ -1051,12 +1034,6 @@ export interface Location {
    * The ID of the Location
    */
   id: string
-  /**
-   * The ID of the Location
-   *
-   * @deprecated Use `id` instead. This will be removed in v6.
-   */
-  stripeId: string
   /**
    * The address of this Location
    */
@@ -1853,12 +1830,6 @@ export interface CollectedData {
    */
   id?: string | null
   /**
-   * The Stripe identifier for the collected magstripe data. Only set when collecting `CollectDataType.Magstripe`.
-   *
-   * @deprecated Use `id` instead. This will be removed in v6.
-   */
-  stripeId?: string | null
-  /**
    * The UID of the presented NFC card. Only set when collecting `CollectDataType.NfcUid`.
    */
   uid?: string | null
@@ -1911,10 +1882,6 @@ export interface StripeTerminalInterface {
     serialNumber: string
     ipAddress?: string
     id?: string
-    /**
-     * @deprecated Use `id` instead. This will be removed in v6.
-     */
-    stripeId?: string
     failIfInUse?: boolean
   }): Promise<{ reader: Reader | null }>
 

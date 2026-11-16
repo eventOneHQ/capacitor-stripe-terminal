@@ -89,6 +89,20 @@ These events now fire the same way on iOS, Android and web. Their payloads match
   - `didRequestReaderDisplayMessage` is now `{ result }` (it used to be `{ value }`).
   - `didReportReaderEvent` is now `{ result: 'cardInserted' | 'cardRemoved' }`.
 
+### `stripeId` removed in favour of `id`
+
+The deprecated `stripeId` field has been removed from `Reader`, `PaymentIntent`, `Charge`, `Location`,
+`CollectedData` and the payment method on a payment intent, and from the `connectInternetReader` options.
+Use `id` instead.
+
+```ts
+// Before
+const id = paymentIntent.stripeId
+
+// After
+const id = paymentIntent.id
+```
+
 ### Refunds: `processRefund`
 
 The two-step refund flow was removed from the native SDKs. Replace `collectRefundPaymentMethod` +

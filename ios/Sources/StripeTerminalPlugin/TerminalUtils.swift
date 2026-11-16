@@ -111,7 +111,6 @@ public class StripeTerminalUtils {
 
         if let magstripe = data as? MagstripeCollectedData {
             jsonObject["id"] = magstripe.stripeId as Any
-            jsonObject["stripeId"] = magstripe.stripeId as Any
         } else if let nfcUid = data as? NfcUidCollectedData {
             jsonObject["uid"] = nfcUid.uid
         }
@@ -674,7 +673,6 @@ public class StripeTerminalUtils {
             "deviceType": serializeDeviceType(reader.deviceType),
             "simulated": reader.simulated,
             "id": reader.stripeId as Any,
-            "stripeId": reader.stripeId as Any,
             "locationId": reader.locationId as Any,
             "locationStatus": serializeLocationStatus(reader.locationStatus),
             "serialNumber": reader.serialNumber,
@@ -814,7 +812,6 @@ public class StripeTerminalUtils {
             (charge: Charge) -> [String: Any] in
             var chargeJson: [String: Any] = [
                 "id": charge.stripeId,
-                "stripeId": charge.stripeId,
                 "amount": charge.amount,
                 "currency": charge.currency,
                 "status": serializeChargeStatus(charge.status),
@@ -849,7 +846,6 @@ public class StripeTerminalUtils {
 
         var jsonObject: [String: Any] = [
             "id": intent.stripeId,
-            "stripeId": intent.stripeId,
             "created": intent.created.timeIntervalSince1970,
             "status": serializePaymentIntentStatus(intent.status),
             "amount": intent.amount,
@@ -900,7 +896,6 @@ public class StripeTerminalUtils {
         if let paymentMethod = intent.paymentMethod {
             jsonObject["paymentMethod"] = [
                 "id": paymentMethod.stripeId,
-                "stripeId": paymentMethod.stripeId,
                 "type": serializePaymentMethodType(paymentMethod.type),
                 "customer": paymentMethod.customer as Any,
                 "metadata": paymentMethod.metadata,
@@ -915,7 +910,6 @@ public class StripeTerminalUtils {
     static func serializeLocation(location: Location) -> [String: Any] {
         var jsonObject: [String: Any] = [
             "id": location.stripeId,
-            "stripeId": location.stripeId,
             "displayName": location.displayName as Any,
             "livemode": location.livemode,
             "metadata": location.metadata as Any,

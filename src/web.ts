@@ -167,7 +167,6 @@ const chargeStatus: { [status: string]: ChargeStatus } = {
 function serializeCharge(c: Stripe.Charge): Charge {
   return {
     id: c.id,
-    stripeId: c.id,
     amount: c.amount,
     currency: c.currency,
     status: chargeStatus[c.status] ?? 'failed',
@@ -582,7 +581,6 @@ export class StripeTerminalWeb extends WebPlugin {
   private translateReader(sdkReader: DiscoverReader): Reader {
     return {
       id: sdkReader.id,
-      stripeId: sdkReader.id,
       deviceType: deviceTypes[sdkReader.device_type] ?? 'unknown',
       status: sdkReader.status ? readerStatuses[sdkReader.status] : 'offline',
       serialNumber: sdkReader.serial_number,
@@ -593,7 +591,6 @@ export class StripeTerminalWeb extends WebPlugin {
       location: this.isInstanceOfLocation(sdkReader.location)
         ? {
             id: sdkReader.location.id,
-            stripeId: sdkReader.location.id,
             displayName: sdkReader.location.display_name,
             livemode: sdkReader.livemode,
           }
@@ -642,12 +639,11 @@ export class StripeTerminalWeb extends WebPlugin {
     serialNumber: string
     ipAddress?: string
     id?: string
-    stripeId?: string
     failIfInUse?: boolean
   }): Promise<{ reader: Reader }> {
     const sdk = this.ensureInitialized()
 
-    const readerId = options.id ?? options.stripeId
+    const readerId = options.id
 
     if (!readerId) {
       throw new Error('Reader ID missing')
@@ -1004,7 +1000,6 @@ export class StripeTerminalWeb extends WebPlugin {
     return {
       intent: {
         id: paymentIntent.id,
-        stripeId: paymentIntent.id,
         created: paymentIntent.created,
         status: paymentIntentStatus[paymentIntent.status],
         amount: paymentIntent.amount,
@@ -1060,7 +1055,6 @@ export class StripeTerminalWeb extends WebPlugin {
       return {
         intent: {
           id: this.currentPaymentIntent.id,
-          stripeId: this.currentPaymentIntent.id,
           created: this.currentPaymentIntent.created,
           status: paymentIntentStatus[this.currentPaymentIntent.status],
           amount: this.currentPaymentIntent.amount,
@@ -1103,7 +1097,6 @@ export class StripeTerminalWeb extends WebPlugin {
       return {
         intent: {
           id: res.paymentIntent.id,
-          stripeId: res.paymentIntent.id,
           created: res.paymentIntent.created,
           status: paymentIntentStatus[res.paymentIntent.status],
           amount: res.paymentIntent.amount,
@@ -1242,7 +1235,6 @@ export class StripeTerminalWeb extends WebPlugin {
 
     const locations: Location[] = json.data.map((l: any): Location => ({
       id: l.id,
-      stripeId: l.id,
       displayName: l.display_name,
       livemode: l.livemode,
       address: {
