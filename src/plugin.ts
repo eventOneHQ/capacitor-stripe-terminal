@@ -44,6 +44,8 @@ import {
   CollectConfig,
   OfflineStatus,
   PrintContent,
+  PaymentOption,
+  QrCodeDisplayData,
 } from './definitions'
 
 import { StripeTerminal } from './plugin-registration'
@@ -843,6 +845,69 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return await this.sdk.print({ content })
+  }
+
+  /**
+   * Called when a mobile reader supports more than one payment option (for example card or a QR code payment) and the customer needs to choose.
+   *
+   * Call `selectPaymentOption` with `'card'` or the chosen option's `paymentMethodType`, or `failPaymentMethodSelection` to abort. If no handler is registered, card is selected automatically.
+   *
+   * Bluetooth and USB readers, and Tap to Pay on iOS.
+   */
+  public async onPaymentMethodSelectionRequired(
+    handler: (
+      paymentIntent: PaymentIntent,
+      availablePaymentOptions: PaymentOption[],
+      callback: {
+        selectPaymentOption: (paymentOptionType: string) => Promise<void>
+        failPaymentMethodSelection: (errorMessage?: string) => Promise<void>
+      },
+    ) => void,
+  ): Promise<PluginListenerHandle> {
+    this.ensureInitialized()
+
+    return await StripeTerminal.addListener(
+      'onPaymentMethodSelectionRequired',
+      (data) => {
+        handler(data.paymentIntent, data.availablePaymentOptions, {
+          selectPaymentOption: (paymentOptionType) =>
+            StripeTerminal.selectPaymentOption({ paymentOptionType }),
+          failPaymentMethodSelection: (errorMessage) =>
+            StripeTerminal.failPaymentMethodSelection({ errorMessage }),
+        })
+      },
+    )
+  }
+
+  /**
+   * Called when the customer chose a QR code payment and your app must display the QR code.
+   *
+   * Call `confirmQrCodeDisplayed` once it is shown, or `failQrCodeDisplay` if it can't be. If no handler is registered, QR code payments fail.
+   *
+   * Bluetooth and USB readers, and Tap to Pay on iOS.
+   */
+  public async onQrCodeDisplayRequired(
+    handler: (
+      paymentIntent: PaymentIntent,
+      qrData: QrCodeDisplayData,
+      callback: {
+        confirmQrCodeDisplayed: () => Promise<void>
+        failQrCodeDisplay: (errorMessage?: string) => Promise<void>
+      },
+    ) => void,
+  ): Promise<PluginListenerHandle> {
+    this.ensureInitialized()
+
+    return await StripeTerminal.addListener(
+      'onQrCodeDisplayRequired',
+      (data) => {
+        handler(data.paymentIntent, data.qrData, {
+          confirmQrCodeDisplayed: () => StripeTerminal.confirmQrCodeDisplayed(),
+          failQrCodeDisplay: (errorMessage) =>
+            StripeTerminal.failQrCodeDisplay({ errorMessage }),
+        })
+      },
+    )
   }
 
   public async didReportAvailableUpdate(

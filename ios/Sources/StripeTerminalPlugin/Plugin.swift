@@ -59,7 +59,11 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "cancelAutoReconnect", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "supportsReadersOfType", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getOfflineStatus", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "print", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "print", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "selectPaymentOption", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "failPaymentMethodSelection", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "confirmQrCodeDisplayed", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "failQrCodeDisplay", returnType: CAPPluginReturnPromise)
     ]
 
     private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
@@ -75,6 +79,9 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     private var currentPaymentIntent: PaymentIntent?
     private var currentSetupIntent: SetupIntent?
     private var cancelDiscoverReadersCall: CAPPluginCall?
+    private var pendingPaymentMethodSelection: PaymentMethodSelectionCompletionBlock?
+    private var availablePaymentOptions: [PaymentOption] = []
+    private var pendingQrCodeDisplay: QrCodeDisplayCompletionBlock?
     private var isInitialized: Bool = false
     private var thread = DispatchQueue.init(label: "CapacitorStripeTerminal")
 
@@ -522,6 +529,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     @objc func cancelCollectPaymentMethod(_ call: CAPPluginCall? = nil) {
+        clearPendingPaymentCallbacks()
         if let cancelable = pendingCollectPaymentMethod {
             cancelable.cancel { error in
                 if let error = error {
@@ -979,6 +987,115 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         }
     }
 
+    @objc func selectPaymentOption(_ call: CAPPluginCall) {
+        guard let completion = pendingPaymentMethodSelection else {
+            call.reject("There is no pending payment method selection")
+            return
+        }
+        let paymentOptionType = call.getString("paymentOptionType") ?? "card"
+        let option = availablePaymentOptions.first { option in
+            if paymentOptionType == "card" {
+                return option.type == .card
+            }
+            return option.type == .nonCard && StripeTerminalUtils.serializePaymentMethodType(option.paymentMethodType) == paymentOptionType
+        }
+        guard let option = option else {
+            call.reject("Payment option is not available: \(paymentOptionType)")
+            return
+        }
+
+        pendingPaymentMethodSelection = nil
+        availablePaymentOptions = []
+        completion(option, nil)
+        call.resolve()
+    }
+
+    @objc func failPaymentMethodSelection(_ call: CAPPluginCall) {
+        guard let completion = pendingPaymentMethodSelection else {
+            call.reject("There is no pending payment method selection")
+            return
+        }
+
+        pendingPaymentMethodSelection = nil
+        availablePaymentOptions = []
+        completion(nil, makeError(call.getString("errorMessage") ?? "Payment method selection failed"))
+        call.resolve()
+    }
+
+    @objc func confirmQrCodeDisplayed(_ call: CAPPluginCall) {
+        guard let completion = pendingQrCodeDisplay else {
+            call.reject("There is no pending QR code display")
+            return
+        }
+
+        pendingQrCodeDisplay = nil
+        completion(nil)
+        call.resolve()
+    }
+
+    @objc func failQrCodeDisplay(_ call: CAPPluginCall) {
+        guard let completion = pendingQrCodeDisplay else {
+            call.reject("There is no pending QR code display")
+            return
+        }
+
+        pendingQrCodeDisplay = nil
+        completion(makeError(call.getString("errorMessage") ?? "QR code display failed"))
+        call.resolve()
+    }
+
+    private func clearPendingPaymentCallbacks() {
+        pendingPaymentMethodSelection = nil
+        availablePaymentOptions = []
+        pendingQrCodeDisplay = nil
+    }
+
+    private func makeError(_ message: String) -> NSError {
+        return NSError(domain: "StripeTerminal", code: 0, userInfo: [NSLocalizedDescriptionKey: message])
+    }
+
+    private func handlePaymentMethodSelection(
+        _ paymentIntent: PaymentIntent,
+        _ options: [PaymentOption],
+        _ completion: @escaping PaymentMethodSelectionCompletionBlock
+    ) {
+        guard hasListeners("onPaymentMethodSelectionRequired") else {
+            // Without a handler, fall back to card so payments aren't blocked.
+            if let option = options.first(where: { $0.type == .card }) ?? options.first {
+                completion(option, nil)
+            } else {
+                completion(nil, makeError("No payment options are available"))
+            }
+            return
+        }
+
+        pendingPaymentMethodSelection?(nil, makeError("Superseded by a new payment method selection request"))
+        pendingPaymentMethodSelection = completion
+        availablePaymentOptions = options
+        notifyListeners("onPaymentMethodSelectionRequired", data: [
+            "paymentIntent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent),
+            "availablePaymentOptions": options.map { StripeTerminalUtils.serializePaymentOption($0) },
+        ])
+    }
+
+    private func handleQrCodeDisplay(
+        _ paymentIntent: PaymentIntent,
+        _ qrData: QrCodeDisplayData,
+        _ completion: @escaping QrCodeDisplayCompletionBlock
+    ) {
+        guard hasListeners("onQrCodeDisplayRequired") else {
+            completion(makeError("QR code payments require an onQrCodeDisplayRequired handler"))
+            return
+        }
+
+        pendingQrCodeDisplay?(makeError("Superseded by a new QR code display request"))
+        pendingQrCodeDisplay = completion
+        notifyListeners("onQrCodeDisplayRequired", data: [
+            "paymentIntent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent),
+            "qrData": StripeTerminalUtils.serializeQrCodeDisplayData(qrData),
+        ])
+    }
+
     @objc func setReaderDisplay(_ call: CAPPluginCall) {
         let lineItems = call.getArray("lineItems", [String: Any].self) ?? [[String: Any]]()
         let currency = call.getString("currency") ?? "usd"
@@ -1242,6 +1359,23 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         ])
     }
 
+    public func reader(
+        _: Reader,
+        didRequestPaymentMethodSelection paymentIntent: PaymentIntent,
+        availablePaymentOptions: [PaymentOption],
+        completion: @escaping PaymentMethodSelectionCompletionBlock
+    ) {
+        handlePaymentMethodSelection(paymentIntent, availablePaymentOptions, completion)
+    }
+
+    public func reader(
+        _: Reader,
+        didRequestQrCodeDisplay paymentIntent: PaymentIntent,
+        qrData: QrCodeDisplayData,
+        completion: @escaping QrCodeDisplayCompletionBlock
+    ) {
+        handleQrCodeDisplay(paymentIntent, qrData, completion)
+    }
         
     // MARK: TapToPayReaderDelegate
 
@@ -1276,9 +1410,28 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         notifyListeners("didAcceptTermsOfService", data: nil)
     }
 
+    public func tapToPayReader(
+        _: Reader,
+        didRequestPaymentMethodSelection paymentIntent: PaymentIntent,
+        availablePaymentOptions: [PaymentOption],
+        completion: @escaping PaymentMethodSelectionCompletionBlock
+    ) {
+        handlePaymentMethodSelection(paymentIntent, availablePaymentOptions, completion)
+    }
+
+    public func tapToPayReader(
+        _: Reader,
+        didRequestQrCodeDisplay paymentIntent: PaymentIntent,
+        qrData: QrCodeDisplayData,
+        completion: @escaping QrCodeDisplayCompletionBlock
+    ) {
+        handleQrCodeDisplay(paymentIntent, qrData, completion)
+    }
+
     // MARK: ReaderDelegate
 
     public func reader(_: Reader, didDisconnect reason: DisconnectReason) {
+        clearPendingPaymentCallbacks()
         let data: [String: Any] = ["reason": StripeTerminalUtils.serializeDisconnectReason(reason)]
         notifyListeners("didDisconnect", data: data)
 

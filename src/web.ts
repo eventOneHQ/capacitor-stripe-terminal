@@ -217,6 +217,9 @@ const paymentMethodType: { [type: string]: PaymentMethodType } = {
   card: 'card',
   wechat_pay: 'wechatPay',
   affirm: 'affirm',
+  paynow: 'paynow',
+  paypay: 'paypay',
+  klarna: 'klarna',
 }
 
 /**
@@ -1150,6 +1153,26 @@ export class StripeTerminalWeb extends WebPlugin {
     canvas.getContext('2d')?.drawImage(image, 0, 0)
 
     this.unwrap(await sdk.print(canvas))
+  }
+
+  async selectPaymentOption(_options: {
+    paymentOptionType: string
+  }): Promise<void> {
+    return this.nativeOnly('selectPaymentOption')
+  }
+
+  async failPaymentMethodSelection(_options: {
+    errorMessage?: string
+  }): Promise<void> {
+    return this.nativeOnly('failPaymentMethodSelection')
+  }
+
+  async confirmQrCodeDisplayed(): Promise<void> {
+    return this.nativeOnly('confirmQrCodeDisplayed')
+  }
+
+  async failQrCodeDisplay(_options: { errorMessage?: string }): Promise<void> {
+    return this.nativeOnly('failQrCodeDisplay')
   }
 
   async setReaderDisplay(cart: Cart): Promise<void> {

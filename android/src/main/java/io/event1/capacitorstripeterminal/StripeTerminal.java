@@ -31,6 +31,8 @@ import com.stripe.stripeterminal.external.callable.LocationListCallback;
 import com.stripe.stripeterminal.external.callable.MobileReaderListener;
 import com.stripe.stripeterminal.external.callable.OfflineListener;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
+import com.stripe.stripeterminal.external.callable.PaymentMethodSelectionCallback;
+import com.stripe.stripeterminal.external.callable.QrCodeDisplayCallback;
 import com.stripe.stripeterminal.external.callable.ReaderCallback;
 import com.stripe.stripeterminal.external.callable.ReaderSettingsCallback;
 import com.stripe.stripeterminal.external.callable.RefundCallback;
@@ -65,8 +67,10 @@ import com.stripe.stripeterminal.external.models.OfflineBehavior;
 import com.stripe.stripeterminal.external.models.OfflineStatus;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentParameters;
+import com.stripe.stripeterminal.external.models.PaymentOption;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
 import com.stripe.stripeterminal.external.models.PrintContent;
+import com.stripe.stripeterminal.external.models.QrCodeDisplayData;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
 import com.stripe.stripeterminal.external.models.ReaderEvent;
@@ -142,6 +146,9 @@ public class StripeTerminal
   List<? extends Reader> discoveredReadersList = null;
   Cancelable pendingInstallUpdate = null;
   Cancelable pendingReaderAutoReconnect = null;
+  PaymentMethodSelectionCallback pendingPaymentMethodSelection = null;
+  List<? extends PaymentOption> availablePaymentOptions = null;
+  QrCodeDisplayCallback pendingQrCodeDisplay = null;
 
   @PluginMethod
   public void getPermissions(PluginCall call) {
@@ -758,6 +765,7 @@ public class StripeTerminal
 
   @PluginMethod
   public void cancelCollectPaymentMethod(final PluginCall call) {
+    clearPendingPaymentCallbacks();
     if (
       pendingCollectPaymentMethod != null &&
       !pendingCollectPaymentMethod.isCompleted()
@@ -1350,6 +1358,12 @@ public class StripeTerminal
     call.resolve();
   }
 
+  private void clearPendingPaymentCallbacks() {
+    pendingPaymentMethodSelection = null;
+    availablePaymentOptions = null;
+    pendingQrCodeDisplay = null;
+  }
+
   @PluginMethod
   public void getOfflineStatus(@NonNull PluginCall call) {
     call.resolve(
@@ -1415,6 +1429,92 @@ public class StripeTerminal
         }
       }
     );
+  }
+
+  @PluginMethod
+  public void selectPaymentOption(@NonNull PluginCall call) {
+    PaymentMethodSelectionCallback callback = pendingPaymentMethodSelection;
+    List<? extends PaymentOption> options = availablePaymentOptions;
+    if (callback == null || options == null) {
+      call.reject("There is no pending payment method selection");
+      return;
+    }
+
+    String paymentOptionType = call.getString("paymentOptionType");
+    if (paymentOptionType == null) {
+      call.reject("Must provide paymentOptionType");
+      return;
+    }
+    PaymentOption selected = null;
+    for (PaymentOption option : options) {
+      boolean matches = "card".equals(paymentOptionType)
+        ? option instanceof PaymentOption.CardPayment
+        : option instanceof PaymentOption.NonCardPayment &&
+          paymentOptionType.equals(
+            TerminalUtils.serializePaymentMethodType(
+              ((PaymentOption.NonCardPayment) option).getType()
+            )
+          );
+      if (matches) {
+        selected = option;
+        break;
+      }
+    }
+    if (selected == null) {
+      call.reject("Payment option is not available: " + paymentOptionType);
+      return;
+    }
+
+    pendingPaymentMethodSelection = null;
+    availablePaymentOptions = null;
+    callback.onSuccess(selected);
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void failPaymentMethodSelection(@NonNull PluginCall call) {
+    PaymentMethodSelectionCallback callback = pendingPaymentMethodSelection;
+    if (callback == null) {
+      call.reject("There is no pending payment method selection");
+      return;
+    }
+
+    pendingPaymentMethodSelection = null;
+    availablePaymentOptions = null;
+    callback.onFailure(
+      new Exception(
+        call.getString("errorMessage", "Payment method selection failed")
+      )
+    );
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void confirmQrCodeDisplayed(@NonNull PluginCall call) {
+    QrCodeDisplayCallback callback = pendingQrCodeDisplay;
+    if (callback == null) {
+      call.reject("There is no pending QR code display");
+      return;
+    }
+
+    pendingQrCodeDisplay = null;
+    callback.onSuccess();
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void failQrCodeDisplay(@NonNull PluginCall call) {
+    QrCodeDisplayCallback callback = pendingQrCodeDisplay;
+    if (callback == null) {
+      call.reject("There is no pending QR code display");
+      return;
+    }
+
+    pendingQrCodeDisplay = null;
+    callback.onFailure(
+      new Exception(call.getString("errorMessage", "QR code display failed"))
+    );
+    call.resolve();
   }
 
   @PluginMethod
@@ -1745,6 +1845,81 @@ public class StripeTerminal
   }
 
   @Override
+  public void onPaymentMethodSelectionRequired(
+    @NonNull PaymentIntent paymentIntent,
+    @NonNull List<? extends PaymentOption> options,
+    @NonNull PaymentMethodSelectionCallback callback
+  ) {
+    if (!hasListeners("onPaymentMethodSelectionRequired")) {
+      // Without a handler, fall back to card so payments aren't blocked.
+      PaymentOption fallback = options.isEmpty() ? null : options.get(0);
+      for (PaymentOption option : options) {
+        if (option instanceof PaymentOption.CardPayment) {
+          fallback = option;
+          break;
+        }
+      }
+      if (fallback != null) {
+        callback.onSuccess(fallback);
+      } else {
+        callback.onFailure(new Exception("No payment options are available"));
+      }
+      return;
+    }
+
+    if (pendingPaymentMethodSelection != null) {
+      pendingPaymentMethodSelection.onFailure(
+        new Exception("Superseded by a new payment method selection request")
+      );
+    }
+    pendingPaymentMethodSelection = callback;
+    availablePaymentOptions = options;
+
+    JSArray optionsJson = new JSArray();
+    for (PaymentOption option : options) {
+      optionsJson.put(TerminalUtils.serializePaymentOption(option));
+    }
+    JSObject ret = new JSObject();
+    ret.put(
+      "paymentIntent",
+      TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+    );
+    ret.put("availablePaymentOptions", optionsJson);
+    notifyListeners("onPaymentMethodSelectionRequired", ret);
+  }
+
+  @Override
+  public void onQrCodeDisplayRequired(
+    @NonNull PaymentIntent paymentIntent,
+    @NonNull QrCodeDisplayData qrData,
+    @NonNull QrCodeDisplayCallback callback
+  ) {
+    if (!hasListeners("onQrCodeDisplayRequired")) {
+      callback.onFailure(
+        new Exception(
+          "QR code payments require an onQrCodeDisplayRequired handler"
+        )
+      );
+      return;
+    }
+
+    if (pendingQrCodeDisplay != null) {
+      pendingQrCodeDisplay.onFailure(
+        new Exception("Superseded by a new QR code display request")
+      );
+    }
+    pendingQrCodeDisplay = callback;
+
+    JSObject ret = new JSObject();
+    ret.put(
+      "paymentIntent",
+      TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+    );
+    ret.put("qrData", TerminalUtils.serializeQrCodeDisplayData(qrData));
+    notifyListeners("onQrCodeDisplayRequired", ret);
+  }
+
+  @Override
   public void onOfflineStatusChange(@NonNull OfflineStatus offlineStatus) {
     JSObject ret = new JSObject();
     ret.put("result", TerminalUtils.serializeOfflineStatus(offlineStatus));
@@ -1784,6 +1959,7 @@ public class StripeTerminal
 
   @Override
   public void onDisconnect(@NonNull DisconnectReason reason) {
+    clearPendingPaymentCallbacks();
     lastBatteryLevel = null;
     lastBatteryStatus = null;
     lastIsCharging = null;

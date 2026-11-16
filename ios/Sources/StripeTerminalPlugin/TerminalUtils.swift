@@ -140,6 +140,9 @@ public class StripeTerminalUtils {
         case "card": return .card
         case "wechatPay": return .wechatPay
         case "affirm": return .affirm
+        case "paynow": return .paynow
+        case "paypay": return .paypay
+        case "klarna": return .klarna
         default: return .cardPresent
         }
     }
@@ -178,6 +181,9 @@ public class StripeTerminalUtils {
         case .card: return "card"
         case .wechatPay: return "wechatPay"
         case .affirm: return "affirm"
+        case .paynow: return "paynow"
+        case .paypay: return "paypay"
+        case .klarna: return "klarna"
         default: return "cardPresent"
         }
     }
@@ -212,6 +218,27 @@ public class StripeTerminalUtils {
         var jsonObject: [String: Any] = ["sdk": serializeOfflineStatusDetails(status.sdk)]
         if let reader = status.reader {
             jsonObject["reader"] = serializeOfflineStatusDetails(reader)
+        }
+        return jsonObject
+    }
+
+    static func serializePaymentOption(_ option: PaymentOption) -> [String: Any] {
+        switch option.type {
+        case .nonCard:
+            return ["type": "nonCard", "paymentMethodType": serializePaymentMethodType(option.paymentMethodType)]
+        default:
+            return ["type": "card"]
+        }
+    }
+
+    static func serializeQrCodeDisplayData(_ data: QrCodeDisplayData) -> [String: Any] {
+        var jsonObject: [String: Any] = [
+            "imageUrlPng": data.qrCodeImageUrlPng,
+            "expiresAtMs": data.expiresAtMs,
+            "paymentMethodType": serializePaymentMethodType(data.paymentMethodType),
+        ]
+        if let svg = data.qrCodeImageUrlSvg {
+            jsonObject["imageUrlSvg"] = svg
         }
         return jsonObject
     }

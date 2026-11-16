@@ -1115,7 +1115,14 @@ export type AllowRedisplay = 'always' | 'limited' | 'unspecified'
  * The type of payment method a PaymentIntent or SetupIntent may collect.
  */
 export type PaymentMethodType =
-  'cardPresent' | 'interacPresent' | 'card' | 'wechatPay' | 'affirm'
+  | 'cardPresent'
+  | 'interacPresent'
+  | 'card'
+  | 'wechatPay'
+  | 'affirm'
+  | 'paynow'
+  | 'paypay'
+  | 'klarna'
 
 /**
  * How a PaymentIntent created on the device behaves when the device is offline.
@@ -1183,6 +1190,33 @@ export interface OfflineDetails {
  */
 export type PrintContent = string
 
+/**
+ * A payment option the customer can choose from when a mobile reader supports more than one, for example card or a QR code payment.
+ *
+ * @category Payment
+ */
+export interface PaymentOption {
+  type: 'card' | 'nonCard'
+  /**
+   * The payment method for a `nonCard` option, e.g. `'wechatPay'`.
+   */
+  paymentMethodType?: PaymentMethodType | null
+}
+
+/**
+ * A QR code your app must show so the customer can pay with their mobile payment app.
+ *
+ * @category Payment
+ */
+export interface QrCodeDisplayData {
+  imageUrlPng: string
+  imageUrlSvg: string | null
+  /**
+   * When the QR code expires, in milliseconds since the Unix epoch.
+   */
+  expiresAtMs: number
+  paymentMethodType: PaymentMethodType | null
+}
 
 /**
  * When to capture funds for a PaymentIntent.
@@ -1907,6 +1941,14 @@ export interface StripeTerminalInterface {
 
   print(options: { content: PrintContent }): Promise<void>
 
+  selectPaymentOption(options: { paymentOptionType: string }): Promise<void>
+
+  failPaymentMethodSelection(options: { errorMessage?: string }): Promise<void>
+
+  confirmQrCodeDisplayed(): Promise<void>
+
+  failQrCodeDisplay(options: { errorMessage?: string }): Promise<void>
+
   setReaderDisplay(cart: Cart): Promise<void>
 
   clearReaderDisplay(): Promise<void>
@@ -1972,6 +2014,21 @@ export interface StripeTerminalInterface {
     listenerFunc: (data: { error: string }) => void,
   ): Promise<PluginListenerHandle> & PluginListenerHandle
 
+  addListener(
+    eventName: 'onPaymentMethodSelectionRequired',
+    listenerFunc: (data: {
+      paymentIntent: PaymentIntent
+      availablePaymentOptions: PaymentOption[]
+    }) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
+
+  addListener(
+    eventName: 'onQrCodeDisplayRequired',
+    listenerFunc: (data: {
+      paymentIntent: PaymentIntent
+      qrData: QrCodeDisplayData
+    }) => void,
+  ): Promise<PluginListenerHandle> & PluginListenerHandle
 
   addListener(
     eventName: 'readersDiscovered',

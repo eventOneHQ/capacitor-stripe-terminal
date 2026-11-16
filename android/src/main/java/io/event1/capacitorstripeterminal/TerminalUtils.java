@@ -37,9 +37,11 @@ import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
 import com.stripe.stripeterminal.external.models.PaymentMethod;
 import com.stripe.stripeterminal.external.models.PaymentMethodDetails;
 import com.stripe.stripeterminal.external.models.PaymentMethodType;
+import com.stripe.stripeterminal.external.models.PaymentOption;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
 import com.stripe.stripeterminal.external.models.PhoneInput;
 import com.stripe.stripeterminal.external.models.PhoneResult;
+import com.stripe.stripeterminal.external.models.QrCodeDisplayData;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderAccessibility;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
@@ -234,6 +236,12 @@ public class TerminalUtils {
       return PaymentMethodType.WECHAT_PAY;
     } else if ("affirm".equals(value)) {
       return PaymentMethodType.AFFIRM;
+    } else if ("paynow".equals(value)) {
+      return PaymentMethodType.PAYNOW;
+    } else if ("paypay".equals(value)) {
+      return PaymentMethodType.PAYPAY;
+    } else if ("klarna".equals(value)) {
+      return PaymentMethodType.KLARNA;
     }
 
     return PaymentMethodType.CARD_PRESENT;
@@ -274,6 +282,12 @@ public class TerminalUtils {
         return "wechatPay";
       case AFFIRM:
         return "affirm";
+      case PAYNOW:
+        return "paynow";
+      case PAYPAY:
+        return "paypay";
+      case KLARNA:
+        return "klarna";
       default:
         return "cardPresent";
     }
@@ -334,6 +348,34 @@ public class TerminalUtils {
     return object;
   }
 
+  public static JSObject serializePaymentOption(PaymentOption option) {
+    JSObject object = new JSObject();
+    if (option instanceof PaymentOption.NonCardPayment) {
+      object.put("type", "nonCard");
+      object.put(
+        "paymentMethodType",
+        serializePaymentMethodType(
+          ((PaymentOption.NonCardPayment) option).getType()
+        )
+      );
+    } else {
+      object.put("type", "card");
+    }
+    return object;
+  }
+
+  public static JSObject serializeQrCodeDisplayData(QrCodeDisplayData data) {
+    JSObject object = new JSObject();
+    object.put("imageUrlPng", data.getQrCodeImageUrlPng());
+    object.put("imageUrlSvg", data.getQrCodeImageUrlSvg());
+    object.put("expiresAtMs", data.getExpiresAtMs());
+    object.put(
+      "paymentMethodType",
+      serializePaymentMethodType(data.getPaymentMethodType())
+    );
+    return object;
+  }
+
   private static PaymentMethodType translateApiPaymentMethodType(String value) {
     if ("interac_present".equals(value)) {
       return PaymentMethodType.INTERAC_PRESENT;
@@ -343,6 +385,12 @@ public class TerminalUtils {
       return PaymentMethodType.WECHAT_PAY;
     } else if ("affirm".equals(value)) {
       return PaymentMethodType.AFFIRM;
+    } else if ("paynow".equals(value)) {
+      return PaymentMethodType.PAYNOW;
+    } else if ("paypay".equals(value)) {
+      return PaymentMethodType.PAYPAY;
+    } else if ("klarna".equals(value)) {
+      return PaymentMethodType.KLARNA;
     }
 
     return PaymentMethodType.CARD_PRESENT;
