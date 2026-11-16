@@ -2,7 +2,10 @@ package io.event1.capacitorstripeterminal;
 
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
+import android.util.Base64;
 import androidx.annotation.NonNull;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -63,6 +66,7 @@ import com.stripe.stripeterminal.external.models.OfflineStatus;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentParameters;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
+import com.stripe.stripeterminal.external.models.PrintContent;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
 import com.stripe.stripeterminal.external.models.ReaderEvent;
@@ -1352,6 +1356,64 @@ public class StripeTerminal
       TerminalUtils.serializeOfflineStatus(
         Terminal.getInstance().getOfflineStatus()
       )
+    );
+  }
+
+  @PluginMethod
+  public void print(@NonNull final PluginCall call) {
+    String content = call.getString("content");
+    if (content == null) {
+      call.reject("Must provide content");
+      return;
+    }
+    if (content.startsWith("data:") && content.contains(",")) {
+      content = content.substring(content.indexOf(',') + 1);
+    }
+
+    Bitmap bitmap = null;
+    try {
+      // Accept both standard and URL-safe base64.
+      byte[] bytes = Base64.decode(
+        content.replace('-', '+').replace('_', '/'),
+        Base64.DEFAULT
+      );
+      BitmapFactory.Options bounds = new BitmapFactory.Options();
+      bounds.inJustDecodeBounds = true;
+      BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+      // Downsample so large images don't exhaust memory; printers are narrow.
+      int maxDimension = 2048;
+      int sampleSize = 1;
+      while (
+        bounds.outWidth / sampleSize > maxDimension ||
+        bounds.outHeight / sampleSize > maxDimension
+      ) {
+        sampleSize *= 2;
+      }
+      BitmapFactory.Options options = new BitmapFactory.Options();
+      options.inSampleSize = sampleSize;
+      bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+    } catch (IllegalArgumentException ignored) {}
+    if (bitmap == null) {
+      call.reject("Content must be a base64-encoded JPEG or PNG image");
+      return;
+    }
+
+    final Bitmap printBitmap = bitmap;
+    Terminal.getInstance().print(
+      new PrintContent.Bitmap(printBitmap),
+      new Callback() {
+        @Override
+        public void onSuccess() {
+          printBitmap.recycle();
+          call.resolve();
+        }
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          printBitmap.recycle();
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
     );
   }
 

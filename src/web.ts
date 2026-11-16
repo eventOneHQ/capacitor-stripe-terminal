@@ -39,6 +39,7 @@ import {
   ICollectInputsResult,
   DiscoveryMethod,
   OfflineStatus,
+  PrintContent,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -1123,6 +1124,32 @@ export class StripeTerminalWeb extends WebPlugin {
 
   async getOfflineStatus(): Promise<OfflineStatus> {
     return this.nativeOnly('getOfflineStatus')
+  }
+
+  async print(options: { content: PrintContent }): Promise<void> {
+    const sdk = this.ensureInitialized()
+
+    let src = options.content
+    if (!src.startsWith('data:')) {
+      // Raw base64: detect the format from its magic bytes (PNG vs JPEG).
+      const mime = src.startsWith('/9j/') ? 'image/jpeg' : 'image/png'
+      src = `data:${mime};base64,${src}`
+    }
+
+    const image = new Image()
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () =>
+        reject(new Error('The print content is not a valid image.'))
+      image.src = src
+    })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = image.naturalWidth
+    canvas.height = image.naturalHeight
+    canvas.getContext('2d')?.drawImage(image, 0, 0)
+
+    this.unwrap(await sdk.print(canvas))
   }
 
   async setReaderDisplay(cart: Cart): Promise<void> {

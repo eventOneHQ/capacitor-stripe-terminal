@@ -58,7 +58,8 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "connectTapToPayReader", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelAutoReconnect", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "supportsReadersOfType", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getOfflineStatus", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "getOfflineStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "print", returnType: CAPPluginReturnPromise)
     ]
 
     private var pendingConnectionTokenCompletionBlock: ConnectionTokenCompletionBlock?
@@ -80,7 +81,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     private var readers: [Reader]?
 
     func logMsg(items: Any...) {
-        print("SWIFT \(items)")
+        Swift.print("SWIFT \(items)")
     }
 
     func onLogEntry(logline _: String) {
@@ -948,6 +949,34 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
 
     @objc func getOfflineStatus(_ call: CAPPluginCall) {
         call.resolve(StripeTerminalUtils.serializeOfflineStatus(Terminal.shared.offlineStatus))
+    }
+
+    @objc(print:)
+    func printToReader(_ call: CAPPluginCall) {
+        guard var content = call.getString("content") else {
+            call.reject("Must provide content")
+            return
+        }
+        if content.hasPrefix("data:"), let comma = content.firstIndex(of: ",") {
+            content = String(content[content.index(after: comma)...])
+        }
+        guard let data = Data(base64Encoded: content, options: .ignoreUnknownCharacters), let image = UIImage(data: data) else {
+            call.reject("Content must be a base64-encoded JPEG or PNG image")
+            return
+        }
+
+        do {
+            let printContent = try PrintContentBuilder(image: image).build()
+            Terminal.shared.print(printContent) { error in
+                if let error = error {
+                    call.reject(error.localizedDescription, nil, error)
+                } else {
+                    call.resolve()
+                }
+            }
+        } catch {
+            call.reject("Failed to build print content: \(error.localizedDescription)", nil, error)
+        }
     }
 
     @objc func setReaderDisplay(_ call: CAPPluginCall) {

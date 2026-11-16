@@ -43,6 +43,7 @@ import {
   ReaderSoftwareUpdate,
   CollectConfig,
   OfflineStatus,
+  PrintContent,
 } from './definitions'
 
 import { StripeTerminal } from './plugin-registration'
@@ -831,6 +832,17 @@ export class StripeTerminalPlugin {
       callback,
       (data: { error: string }) => data?.error,
     )
+  }
+
+  /**
+   * Prints an image on the connected reader's printer, if it has one.
+   *
+   * @param content A base64-encoded JPEG or PNG, or a `data:` URI.
+   */
+  public async print(content: PrintContent): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.print({ content })
   }
 
   public async didReportAvailableUpdate(

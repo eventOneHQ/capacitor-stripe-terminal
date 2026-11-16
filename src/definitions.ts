@@ -1178,6 +1178,11 @@ export interface OfflineDetails {
   requiresUpload: boolean
 }
 
+/**
+ * An image to print on the connected reader's printer: a base64-encoded JPEG or PNG, or a `data:` URI.
+ */
+export type PrintContent = string
+
 
 /**
  * When to capture funds for a PaymentIntent.
@@ -1899,6 +1904,8 @@ export interface StripeTerminalInterface {
   clearCachedCredentials(): Promise<void>
 
   getOfflineStatus(): Promise<OfflineStatus>
+
+  print(options: { content: PrintContent }): Promise<void>
 
   setReaderDisplay(cart: Cart): Promise<void>
 
