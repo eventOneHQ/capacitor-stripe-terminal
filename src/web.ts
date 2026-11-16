@@ -1,6 +1,8 @@
 import { WebPlugin } from '@capacitor/core'
 import {
+  AppTransitionAnimation,
   DiscoveryConfiguration,
+  OpenDeviceSettingsOptions,
   Reader,
   ConnectionStatus,
   PaymentIntent,
@@ -692,8 +694,13 @@ export class StripeTerminalWeb extends WebPlugin {
     console.warn('connectUsbReader is only available on Android.')
     return { reader: null }
   }
+  async openDeviceSettings(_options: OpenDeviceSettingsOptions): Promise<void> {
+    // no equivalent
+    console.warn('openDeviceSettings is only available on Android.')
+  }
   async connectAppsOnDevicesReader(_config: {
     serialNumber: string
+    appTransitionAnimation?: AppTransitionAnimation
   }): Promise<{ reader: Reader | null }> {
     // no equivalent
     console.warn('connectAppsOnDevicesReader is only available on Android.')

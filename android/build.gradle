@@ -60,5 +60,6 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation "com.stripe:stripeterminal-core:5.8.1"
     implementation "com.stripe:stripeterminal-taptopay:5.8.1"
+    implementation "com.stripe:stripeterminal-appsondevices:5.8.1"
     implementation "com.google.code.gson:gson:2.8.8"
 }

@@ -10,6 +10,7 @@ import {
   BluetoothConnectionConfiguration,
   UsbConnectionConfiguration,
   AppsOnDevicesConnectionConfiguration,
+  OpenDeviceSettingsOptions,
   TapToPayConnectionConfiguration,
   Reader,
   ConnectionStatus,
@@ -500,7 +501,7 @@ export class StripeTerminalPlugin {
    */
   public async connectAppsOnDevicesReader(
     reader: Reader,
-    _config?: AppsOnDevicesConnectionConfiguration,
+    config?: AppsOnDevicesConnectionConfiguration,
   ): Promise<Reader | null> {
     this.ensureInitialized()
 
@@ -509,6 +510,7 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.connectAppsOnDevicesReader({
       serialNumber: reader.serialNumber,
+      appTransitionAnimation: config?.appTransitionAnimation,
     })
 
     return this.objectExists(data?.reader)
@@ -588,6 +590,18 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return await this.sdk.disconnectReader()
+  }
+
+  /**
+   * Opens a screen of the Stripe Reader's device settings (Apps on Devices only).
+   *
+   * Most screens require the device admin PIN. `appearance`, `language` and
+   * `bugReport` can skip it with `bypassAdminPasscode`.
+   */
+  public async openDeviceSettings(
+    options: OpenDeviceSettingsOptions = {},
+  ): Promise<void> {
+    return await this.sdk.openDeviceSettings(options)
   }
 
   /**

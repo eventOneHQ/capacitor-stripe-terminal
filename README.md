@@ -72,6 +72,33 @@ Add the `ACCESS_FINE_LOCATION` permission to your app's manifest:
 </manifest>
 ```
 
+#### Apps on Devices
+
+To run your Capacitor app directly on a Stripe Android reader (e.g. S700, T600), see [Apps on Devices](https://docs.stripe.com/terminal/features/apps-on-devices/build). The plugin bundles `stripeterminal-appsondevices`; you also need to:
+
+1. Create an `Application` subclass that calls `TerminalApplicationDelegate.onCreate(this)` and register it as `android:name` on `<application>` in your manifest:
+
+```java
+public class MyApplication extends Application {
+  @Override
+  public void onCreate() {
+    super.onCreate();
+    TerminalApplicationDelegate.onCreate(this);
+  }
+}
+```
+
+2. Discover and connect (the discovery list contains only the device itself):
+
+```ts
+await StripeTerminal.discoverReaders({ discoveryMethod: 'appsOnDevices' }) // listen for `readersDiscovered`
+await StripeTerminal.connectAppsOnDevicesReader(reader, {
+  appTransitionAnimation: { type: 'preset', preset: 'slideFromBottom' }, // optional, reader software 2.42+
+})
+```
+
+Register the device as a Reader first, using the pairing code from its admin settings. Production devices must be deployed via the Dashboard; use `adb install` only for DevKits.
+
 On Android, you must also make sure that Location permission has been granted by the user:
 
 ```javascript

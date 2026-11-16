@@ -229,9 +229,77 @@ export interface UsbConnectionConfiguration extends ConnectionConfiguration {
 }
 
 /**
+ * Controls the animation used when the Stripe Reader app takes over the screen
+ * to collect a payment, and when it hands control back to your app. Requires
+ * reader software 2.42 or later. (Android only.)
+ *
+ * - `systemDefault`: Use the Android system default transition.
+ * - `preset`: Use one of the built-in transitions.
+ * - `custom`: Use your app's own animation resources. `enterAnim` and `exitAnim`
+ *   are Android resource IDs (e.g. `R.anim.slide_in_up`); use `0` to disable
+ *   that direction.
+ *
  * @category Reader
  */
-export interface AppsOnDevicesConnectionConfiguration {}
+export type AppTransitionAnimation =
+  | { type: 'systemDefault' }
+  | { type: 'preset'; preset: AppTransitionPreset }
+  | { type: 'custom'; enterAnim: number; exitAnim: number }
+
+/**
+ * @category Reader
+ */
+export type AppTransitionPreset = 'slideFromBottom'
+
+/**
+ * @category Reader
+ */
+export interface AppsOnDevicesConnectionConfiguration {
+  /**
+   * The animation used when moving between your app and the Stripe Reader app.
+   *
+   * @default { type: 'systemDefault' }
+   */
+  appTransitionAnimation?: AppTransitionAnimation
+}
+
+/**
+ * Screens of the Stripe Reader device settings that can be opened with
+ * `openDeviceSettings`.
+ *
+ * - `all`, `network`, `advanced` and `registrationCode` always require the admin PIN.
+ * - `appearance`, `language` and `bugReport` can bypass the admin PIN.
+ *
+ * @category Reader
+ */
+export type DeviceSettingsScreen =
+  | 'all'
+  | 'network'
+  | 'advanced'
+  | 'registrationCode'
+  | 'appearance'
+  | 'language'
+  | 'bugReport'
+
+/**
+ * @category Reader
+ */
+export interface OpenDeviceSettingsOptions {
+  /**
+   * The settings screen to open.
+   *
+   * @default 'all'
+   */
+  screen?: DeviceSettingsScreen
+
+  /**
+   * Skip the admin PIN prompt. Only honored for `appearance`, `language` and
+   * `bugReport`; only use it for non-sensitive screens.
+   *
+   * @default false
+   */
+  bypassAdminPasscode?: boolean
+}
 
 /**
  * @category Reader
@@ -1857,7 +1925,10 @@ export interface StripeTerminalInterface {
 
   connectAppsOnDevicesReader(options: {
     serialNumber: string
+    appTransitionAnimation?: AppTransitionAnimation
   }): Promise<{ reader: Reader | null }>
+
+  openDeviceSettings(options: OpenDeviceSettingsOptions): Promise<void>
 
   connectTapToPayReader(options: {
     serialNumber: string

@@ -1,6 +1,9 @@
 package io.event1.capacitorstripeterminal;
 
 import android.Manifest;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.net.Uri;
 import android.bluetooth.BluetoothAdapter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -505,13 +508,72 @@ public class StripeTerminal
     }
 
     AppsOnDevicesConnectionConfiguration connectionConfig =
-      new AppsOnDevicesConnectionConfiguration(this);
+      new AppsOnDevicesConnectionConfiguration(
+        this,
+        TerminalUtils.translateAppTransitionAnimation(
+          call.getObject("appTransitionAnimation")
+        )
+      );
 
     Terminal.getInstance().connectReader(
       reader,
       connectionConfig,
       this.createReaderCallback(call)
     );
+  }
+
+  @PluginMethod
+  public void openDeviceSettings(final PluginCall call) {
+    String screen = call.getString("screen", "all");
+    String path;
+    boolean bypassable = false;
+    switch (screen) {
+      case "all":
+        path = "";
+        break;
+      case "network":
+        path = "network/";
+        break;
+      case "advanced":
+        path = "advanced/";
+        break;
+      case "registrationCode":
+        path = "registration_code/";
+        break;
+      case "appearance":
+        path = "appearance/";
+        bypassable = true;
+        break;
+      case "language":
+        path = "language/";
+        bypassable = true;
+        break;
+      case "bugReport":
+        path = "bug_report/";
+        bypassable = true;
+        break;
+      default:
+        call.reject("Unknown device settings screen: " + screen);
+        return;
+    }
+
+    Intent intent = new Intent(
+      Intent.ACTION_VIEW,
+      Uri.parse("stripe://settings/" + path)
+    );
+    if (bypassable && Boolean.TRUE.equals(call.getBoolean("bypassAdminPasscode", false))) {
+      intent.putExtra("bypass_admin_menu_passcode", true);
+    }
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+    try {
+      getContext().startActivity(intent);
+      call.resolve();
+    } catch (ActivityNotFoundException e) {
+      call.reject(
+        "Device settings are only available when running on a Stripe Reader device."
+      );
+    }
   }
 
   @PluginMethod

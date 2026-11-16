@@ -17,6 +17,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "connectBluetoothReader", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "connectUsbReader", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "connectAppsOnDevicesReader", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openDeviceSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "connectInternetReader", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getConnectionStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getPaymentStatus", returnType: CAPPluginReturnPromise),
@@ -277,6 +278,10 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
 
     @objc func connectAppsOnDevicesReader(_ call: CAPPluginCall) {
         call.reject("AppsOnDevices readers are only supported on Android.")
+    }
+
+    @objc func openDeviceSettings(_ call: CAPPluginCall) {
+        call.reject("Device settings are only supported on Android.")
     }
 
     @objc func connectInternetReader(_ call: CAPPluginCall) {

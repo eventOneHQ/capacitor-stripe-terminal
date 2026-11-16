@@ -19,6 +19,8 @@ import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.CustomerCancellation;
 import com.stripe.stripeterminal.external.models.DeviceType;
 import com.stripe.stripeterminal.external.models.DisconnectReason;
+import com.stripe.stripeterminal.external.models.AppTransitionAnimation;
+import com.stripe.stripeterminal.external.models.AppTransitionPreset;
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
 import com.stripe.stripeterminal.external.models.EmailInput;
 import com.stripe.stripeterminal.external.models.EmailResult;
@@ -1318,6 +1320,29 @@ public class TerminalUtils {
   public static String serializeChargeStatus(String status) {
     if ("succeeded".equals(status) || "pending".equals(status)) return status;
     return "failed";
+  }
+
+  public static AppTransitionAnimation translateAppTransitionAnimation(
+    JSObject animation
+  ) {
+    if (animation == null) {
+      return AppTransitionAnimation.SystemDefault.INSTANCE;
+    }
+    String type = animation.getString("type", "systemDefault");
+    switch (type) {
+      case "preset":
+        // `slideFromBottom` is currently the only preset.
+        return new AppTransitionAnimation.Preset(
+          AppTransitionPreset.SLIDE_FROM_BOTTOM
+        );
+      case "custom":
+        return new AppTransitionAnimation.Custom(
+          animation.getInteger("enterAnim", 0),
+          animation.getInteger("exitAnim", 0)
+        );
+      default:
+        return AppTransitionAnimation.SystemDefault.INSTANCE;
+    }
   }
 
   public static DiscoveryConfiguration translateDiscoveryMethod(
