@@ -2,7 +2,7 @@
 <h3 align="center">Capacitor Stripe Terminal</h3>
 <p align="center"><strong><code>capacitor-stripe-terminal</code></strong></p>
 <p align="center">
-  Capacitor plugin for <a href="https://stripe.com/terminal">Stripe Terminal</a> (unofficial)
+  Accept in-person card payments in your Capacitor app with <a href="https://stripe.com/terminal">Stripe Terminal</a> (unofficial)
 </p>
 
 <p align="center">
@@ -17,198 +17,81 @@
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 </p>
 
+<p align="center">
+  <a href="https://eventonehq.github.io/capacitor-stripe-terminal/"><strong>Documentation</strong></a> ·
+  <a href="https://eventonehq.github.io/capacitor-stripe-terminal/getting-started/quickstart/">Quickstart</a> ·
+  <a href="https://eventonehq.github.io/capacitor-stripe-terminal/api/">API Reference</a> ·
+  <a href="https://eventonehq.github.io/capacitor-stripe-terminal/migration/">Migration Guides</a>
+</p>
+
+## Features
+
+- **iOS, Android and web** from one TypeScript API, built on the native Stripe Terminal SDKs and `@stripe/terminal-js`.
+- **Every reader type**: Bluetooth, internet (WisePOS E, Stripe S700), USB, Tap to Pay and [Apps on Devices](https://eventonehq.github.io/capacitor-stripe-terminal/guides/apps-on-devices/).
+- **Bluetooth + internet discovery at once** with the plugin-only `both` mode.
+- **Payments, refunds, SetupIntents, offline payments, on-reader forms and printing**.
+- **Consistent across platforms**.
+
 ## Requirements
 
-- **Capacitor**: 8.x
-- **Stripe Terminal SDK**:
-  - iOS: 6.0.0 (requires iOS 16.0+)
-  - Android: 6.0.0 (requires Android API 23+, compileSdk 35+)
+| Component                   | Version                           |
+| --------------------------- | --------------------------------- |
+| Capacitor                   | 8.x                               |
+| Stripe Terminal iOS SDK     | 6.0.0 (iOS 16.0+)                 |
+| Stripe Terminal Android SDK | 6.0.0 (API 23+, `compileSdk` 35+) |
 
-> **📝 Upgrading from an earlier version?** See the [v6 Migration Guide](MIGRATION_V6.md) (and the [v5 Migration Guide](MIGRATION_V5.md)) for details on breaking changes and upgrade instructions.
+## Install
+
+```bash
+npm install capacitor-stripe-terminal
+npx cap sync
+```
+
+Then follow the [installation guide](https://eventonehq.github.io/capacitor-stripe-terminal/getting-started/installation/) to configure iOS, Android and location permissions.
+
+## Usage
+
+```ts
+import { StripeTerminalPlugin } from 'capacitor-stripe-terminal'
+
+const terminal = await StripeTerminalPlugin.create({
+  fetchConnectionToken: async () => {
+    const resp = await fetch('https://your-backend.dev/token', {
+      method: 'POST',
+    })
+    return (await resp.json()).secret
+  },
+  onUnexpectedReaderDisconnect: () => {
+    // the reader disconnected unexpectedly
+  },
+})
+
+// discover and connect to a reader first, see the quickstart
+
+await terminal.retrievePaymentIntent('{CLIENT_SECRET}')
+await terminal.collectPaymentMethod()
+await terminal.confirmPaymentIntent()
+```
+
+The [quickstart](https://eventonehq.github.io/capacitor-stripe-terminal/getting-started/quickstart/) walks through reader discovery, connection and error handling.
+
+## Coming from Stripe's SDKs?
+
+The plugin follows Stripe's API closely, so the [Stripe Terminal docs](https://docs.stripe.com/terminal) still apply. The docs here only cover what's different, starting with [Differences from Stripe's SDKs](https://eventonehq.github.io/capacitor-stripe-terminal/guides/differences-from-stripe/) and the [platform support matrix](https://eventonehq.github.io/capacitor-stripe-terminal/guides/platform-support/).
+
+## Upgrading
+
+See the [migration guides](https://eventonehq.github.io/capacitor-stripe-terminal/migration/): [v5 to v6](https://eventonehq.github.io/capacitor-stripe-terminal/migration/v6/) and [v3 to v5](https://eventonehq.github.io/capacitor-stripe-terminal/migration/v5/).
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Docs live in [`docs/`](docs) and preview with `npm run docs:dev`.
 
 ## Maintainers
 
 | Maintainer | GitHub                              | Social                                      |
 | ---------- | ----------------------------------- | ------------------------------------------- |
 | Noah Prail | [nprail](https://github.com/nprail) | [@NoahPrail](https://twitter.com/NoahPrail) |
-
-## Installation
-
-Using npm:
-
-```bash
-npm install capacitor-stripe-terminal
-```
-
-Using yarn:
-
-```bash
-yarn add capacitor-stripe-terminal
-```
-
-Sync native files:
-
-```bash
-npx cap sync
-```
-
-## Configuration
-
-### iOS
-
-Follow all Stripe instructions under ["Configure your app"](https://stripe.com/docs/terminal/sdk/ios#configure).
-
-### Android
-
-Add the `ACCESS_FINE_LOCATION` permission to your app's manifest:
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.stripe.example.app">
-
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-</manifest>
-```
-
-#### Apps on Devices
-
-To run your Capacitor app directly on a Stripe Android reader (e.g. S700, T600), see [Apps on Devices](https://docs.stripe.com/terminal/features/apps-on-devices/build). The plugin bundles `stripeterminal-appsondevices`; you also need to:
-
-1. Create an `Application` subclass that calls `TerminalApplicationDelegate.onCreate(this)` and register it as `android:name` on `<application>` in your manifest:
-
-```java
-public class MyApplication extends Application {
-  @Override
-  public void onCreate() {
-    super.onCreate();
-    TerminalApplicationDelegate.onCreate(this);
-  }
-}
-```
-
-2. Discover and connect (the discovery list contains only the device itself):
-
-```ts
-await StripeTerminal.discoverReaders({ discoveryMethod: 'appsOnDevices' }) // listen for `readersDiscovered`
-await StripeTerminal.connectAppsOnDevicesReader(reader, {
-  appTransitionAnimation: { type: 'preset', preset: 'slideFromBottom' }, // optional, reader software 2.42+
-})
-```
-
-Register the device as a Reader first, using the pairing code from its admin settings. Production devices must be deployed via the Dashboard; use `adb install` only for DevKits.
-
-On Android, you must also make sure that Location permission has been granted by the user:
-
-```javascript
-if (Capacitor.getPlatform() === 'android') {
-  // check if permission is required
-  let response = await StripeTerminalPlugin.checkPermissions();
-
-  if (response.location === 'prompt') {
-    // if it is required, request it
-    response = await StripeTerminalPlugin.requestPermissions();
-
-    if (response.location !== 'granted') {
-      // if the request fails, show a message to the user
-      throw new Error('Location permission is required.')
-    }
-  }
-}
-
-const terminal = await StripeTerminalPlugin.create({ ... })
-```
-
-If the user does not grant permission, `StripeTerminalPlugin` will throw an error when you try to initialize it so you will have to handle that.
-
-_Hint: If the user denies Location permission the first time you ask for it, Android will not display a prompt to the user on subsequent requests for permission and `response` will always be `denied`. You will have to ask the user to go into the app's settings to allow Location permission._
-
-## Usage
-
-```javascript
-import {
-  StripeTerminalPlugin,
-  StripeTerminalError,
-} from 'capacitor-stripe-terminal'
-
-// First, initialize the SDK
-const terminal = await StripeTerminalPlugin.create({
-  fetchConnectionToken: async () => {
-    const resp = await fetch('https://your-backend.dev/token', {
-      method: 'POST',
-    })
-    const data = await resp.json()
-
-    return data.secret
-  },
-  onUnexpectedReaderDisconnect: () => {
-    // handle reader disconnect
-  },
-})
-
-// Start scanning for readers
-// To stop scanning, call handle.remove() on the returned handle.
-// You must connect to a reader while scanning
-const discoverHandle = await terminal.discoverReaders(
-  {
-    simulated: false,
-    discoveryMethod: 'bluetoothScan',
-  },
-  (readers) => {
-    if (readers.length) {
-      const selectedReader = readers[0]
-      const connectionConfig = {
-        locationId: '{{LOCATION_ID}}',
-      }
-      terminal
-        .connectBluetoothReader(selectedReader, connectionConfig)
-        .then((connectedReader) => {
-          // the reader is now connected and usable
-        })
-    }
-  },
-  (error) => {
-    console.error('discoverReaders error', error)
-  },
-)
-
-// Once the reader is connected, collect a payment intent!
-
-// listen to user instructions - these should be displayed to the user
-const displayHandle = await terminal.didRequestReaderDisplayMessage(
-  (displayMessage) => {
-    console.log('displayMessage', displayMessage)
-  },
-)
-const inputHandle = await terminal.didRequestReaderInput((inputOptions) => {
-  console.log('inputOptions', inputOptions)
-})
-
-// retrieve the payment intent
-await terminal.retrievePaymentIntent('your client secret created server side')
-
-// collect the payment method
-await terminal.collectPaymentMethod()
-
-// and finally, confirm the payment intent
-try {
-  await terminal.confirmPaymentIntent()
-} catch (err) {
-  if (err instanceof StripeTerminalError) {
-    // structured decline data is available on card declines
-    console.error('decline_code', err.decline_code)
-  }
-  throw err
-}
-
-// once you are done, call destroy() to remove all listeners and reset the plugin (e.g. in ngOnDestroy)
-await terminal.destroy()
-```
-
-## API Reference
-
-See the full API docs [here](https://oss.eventone.page/capacitor-stripe-terminal).
 
 ## Sponsors
 

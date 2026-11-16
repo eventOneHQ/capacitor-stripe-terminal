@@ -12,7 +12,10 @@
     "prepare": "husky",
     "pre-commit": "pretty-quick --staged",
     "verify:ios": "xcodebuild -scheme CapacitorStripeTerminal -destination generic/platform=iOS",
-    "docs": "typedoc --excludeExternals --out out src/index.ts"
+    "docs": "npm run docs:site && npm run docs:api",
+    "docs:site": "docmd build",
+    "docs:api": "typedoc --excludeExternals --out site/api src/index.ts",
+    "docs:dev": "docmd dev"
   },
   "author": "eventOne Labs <opensource@event1.io>",
   "license": "MIT",
@@ -23,6 +26,7 @@
   "devDependencies": {
     "@capacitor/android": "^8.2.0",
     "@capacitor/ios": "^8.2.0",
+    "@docmd/core": "^0.10.1",
     "husky": "^9.1.7",
     "prettier": "^3.8.1",
     "prettier-plugin-java": "^2.8.1",
