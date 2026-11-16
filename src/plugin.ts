@@ -1375,13 +1375,4 @@ export class StripeTerminalPlugin {
   public static async requestPermissions(): Promise<PermissionStatus> {
     return await StripeTerminal.requestPermissions()
   }
-
-  /**
-   * This should not be used directly. It will not behave correctly when using `Internet` and `Both` discovery methods
-   *
-   * @deprecated This should not be used directly. It will not behave correctly when using `Internet` and `Both` discovery methods
-   */
-  public async addListener(eventName: string, listenerFunc: Function) {
-    return await this.sdk.addListener(eventName, listenerFunc)
-  }
 }

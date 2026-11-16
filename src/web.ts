@@ -503,10 +503,6 @@ export class StripeTerminalWeb extends WebPlugin {
     return result as T
   }
 
-  async getPermissions(): Promise<PermissionStatus> {
-    return this.requestPermissions()
-  }
-
   async checkPermissions(): Promise<PermissionStatus> {
     // location permission isn't actually needed for the web version
     throw this.unimplemented('Permissions are not required on web.')

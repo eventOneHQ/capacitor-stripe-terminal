@@ -83,11 +83,7 @@ These events now fire the same way on iOS, Android and web. Their payloads match
 - New `terminal.didReportReaderEvent(callback)` (`'cardInserted' | 'cardRemoved'`) and `terminal.didReportLowBatteryWarning(callback)`. Both work on iOS and Android.
 - The Tap to Pay terms-of-service event (`localMobileReaderDidAcceptTermsOfService` in v3, `tapToPayReaderDidAcceptTermsOfService` in earlier v5 betas) is now `didAcceptTermsOfService`. Use `terminal.didAcceptTermsOfService(callback)` to listen for it.
 - The Android-only `didReportBatteryLevel` event has been removed. Use `terminal.didUpdateBatteryLevel(callback)` instead.
-- If you listen to raw native events with `addListener`, these payloads have changed:
-  - `didReportUnexpectedReaderDisconnect` is now `{ reason }` (it used to be `{ reader }`).
-  - `didRequestReaderInput` is now `{ result: ('swipeCard' | 'insertCard' | 'tapCard')[] }`.
-  - `didRequestReaderDisplayMessage` is now `{ result }` (it used to be `{ value }`).
-  - `didReportReaderEvent` is now `{ result: 'cardInserted' | 'cardRemoved' }`.
+- `terminal.addListener(eventName, listener)` has been removed, because it didn't work correctly with `Internet` and `Both` discovery. Use the dedicated listener methods above (for example `terminal.didDisconnect(callback)`) instead.
 
 ### `stripeId` removed in favour of `id`
 
@@ -102,6 +98,10 @@ const id = paymentIntent.stripeId
 // After
 const id = paymentIntent.id
 ```
+
+### `getPermissions` removed
+
+`getPermissions()` has been removed from the plugin. Use `checkPermissions()` and `requestPermissions()` instead.
 
 ### Refunds: `processRefund`
 

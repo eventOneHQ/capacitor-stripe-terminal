@@ -2008,11 +2008,6 @@ export interface StripeTerminalInterface {
     simulated?: boolean
   }): Promise<{ isSupported: boolean; error?: string }>
 
-  /**
-   * @deprecated use requestPermissions and checkPermissions
-   */
-  getPermissions(): Promise<PermissionStatus>
-
   checkPermissions(): Promise<PermissionStatus>
   requestPermissions(): Promise<PermissionStatus>
 

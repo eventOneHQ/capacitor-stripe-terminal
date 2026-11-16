@@ -47,7 +47,6 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "collectPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirmPaymentIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearCachedCredentials", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "checkPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setReaderDisplay", returnType: CAPPluginReturnPromise),
@@ -95,10 +94,6 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
 
     func onLogEntry(logline _: String) {
         // self.notifyListeners("log", data: ["logline": logline])
-    }
-
-    @objc func getPermissions(_ call: CAPPluginCall) {
-        requestPermissions(call)
     }
 
     @objc override public func checkPermissions(_ call: CAPPluginCall) {

@@ -161,17 +161,6 @@ public class StripeTerminal
   QrCodeDisplayCallback pendingQrCodeDisplay = null;
 
   @PluginMethod
-  public void getPermissions(PluginCall call) {
-    if (getPermissionState("location") != PermissionState.GRANTED) {
-      requestPermissions(call);
-    } else {
-      JSObject result = new JSObject();
-      result.put("location", "granted");
-      call.resolve(result);
-    }
-  }
-
-  @PluginMethod
   public void initialize(PluginCall call) {
     if (getPermissionState("location") != PermissionState.GRANTED) {
       requestPermissionForAlias("location", call, "locationPermsCallback");
