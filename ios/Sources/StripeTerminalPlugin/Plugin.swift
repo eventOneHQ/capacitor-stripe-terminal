@@ -7,7 +7,7 @@ import StripeTerminal
  * here: https://capacitor.ionicframework.com/docs/plugins/ios
  */
 @objc(StripeTerminal)
-public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, OfflineDelegate, MobileReaderDelegate, TapToPayReaderDelegate, InternetReaderDelegate {
+public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvider, DiscoveryDelegate, TerminalDelegate, OfflineDelegate, MobileReaderDelegate, TapToPayReaderDelegate, InternetReaderDelegate, ReaderPaymentInteractionDelegate {
     public let identifier = "StripeTerminal"
     public let jsName = "StripeTerminal"
     public let pluginMethods: [CAPPluginMethod] = [
@@ -40,9 +40,8 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         CAPPluginMethod(name: "cancelCollectSetupIntentPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirmSetupIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelSetupIntent", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "collectRefundPaymentMethod", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "cancelCollectRefundPaymentMethod", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "confirmRefund", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "processRefund", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelProcessRefund", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "collectInputs", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelCollectInputs", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "collectPaymentMethod", returnType: CAPPluginReturnPromise),
@@ -73,16 +72,18 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     private var pendingCollectPaymentMethod: Cancelable?
     private var pendingCollectData: Cancelable?
     private var pendingCollectSetupIntentPaymentMethod: Cancelable?
-    private var pendingCollectRefundPaymentMethod: Cancelable?
+    private var pendingProcessRefund: Cancelable?
     private var pendingCollectInputs: Cancelable?
     private var pendingReaderAutoReconnect: Cancelable?
     private var currentUpdate: ReaderSoftwareUpdate?
     private var currentPaymentIntent: PaymentIntent?
     private var currentSetupIntent: SetupIntent?
     private var cancelDiscoverReadersCall: CAPPluginCall?
-    private var pendingPaymentMethodSelection: PaymentMethodSelectionCompletionBlock?
+    private var pendingPaymentMethodSelection: PaymentMethodSelectionInteraction?
     private var availablePaymentOptions: [PaymentOption] = []
-    private var pendingQrCodeDisplay: QrCodeDisplayCompletionBlock?
+    private var pendingQrCodeDisplay: QrCodeDisplayInteraction?
+    private var simulatedReaderUpdate: TestReaderUpdate?
+    private var simulatedReaderUpdateName: String = "none"
     private var isInitialized: Bool = false
     private var thread = DispatchQueue.init(label: "CapacitorStripeTerminal")
 
@@ -111,16 +112,30 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     @objc func initialize(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             if !self.isInitialized {
-                // In Stripe Terminal SDK v5, Terminal.setTokenProvider is replaced with Terminal.initWithTokenProvider
                 // This must be called before accessing Terminal.shared
-                Terminal.initWithTokenProvider(self)
-                Terminal.shared.delegate = self
-                Terminal.shared.offlineDelegate = self
+                let localeConfig: LocaleConfig
+                if let locale = call.getString("locale") {
+                    do {
+                        localeConfig = try HardcodedLocaleConfigBuilder(locale: locale).build()
+                    } catch {
+                        call.reject("Invalid locale: \(error.localizedDescription)", nil, error)
+                        return
+                    }
+                } else {
+                    localeConfig = LocaleConfig.cardLanguagePreferenceIfAvailable
+                }
+
+                Terminal.initWithTokenProvider(
+                    self,
+                    delegate: self,
+                    offlineDelegate: self,
+                    logLevel: StripeTerminalUtils.translateJSLogLevel(call.getString("logLevel")),
+                    localeConfig: localeConfig
+                )
 
                 Terminal.setLogListener { logline in
                     self.onLogEntry(logline: logline)
                 }
-                Terminal.shared.logLevel = StripeTerminalUtils.translateJSLogLevel(call.getString("logLevel"))
 
                 self.cancelDiscoverReaders()
                 self.cancelInstallUpdate()
@@ -250,6 +265,8 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         do {
             connectionConfig = try BluetoothConnectionConfigurationBuilder(delegate: self, locationId: locationId)
                 .setAutoReconnectOnUnexpectedDisconnect(autoReconnectOnUnexpectedDisconnect)
+                .setReaderPaymentInteractionDelegate(self)
+                .setTestReaderUpdate(simulatedReaderUpdate)
                 .build()
         } catch {
             call.reject("Failed to build connection configuration: \(error.localizedDescription)", nil, error)
@@ -296,13 +313,11 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         }
 
         let failIfInUse = call.getBool("failIfInUse") ?? false
-        let allowCustomerCancel = call.getBool("allowCustomerCancel") ?? false
 
         let connectionConfig: InternetConnectionConfiguration
         do {
             connectionConfig = try InternetConnectionConfigurationBuilder(delegate: self)
                 .setFailIfInUse(failIfInUse)
-                .setAllowCustomerCancel(allowCustomerCancel)
                 .build()
         } catch {
             call.reject("Failed to build connection configuration: \(error.localizedDescription)", nil, error)
@@ -350,6 +365,8 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             if let onBehalfOf = onBehalfOf { _ = builder.setOnBehalfOf(onBehalfOf) }
             if let merchantDisplayName = merchantDisplayName { _ = builder.setMerchantDisplayName(merchantDisplayName) }
             _ = builder.setTosAcceptancePermitted(tosAcceptancePermitted)
+            _ = builder.setReaderPaymentInteractionDelegate(self)
+            _ = builder.setTestReaderUpdate(simulatedReaderUpdate)
             connectionConfig = try builder.build()
         } catch {
             call.reject("Failed to build connection configuration: \(error.localizedDescription)", nil, error)
@@ -619,7 +636,11 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             _ = builder.setPaymentMethodTypes(StripeTerminalUtils.translateJSPaymentMethodTypes(paymentMethodTypes))
 
             if let captureMethod = call.getString("captureMethod") {
-                _ = builder.setCaptureMethod(captureMethod == "manual" ? .manual : .automatic)
+                switch captureMethod {
+                case "manual": _ = builder.setCaptureMethod(.manual)
+                case "automatic": _ = builder.setCaptureMethod(.automatic)
+                default: _ = builder.setCaptureMethod(.automaticAsync)
+                }
             }
             if let setupFutureUsage = call.getString("setupFutureUsage") { _ = builder.setSetupFutureUsage(setupFutureUsage) }
             if let onBehalfOf = call.getString("onBehalfOf") { _ = builder.setOnBehalfOf(onBehalfOf) }
@@ -731,7 +752,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
 
         let config: CollectSetupIntentConfiguration
         do {
-            let builder = CollectSetupIntentConfigurationBuilder()
+            let builder = CollectSetupIntentConfigurationBuilder(allowRedisplay: allowRedisplay)
             if let customerCancellation = call.getString("customerCancellation") {
                 _ = builder.setCustomerCancellation(StripeTerminalUtils.translateJSCustomerCancellation(customerCancellation))
             }
@@ -747,7 +768,6 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
 
         pendingCollectSetupIntentPaymentMethod = Terminal.shared.collectSetupIntentPaymentMethod(
             intent,
-            allowRedisplay: allowRedisplay,
             setupConfig: config
         ) { collectedIntent, error in
             self.pendingCollectSetupIntentPaymentMethod = nil
@@ -813,7 +833,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         }
     }
 
-    @objc func collectRefundPaymentMethod(_ call: CAPPluginCall) {
+    @objc func processRefund(_ call: CAPPluginCall) {
         guard let rawAmount = call.getInt("amount"), let currency = call.getString("currency") else {
             call.reject("Must provide an amount and a currency")
             return
@@ -823,14 +843,14 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             return
         }
 
-        let params: RefundParameters
+        let params: ProcessRefundParameters
         do {
-            let builder: RefundParametersBuilder
+            let builder: ProcessRefundParametersBuilder
             if let chargeId = call.getString("chargeId") {
-                builder = RefundParametersBuilder(chargeId: chargeId, amount: amount, currency: currency)
+                builder = ProcessRefundParametersBuilder(chargeId: chargeId, amount: amount, currency: currency)
             } else if let paymentIntentId = call.getString("paymentIntentId"),
                       let clientSecret = call.getString("clientSecret") {
-                builder = RefundParametersBuilder(
+                builder = ProcessRefundParametersBuilder(
                     paymentIntentId: paymentIntentId,
                     clientSecret: clientSecret,
                     amount: amount,
@@ -863,22 +883,21 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             return
         }
 
-        pendingCollectRefundPaymentMethod = Terminal.shared.collectRefundPaymentMethod(
-            params,
-            refundConfig: config
-        ) { error in
-            self.pendingCollectRefundPaymentMethod = nil
+        pendingProcessRefund = Terminal.shared.processRefund(params, collectConfig: config) { refund, error in
+            self.pendingProcessRefund = nil
 
             if let error = error {
                 call.reject(error.localizedDescription, nil, error)
+            } else if let refund = refund {
+                call.resolve(["refund": StripeTerminalUtils.serializeRefund(refund: refund)])
             } else {
-                call.resolve()
+                call.reject("Unable to process refund")
             }
         }
     }
 
-    @objc func cancelCollectRefundPaymentMethod(_ call: CAPPluginCall? = nil) {
-        guard let cancelable = pendingCollectRefundPaymentMethod else {
+    @objc func cancelProcessRefund(_ call: CAPPluginCall? = nil) {
+        guard let cancelable = pendingProcessRefund else {
             call?.resolve()
             return
         }
@@ -887,22 +906,8 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
             if let error = error {
                 call?.reject(error.localizedDescription, nil, error)
             } else {
-                self.pendingCollectRefundPaymentMethod = nil
+                self.pendingProcessRefund = nil
                 call?.resolve()
-            }
-        }
-    }
-
-    @objc func confirmRefund(_ call: CAPPluginCall) {
-        thread.async {
-            Terminal.shared.confirmRefund { refund, error in
-                if let error = error {
-                    call.reject(error.localizedDescription, nil, error)
-                } else if let refund = refund {
-                    call.resolve(["refund": StripeTerminalUtils.serializeRefund(refund: refund)])
-                } else {
-                    call.reject("Unable to confirm refund")
-                }
             }
         }
     }
@@ -993,7 +998,7 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
     }
 
     @objc func selectPaymentOption(_ call: CAPPluginCall) {
-        guard let completion = pendingPaymentMethodSelection else {
+        guard let interaction = pendingPaymentMethodSelection else {
             call.reject("There is no pending payment method selection")
             return
         }
@@ -1011,41 +1016,41 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
 
         pendingPaymentMethodSelection = nil
         availablePaymentOptions = []
-        completion(option, nil)
+        interaction.complete(paymentOption: option, error: nil)
         call.resolve()
     }
 
     @objc func failPaymentMethodSelection(_ call: CAPPluginCall) {
-        guard let completion = pendingPaymentMethodSelection else {
+        guard let interaction = pendingPaymentMethodSelection else {
             call.reject("There is no pending payment method selection")
             return
         }
 
         pendingPaymentMethodSelection = nil
         availablePaymentOptions = []
-        completion(nil, makeError(call.getString("errorMessage") ?? "Payment method selection failed"))
+        interaction.complete(paymentOption: nil, error: makeError(call.getString("errorMessage") ?? "Payment method selection failed"))
         call.resolve()
     }
 
     @objc func confirmQrCodeDisplayed(_ call: CAPPluginCall) {
-        guard let completion = pendingQrCodeDisplay else {
+        guard let interaction = pendingQrCodeDisplay else {
             call.reject("There is no pending QR code display")
             return
         }
 
         pendingQrCodeDisplay = nil
-        completion(nil)
+        interaction.complete(error: nil)
         call.resolve()
     }
 
     @objc func failQrCodeDisplay(_ call: CAPPluginCall) {
-        guard let completion = pendingQrCodeDisplay else {
+        guard let interaction = pendingQrCodeDisplay else {
             call.reject("There is no pending QR code display")
             return
         }
 
         pendingQrCodeDisplay = nil
-        completion(makeError(call.getString("errorMessage") ?? "QR code display failed"))
+        interaction.complete(error: makeError(call.getString("errorMessage") ?? "QR code display failed"))
         call.resolve()
     }
 
@@ -1059,45 +1064,41 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         return NSError(domain: "StripeTerminal", code: 0, userInfo: [NSLocalizedDescriptionKey: message])
     }
 
-    private func handlePaymentMethodSelection(
-        _ paymentIntent: PaymentIntent,
-        _ options: [PaymentOption],
-        _ completion: @escaping PaymentMethodSelectionCompletionBlock
-    ) {
+    private func handlePaymentMethodSelection(_ interaction: PaymentMethodSelectionInteraction) {
+        let options = interaction.availableOptions
         guard hasListeners("onPaymentMethodSelectionRequired") else {
             // Without a handler, fall back to card so payments aren't blocked.
             if let option = options.first(where: { $0.type == .card }) ?? options.first {
-                completion(option, nil)
+                interaction.complete(paymentOption: option, error: nil)
             } else {
-                completion(nil, makeError("No payment options are available"))
+                interaction.complete(paymentOption: nil, error: makeError("No payment options are available"))
             }
             return
         }
 
-        pendingPaymentMethodSelection?(nil, makeError("Superseded by a new payment method selection request"))
-        pendingPaymentMethodSelection = completion
+        pendingPaymentMethodSelection?.complete(
+            paymentOption: nil,
+            error: makeError("Superseded by a new payment method selection request")
+        )
+        pendingPaymentMethodSelection = interaction
         availablePaymentOptions = options
         notifyListeners("onPaymentMethodSelectionRequired", data: [
-            "paymentIntent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent),
+            "paymentIntent": StripeTerminalUtils.serializePaymentIntent(intent: interaction.paymentIntent),
             "availablePaymentOptions": options.map { StripeTerminalUtils.serializePaymentOption($0) },
         ])
     }
 
-    private func handleQrCodeDisplay(
-        _ paymentIntent: PaymentIntent,
-        _ qrData: QrCodeDisplayData,
-        _ completion: @escaping QrCodeDisplayCompletionBlock
-    ) {
+    private func handleQrCodeDisplay(_ interaction: QrCodeDisplayInteraction) {
         guard hasListeners("onQrCodeDisplayRequired") else {
-            completion(makeError("QR code payments require an onQrCodeDisplayRequired handler"))
+            interaction.complete(error: makeError("QR code payments require an onQrCodeDisplayRequired handler"))
             return
         }
 
-        pendingQrCodeDisplay?(makeError("Superseded by a new QR code display request"))
-        pendingQrCodeDisplay = completion
+        pendingQrCodeDisplay?.complete(error: makeError("Superseded by a new QR code display request"))
+        pendingQrCodeDisplay = interaction
         notifyListeners("onQrCodeDisplayRequired", data: [
-            "paymentIntent": StripeTerminalUtils.serializePaymentIntent(intent: paymentIntent),
-            "qrData": StripeTerminalUtils.serializeQrCodeDisplayData(qrData),
+            "paymentIntent": StripeTerminalUtils.serializePaymentIntent(intent: interaction.paymentIntent),
+            "qrData": StripeTerminalUtils.serializeQrCodeDisplayData(interaction.qrData),
         ])
     }
 
@@ -1197,19 +1198,22 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
 
     @objc func getSimulatorConfiguration(_ call: CAPPluginCall) {
         let config = Terminal.shared.simulatorConfiguration
-        let serialized = StripeTerminalUtils.serializeSimulatorConfiguration(simulatorConfig: config)
+        let serialized = StripeTerminalUtils.serializeSimulatorConfiguration(simulatorConfig: config, availableReaderUpdate: simulatedReaderUpdateName)
 
         call.resolve(serialized)
     }
 
     @objc func setSimulatorConfiguration(_ call: CAPPluginCall) {
         if let availableReaderUpdateString = call.getString("availableReaderUpdate") {
-            guard let availableReaderUpdate = StripeTerminalUtils.translateJSSimulateReaderUpdate(availableReaderUpdateString) else {
+            guard let update = StripeTerminalUtils.translateJSTestReaderUpdate(availableReaderUpdateString) else {
                 call.reject("Invalid availableReaderUpdate: \(availableReaderUpdateString)")
                 return
             }
 
-            Terminal.shared.simulatorConfiguration.availableReaderUpdate = availableReaderUpdate
+            // In SDK v6 reader update simulation is applied through the connection configuration,
+            // so it takes effect the next time a reader is connected.
+            simulatedReaderUpdate = update.value
+            simulatedReaderUpdateName = availableReaderUpdateString
         }
 
         if let simulatedCardString = call.getString("simulatedCard") {
@@ -1364,73 +1368,21 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         ])
     }
 
-    public func reader(
-        _: Reader,
-        didRequestPaymentMethodSelection paymentIntent: PaymentIntent,
-        availablePaymentOptions: [PaymentOption],
-        completion: @escaping PaymentMethodSelectionCompletionBlock
-    ) {
-        handlePaymentMethodSelection(paymentIntent, availablePaymentOptions, completion)
-    }
+    // MARK: ReaderPaymentInteractionDelegate
 
-    public func reader(
-        _: Reader,
-        didRequestQrCodeDisplay paymentIntent: PaymentIntent,
-        qrData: QrCodeDisplayData,
-        completion: @escaping QrCodeDisplayCompletionBlock
-    ) {
-        handleQrCodeDisplay(paymentIntent, qrData, completion)
-    }
-        
-    // MARK: TapToPayReaderDelegate
-
-    public func tapToPayReader(_ reader: Reader, didStartInstallingUpdate update: ReaderSoftwareUpdate, cancelable: Cancelable?) {
-        pendingInstallUpdate = cancelable
-        currentUpdate = update
-        notifyListeners("didStartInstallingUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
-    }
-
-    public func tapToPayReader(_ reader: Reader, didReportReaderSoftwareUpdateProgress progress: Float) {
-        notifyListeners("didReportReaderSoftwareUpdateProgress", data: ["progress": progress])
-    }
-
-    public func tapToPayReader(_ reader: Reader, didFinishInstallingUpdate update: ReaderSoftwareUpdate?, error: Error?) {
-        if let error = error {
-            notifyListeners("didFinishInstallingUpdate", data: ["error": error.localizedDescription as Any])
-        } else if let update = update {
-            notifyListeners("didFinishInstallingUpdate", data: ["update": StripeTerminalUtils.serializeUpdate(update: update)])
-            currentUpdate = nil
+    public func reader(_: Reader, didRequestInteraction interaction: PaymentInteraction) {
+        if let selection = interaction as? PaymentMethodSelectionInteraction {
+            handlePaymentMethodSelection(selection)
+        } else if let qr = interaction as? QrCodeDisplayInteraction {
+            handleQrCodeDisplay(qr)
         }
     }
 
-    public func tapToPayReader(_: Reader, didRequestReaderInput inputOptions: ReaderInputOptions = []) {
-        notifyListeners("didRequestReaderInput", data: ["result": StripeTerminalUtils.serializeReaderInputOptions(inputOptions)])
-    }
-
-    public func tapToPayReader(_: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {
-        notifyListeners("didRequestReaderDisplayMessage", data: ["result": StripeTerminalUtils.serializeReaderDisplayMessage(displayMessage)])
-    }
+    // MARK: TapToPayReaderDelegate
+    // The shared update/input/display callbacks are implemented once above via `ReaderInteractionDelegate`.
 
     public func tapToPayReaderDidAcceptTermsOfService(_: Reader) {
         notifyListeners("didAcceptTermsOfService", data: nil)
-    }
-
-    public func tapToPayReader(
-        _: Reader,
-        didRequestPaymentMethodSelection paymentIntent: PaymentIntent,
-        availablePaymentOptions: [PaymentOption],
-        completion: @escaping PaymentMethodSelectionCompletionBlock
-    ) {
-        handlePaymentMethodSelection(paymentIntent, availablePaymentOptions, completion)
-    }
-
-    public func tapToPayReader(
-        _: Reader,
-        didRequestQrCodeDisplay paymentIntent: PaymentIntent,
-        qrData: QrCodeDisplayData,
-        completion: @escaping QrCodeDisplayCompletionBlock
-    ) {
-        handleQrCodeDisplay(paymentIntent, qrData, completion)
     }
 
     // MARK: ReaderDelegate

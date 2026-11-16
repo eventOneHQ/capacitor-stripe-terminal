@@ -85,6 +85,8 @@ export class StripeTerminalPlugin {
 
   private _logLevel?: LogLevel
 
+  private _locale?: string
+
   private simulatedCardType: SimulatedCardType | null = null
 
   private selectedSdkType: 'native' | 'js' = 'native'
@@ -124,6 +126,7 @@ export class StripeTerminalPlugin {
     this._fetchConnectionToken = options.fetchConnectionToken
     this._onUnexpectedReaderDisconnect = options.onUnexpectedReaderDisconnect
     this._logLevel = options.logLevel
+    this._locale = options.locale
   }
 
   private isNative(): boolean {
@@ -192,7 +195,10 @@ export class StripeTerminalPlugin {
     }
 
     await Promise.all([
-      StripeTerminal.initialize({ logLevel: this._logLevel }),
+      StripeTerminal.initialize({
+        logLevel: this._logLevel,
+        locale: this._locale,
+      }),
       this.stripeTerminalWeb?.initialize(),
     ])
 
@@ -1082,36 +1088,28 @@ export class StripeTerminalPlugin {
   }
 
   /**
-   * Collects a payment method for an in-person refund.
+   * Collects a payment method and processes an in-person refund in a single step.
    *
-   * Follow this with `confirmRefund` to complete the refund. Interac refunds must be processed in person.
+   * Replaces the removed `collectRefundPaymentMethod` / `confirmRefund` two-step flow (Stripe Terminal SDK 6.0).
+   * Interac refunds must be processed in person.
    *
    * @see https://stripe.com/docs/terminal/features/refunds
    */
-  public async collectRefundPaymentMethod(params: RefundParams): Promise<void> {
+  public async processRefund(params: RefundParams): Promise<Refund | null> {
     this.ensureInitialized()
 
-    return await this.sdk.collectRefundPaymentMethod(params)
-  }
-
-  /**
-   * Cancels an in-progress `collectRefundPaymentMethod`.
-   */
-  public async cancelCollectRefundPaymentMethod(): Promise<void> {
-    this.ensureInitialized()
-
-    return await this.sdk.cancelCollectRefundPaymentMethod()
-  }
-
-  /**
-   * Confirms the refund for the payment method collected by `collectRefundPaymentMethod`.
-   */
-  public async confirmRefund(): Promise<Refund | null> {
-    this.ensureInitialized()
-
-    const data = await this.sdk.confirmRefund()
+    const data = await this.sdk.processRefund(params)
 
     return this.objectExists(data?.refund)
+  }
+
+  /**
+   * Cancels an in-progress `processRefund`.
+   */
+  public async cancelProcessRefund(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelProcessRefund()
   }
 
   /**

@@ -148,6 +148,14 @@ export interface StripeTerminalConfig {
    * @default 'none'
    */
   logLevel?: LogLevel
+
+  /**
+   * A fixed locale tag (for example `en-US`) used to localize API error messages returned by the native SDK (iOS and Android only).
+   *
+   * When omitted, the SDK uses the card's language preference if available.
+   * Branch on error codes rather than on localized message text.
+   */
+  locale?: string
 }
 
 /**
@@ -337,15 +345,6 @@ export interface InternetConnectionConfiguration extends ConnectionConfiguration
    * @default false
    */
   failIfInUse?: boolean
-
-  /**
-   * If set to true, the customer will be able to press the red X button on the Verifone P400 to cancel a `collectPaymentMethod`, `collectReusableCard`, or `collectRefundPaymentMethod` command.
-   *
-   * @note This behavior is part of a private beta. Setting this property will have no effect if you are not part of the allowCustomerCancel beta program.
-   *
-   * @default false
-   */
-  allowCustomerCancel?: boolean
 }
 
 /**
@@ -1289,7 +1288,7 @@ export interface QrCodeDisplayData {
 /**
  * When to capture funds for a PaymentIntent.
  */
-export type CaptureMethod = 'automatic' | 'manual'
+export type CaptureMethod = 'automatic' | 'automaticAsync' | 'manual'
 
 export interface CollectConfig {
   /**
@@ -1361,7 +1360,9 @@ export interface CreatePaymentIntentParams {
   /**
    * When to capture the funds.
    *
-   * @default 'automatic'
+   * @note As of Stripe Terminal SDK 6.0 the native default is `automaticAsync` (previously `manual`). Set `manual` explicitly for on-receipt tipping, incremental authorizations or extended authorizations.
+   *
+   * @default 'automaticAsync'
    */
   captureMethod?: CaptureMethod
   /**
@@ -1894,7 +1895,7 @@ export interface StripeTerminalInterface {
     errorMessage?: string,
   ): Promise<void>
 
-  initialize(options?: { logLevel?: LogLevel }): Promise<void>
+  initialize(options?: { logLevel?: LogLevel; locale?: string }): Promise<void>
 
   discoverReaders(options: DiscoveryConfiguration): Promise<void>
 
@@ -1994,11 +1995,9 @@ export interface StripeTerminalInterface {
 
   cancelSetupIntent(): Promise<{ intent: SetupIntent | null }>
 
-  collectRefundPaymentMethod(params: RefundParams): Promise<void>
+  processRefund(params: RefundParams): Promise<{ refund: Refund | null }>
 
-  cancelCollectRefundPaymentMethod(): Promise<void>
-
-  confirmRefund(): Promise<{ refund: Refund | null }>
+  cancelProcessRefund(): Promise<void>
 
   collectInputs(
     params: ICollectInputsParameters,

@@ -644,7 +644,6 @@ export class StripeTerminalWeb extends WebPlugin {
     id?: string
     stripeId?: string
     failIfInUse?: boolean
-    allowCustomerCancel?: boolean
   }): Promise<{ reader: Reader }> {
     const sdk = this.ensureInitialized()
 
@@ -852,7 +851,9 @@ export class StripeTerminalWeb extends WebPlugin {
   async cancelSetupIntent(): Promise<{ intent: SetupIntent | null }> {
     throw new Error('cancelSetupIntent is only available on iOS and Android.')
   }
-  async collectRefundPaymentMethod(params: RefundParams): Promise<void> {
+  async processRefund(
+    params: RefundParams,
+  ): Promise<{ refund: Refund | null }> {
     const sdk = this.ensureInitialized()
 
     if (!('chargeId' in params)) {
@@ -870,6 +871,7 @@ export class StripeTerminalWeb extends WebPlugin {
       throw new Error('Refund metadata is only supported on iOS and Android.')
     }
 
+    // The JS SDK still exposes the collect + process steps separately.
     this.unwrap(
       await sdk.collectRefundPaymentMethod(
         params.chargeId,
@@ -881,18 +883,15 @@ export class StripeTerminalWeb extends WebPlugin {
         },
       ),
     )
-  }
-  async cancelCollectRefundPaymentMethod(): Promise<void> {
-    const sdk = this.ensureInitialized()
-
-    this.unwrap(await sdk.cancelCollectRefundPaymentMethod())
-  }
-  async confirmRefund(): Promise<{ refund: Refund | null }> {
-    const sdk = this.ensureInitialized()
 
     const result = this.unwrap(await sdk.processRefund())
 
     return { refund: serializeRefund(result.refund) }
+  }
+  async cancelProcessRefund(): Promise<void> {
+    const sdk = this.ensureInitialized()
+
+    this.unwrap(await sdk.cancelCollectRefundPaymentMethod())
   }
   async collectInputs(
     params: ICollectInputsParameters,

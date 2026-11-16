@@ -288,7 +288,7 @@ public class StripeTerminalUtils {
             "livemode": intent.livemode,
             "metadata": intent.metadata as Any,
             "onBehalfOf": intent.onBehalfOf as Any,
-            "paymentMethodId": intent.paymentMethod as Any,
+            "paymentMethodId": intent.paymentMethodId as Any,
             "status": serializeSetupIntentStatus(intent.status),
             "usage": intent.usage == .offSession ? "offSession" : "onSession",
             "paymentMethodTypes": intent.paymentMethodTypes.map {
@@ -626,23 +626,18 @@ public class StripeTerminalUtils {
         }
     }
 
-    static func serializeSimulateReaderUpdate(_ update: SimulateReaderUpdate) -> String {
-        switch update {
-        case .available: return "available"
-        case .required: return "required"
-        case .lowBattery: return "lowBattery"
-        case .random: return "random"
-        default: return "none"
-        }
+    /// Wrapper so that "none" (nil update) can be distinguished from an invalid value.
+    struct TestReaderUpdateValue {
+        let value: TestReaderUpdate?
     }
 
-    static func translateJSSimulateReaderUpdate(_ update: String) -> SimulateReaderUpdate? {
+    static func translateJSTestReaderUpdate(_ update: String) -> TestReaderUpdateValue? {
         switch update {
-        case "available": return .available
-        case "none": return SimulateReaderUpdate.none
-        case "required": return .required
-        case "lowBattery": return .lowBattery
-        case "random": return .random
+        case "available": return TestReaderUpdateValue(value: .available(.incremental))
+        case "none": return TestReaderUpdateValue(value: nil)
+        case "required": return TestReaderUpdateValue(value: .required(.incremental))
+        case "lowBattery": return TestReaderUpdateValue(value: .lowBattery())
+        case "random": return TestReaderUpdateValue(value: .random())
         default: return nil
         }
     }
@@ -732,11 +727,11 @@ public class StripeTerminalUtils {
         return jsonObject
     }
 
-    static func serializeCardFundingType(_ funding: CardFundingType) -> String {
+    static func serializeCardFundingType(_ funding: String?) -> String {
         switch funding {
-        case .debit: return "debit"
-        case .credit: return "credit"
-        case .prepaid: return "prepaid"
+        case "debit": return "debit"
+        case "credit": return "credit"
+        case "prepaid": return "prepaid"
         default: return "other"
         }
     }
@@ -762,7 +757,7 @@ public class StripeTerminalUtils {
             "expYear": details.expYear,
             "cardholderName": details.cardholderName as Any,
             "funding": serializeCardFundingType(details.funding),
-            "brand": Terminal.stringFromCardBrand(details.brand),
+            "brand": details.brand as Any,
             "generatedCard": details.generatedCard as Any,
             "emvAuthData": details.emvAuthData as Any,
             "country": details.country as Any,
@@ -772,7 +767,7 @@ public class StripeTerminalUtils {
             "description": details.stripeDescription as Any,
             "location": details.location as Any,
             "reader": details.reader as Any,
-            "readMethod": Terminal.stringFromReadMethod(details.readMethod),
+            "readMethod": details.readMethod,
         ]
 
         if let network = details.network {
@@ -801,7 +796,7 @@ public class StripeTerminalUtils {
         }
         if let card = details.card {
             jsonObject["cardDetails"] = [
-                "brand": Terminal.stringFromCardBrand(card.brand),
+                "brand": card.brand as Any,
                 "country": card.country as Any,
                 "expMonth": card.expMonth,
                 "expYear": card.expYear,
@@ -814,7 +809,8 @@ public class StripeTerminalUtils {
     }
 
     static func serializePaymentIntent(intent: PaymentIntent) -> [String: Any] {
-        let chargesJson = intent.charges.map {
+        // SDK v6 removed PaymentIntent.charges; the latest charge is exposed instead.
+        let chargesJson = [intent.latestCharge].compactMap { $0 }.map {
             (charge: Charge) -> [String: Any] in
             var chargeJson: [String: Any] = [
                 "id": charge.stripeId,
@@ -945,10 +941,10 @@ public class StripeTerminalUtils {
         return jsonObject
     }
     
-    static func serializeSimulatorConfiguration(simulatorConfig: SimulatorConfiguration) -> [String: Any] {
+    static func serializeSimulatorConfiguration(simulatorConfig: SimulatorConfiguration, availableReaderUpdate: String) -> [String: Any] {
         // The SDK doesn't expose the simulated card's type, so it can't be reported back.
         return [
-            "availableReaderUpdate": serializeSimulateReaderUpdate(simulatorConfig.availableReaderUpdate),
+            "availableReaderUpdate": availableReaderUpdate,
             "offlineEnabled": simulatorConfig.offlineEnabled,
         ]
     }

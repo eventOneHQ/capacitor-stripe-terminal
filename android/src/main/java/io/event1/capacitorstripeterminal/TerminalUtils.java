@@ -8,7 +8,6 @@ import com.stripe.stripeterminal.external.models.AllowRedisplay;
 import com.stripe.stripeterminal.external.models.AmountDetails;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.CardDetails;
-import com.stripe.stripeterminal.external.models.CardPresentDetails;
 import com.stripe.stripeterminal.external.models.Charge;
 import com.stripe.stripeterminal.external.models.CollectDataType;
 import com.stripe.stripeterminal.external.models.CollectInputsParameters;
@@ -60,13 +59,14 @@ import com.stripe.stripeterminal.external.models.SelectionInput;
 import com.stripe.stripeterminal.external.models.SelectionResult;
 import com.stripe.stripeterminal.external.models.SetupAttempt;
 import com.stripe.stripeterminal.external.models.SetupIntent;
-import com.stripe.stripeterminal.external.models.SetupIntentCardPresentDetails;
-import com.stripe.stripeterminal.external.models.SetupIntentPaymentMethodDetails;
+import com.stripe.stripeterminal.external.models.SetupAttemptCardPresentDetails;
+import com.stripe.stripeterminal.external.models.SetupAttemptPaymentMethodDetails;
 import com.stripe.stripeterminal.external.models.SetupIntentStatus;
 import com.stripe.stripeterminal.external.models.SetupIntentUsage;
 import com.stripe.stripeterminal.external.models.SignatureInput;
 import com.stripe.stripeterminal.external.models.SignatureResult;
-import com.stripe.stripeterminal.external.models.SimulateReaderUpdate;
+import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate.UpdateComponent;
+import com.stripe.stripeterminal.external.models.TestReaderUpdate;
 import com.stripe.stripeterminal.external.models.SimulatedCardType;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.TextInput;
@@ -479,18 +479,14 @@ public class TerminalUtils {
     );
     object.put("usage", serializeSetupIntentUsage(attempt.getUsage()));
 
-    SetupIntentPaymentMethodDetails paymentMethodDetails =
+    SetupAttemptPaymentMethodDetails paymentMethodDetails =
       attempt.getPaymentMethodDetails();
     if (paymentMethodDetails != null) {
       JSObject details = new JSObject();
-      // The SDK's type getter is Kotlin-internal, so infer it from the populated details.
-      PaymentMethodType type = null;
-      if (paymentMethodDetails.getInteracPresentDetails() != null) {
-        type = PaymentMethodType.INTERAC_PRESENT;
-      } else if (paymentMethodDetails.getCardPresentDetails() != null) {
-        type = PaymentMethodType.CARD_PRESENT;
-      }
-      details.put("type", serializePaymentMethodType(type));
+      details.put(
+        "type",
+        serializePaymentMethodType(paymentMethodDetails.getType())
+      );
       details.put(
         "cardPresent",
         serializeSetupAttemptCardPresentDetails(
@@ -510,7 +506,7 @@ public class TerminalUtils {
   }
 
   private static JSObject serializeSetupAttemptCardPresentDetails(
-    SetupIntentCardPresentDetails details
+    SetupAttemptCardPresentDetails details
   ) {
     if (details == null) {
       return null;
@@ -953,7 +949,7 @@ public class TerminalUtils {
   }
 
   private static JSObject serializeCardPresentDetails(
-    CardPresentDetails details
+    Charge.CardPresent details
   ) {
     if (details == null) {
       return null;
@@ -1143,8 +1139,10 @@ public class TerminalUtils {
     }
 
     JSArray charges = new JSArray();
-    if (paymentIntent.getCharges() != null) {
-      for (Charge charge : paymentIntent.getCharges()) {
+    // SDK v6 removed PaymentIntent.getCharges(); the latest charge is exposed instead.
+    Charge latestCharge = paymentIntent.getLatestCharge();
+    if (latestCharge != null) {
+      for (Charge charge : java.util.Collections.singletonList(latestCharge)) {
         JSObject chargeJson = new JSObject();
         chargeJson.put("id", charge.getId());
         chargeJson.put("stripeId", charge.getId());
@@ -1304,14 +1302,12 @@ public class TerminalUtils {
   }
 
   public static JSObject serializeSimulatorConfiguration(
-    SimulatorConfiguration config
+    SimulatorConfiguration config,
+    String availableReaderUpdate
   ) {
     JSObject object = new JSObject();
 
-    object.put(
-      "availableReaderUpdate",
-      serializeSimulateReaderUpdate(config.getUpdate())
-    );
+    object.put("availableReaderUpdate", availableReaderUpdate);
     object.put("offlineEnabled", config.getOfflineEnabled());
 
     return object;
@@ -1642,39 +1638,37 @@ public class TerminalUtils {
     }
   }
 
-  public static String serializeSimulateReaderUpdate(
-    SimulateReaderUpdate update
-  ) {
+  /**
+   * Translates a JS reader update name to a TestReaderUpdate. Returns null for "none"
+   * and for unknown values; use {@link #isValidReaderUpdate(String)} to tell them apart.
+   */
+  public static TestReaderUpdate translateJSTestReaderUpdate(String update) {
+    java.util.Set<UpdateComponent> incremental =
+      java.util.Collections.singleton(UpdateComponent.INCREMENTAL);
     switch (update) {
-      case UPDATE_AVAILABLE:
-        return "available";
-      case REQUIRED:
-        return "required";
-      case LOW_BATTERY:
-        return "lowBattery";
-      case RANDOM:
-        return "random";
+      case "available":
+        return TestReaderUpdate.available(incremental);
+      case "required":
+        return TestReaderUpdate.required(incremental);
+      case "lowBattery":
+        return TestReaderUpdate.lowBattery();
+      case "random":
+        return TestReaderUpdate.random();
       default:
-        return "none";
+        return null;
     }
   }
 
-  public static SimulateReaderUpdate translateJSSimulateReaderUpdate(
-    String update
-  ) {
+  public static boolean isValidReaderUpdate(String update) {
     switch (update) {
       case "available":
-        return SimulateReaderUpdate.UPDATE_AVAILABLE;
       case "none":
-        return SimulateReaderUpdate.NONE;
       case "required":
-        return SimulateReaderUpdate.REQUIRED;
       case "lowBattery":
-        return SimulateReaderUpdate.LOW_BATTERY;
       case "random":
-        return SimulateReaderUpdate.RANDOM;
+        return true;
       default:
-        return null;
+        return false;
     }
   }
 

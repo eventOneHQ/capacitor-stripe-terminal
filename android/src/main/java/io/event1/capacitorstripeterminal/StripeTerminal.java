@@ -36,6 +36,7 @@ import com.stripe.stripeterminal.external.callable.OfflineListener;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
 import com.stripe.stripeterminal.external.callable.PaymentMethodSelectionCallback;
 import com.stripe.stripeterminal.external.callable.QrCodeDisplayCallback;
+import com.stripe.stripeterminal.external.callable.ReaderPaymentInteractionListener;
 import com.stripe.stripeterminal.external.callable.ReaderCallback;
 import com.stripe.stripeterminal.external.callable.ReaderSettingsCallback;
 import com.stripe.stripeterminal.external.callable.RefundCallback;
@@ -83,11 +84,14 @@ import com.stripe.stripeterminal.external.models.ReaderSettingsParameters;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.ReaderSupportResult;
 import com.stripe.stripeterminal.external.models.Refund;
-import com.stripe.stripeterminal.external.models.RefundParameters;
+import com.stripe.stripeterminal.external.models.ProcessRefundParameters;
 import com.stripe.stripeterminal.external.models.SetupIntent;
 import com.stripe.stripeterminal.external.models.SetupIntentCancellationParameters;
 import com.stripe.stripeterminal.external.models.SetupIntentParameters;
-import com.stripe.stripeterminal.external.models.SimulateReaderUpdate;
+import com.stripe.stripeterminal.external.models.TestReaderUpdate;
+import com.stripe.stripeterminal.external.models.LocaleConfig;
+import com.stripe.stripeterminal.external.models.TapUseCase;
+import com.stripe.stripeterminal.external.models.PaymentInteraction;
 import com.stripe.stripeterminal.external.models.SimulatedCard;
 import com.stripe.stripeterminal.external.models.SimulatedCardType;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
@@ -125,14 +129,17 @@ public class StripeTerminal
     MobileReaderListener,
     TapToPayReaderListener,
     InternetReaderListener,
-    AppsOnDevicesListener
+    AppsOnDevicesListener,
+    ReaderPaymentInteractionListener
 {
 
   Cancelable pendingDiscoverReaders = null;
   Cancelable pendingCollectPaymentMethod = null;
   Cancelable pendingCollectData = null;
   Cancelable pendingCollectSetupIntentPaymentMethod = null;
-  Cancelable pendingCollectRefundPaymentMethod = null;
+  Cancelable pendingProcessRefund = null;
+  TestReaderUpdate simulatedReaderUpdate = null;
+  String simulatedReaderUpdateName = "none";
   Cancelable pendingCollectInputs = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
   String lastCurrency = null;
@@ -228,12 +235,17 @@ public class StripeTerminal
 
     String err = "";
     try {
+      String locale = call.getString("locale");
+      LocaleConfig localeConfig = locale != null
+        ? new LocaleConfig.HardcodedLocale.Builder(locale).build()
+        : LocaleConfig.CardLanguagePreferenceIfAvailable.INSTANCE;
       Terminal.init(
         this.bridge.getContext(),
         logLevel,
         tokenProvider,
         terminalListener,
-        this
+        this,
+        localeConfig
       );
       lastReaderEvent = ReaderEvent.CARD_REMOVED;
       isInitialized = true;
@@ -421,8 +433,6 @@ public class StripeTerminal
     }
 
     Boolean failIfInUse = call.getBoolean("failIfInUse", false);
-    // TODO: Add below when supported
-    // Boolean allowCustomerCancel = call.getBoolean("allowCustomerCancel", false);
 
     InternetConnectionConfiguration connectionConfig =
       new InternetConnectionConfiguration(this, failIfInUse);
@@ -458,7 +468,9 @@ public class StripeTerminal
       new BluetoothConnectionConfiguration(
         locationId,
         autoReconnectOnUnexpectedDisconnect,
-        this
+        this,
+        this,
+        simulatedReaderUpdate
       );
 
     Terminal.getInstance().connectReader(
@@ -489,7 +501,9 @@ public class StripeTerminal
         Boolean.TRUE.equals(
           call.getBoolean("autoReconnectOnUnexpectedDisconnect", false)
         ),
-        this
+        this,
+        this,
+        simulatedReaderUpdate
       );
 
     Terminal.getInstance().connectReader(
@@ -593,7 +607,7 @@ public class StripeTerminal
 
     TapToPayConnectionConfiguration connectionConfig =
       new TapToPayConnectionConfiguration(
-        locationId,
+        new TapUseCase.Pay(locationId),
         Boolean.TRUE.equals(
           call.getBoolean("autoReconnectOnUnexpectedDisconnect", false)
         ),
@@ -930,7 +944,9 @@ public class StripeTerminal
         builder.setCaptureMethod(
           "manual".equals(captureMethod)
             ? CaptureMethod.Manual
-            : CaptureMethod.Automatic
+            : "automatic".equals(captureMethod)
+              ? CaptureMethod.Automatic
+              : CaptureMethod.AutomaticAsync
         );
       }
 
@@ -1124,7 +1140,11 @@ public class StripeTerminal
     }
 
     CollectSetupIntentConfiguration.Builder configBuilder =
-      new CollectSetupIntentConfiguration.Builder();
+      new CollectSetupIntentConfiguration.Builder(
+        TerminalUtils.translateJSAllowRedisplay(
+          call.getString("allowRedisplay")
+        )
+      );
 
     String customerCancellation = call.getString("customerCancellation");
     if (customerCancellation != null) {
@@ -1147,9 +1167,6 @@ public class StripeTerminal
     pendingCollectSetupIntentPaymentMethod =
       Terminal.getInstance().collectSetupIntentPaymentMethod(
         currentSetupIntent,
-        TerminalUtils.translateJSAllowRedisplay(
-          call.getString("allowRedisplay")
-        ),
         configBuilder.build(),
         new SetupIntentCallback() {
           @Override
@@ -1241,7 +1258,7 @@ public class StripeTerminal
   }
 
   @PluginMethod
-  public void collectRefundPaymentMethod(final PluginCall call) {
+  public void processRefund(final PluginCall call) {
     Integer amount = call.getInt("amount");
     String currency = call.getString("currency");
 
@@ -1266,17 +1283,17 @@ public class StripeTerminal
 
     // The fluent setters on RefundParameters.Builder are ambiguous with the property
     // setters, so configure the concrete builder types directly.
-    RefundParameters refundParameters;
+    ProcessRefundParameters refundParameters;
     if (chargeId != null) {
-      RefundParameters.ByChargeId refundBuilder =
-        new RefundParameters.ByChargeId(chargeId, amount, currency);
+      ProcessRefundParameters.ByChargeId refundBuilder =
+        new ProcessRefundParameters.ByChargeId(chargeId, amount, currency);
       refundBuilder.setReverseTransfer(reverseTransfer);
       refundBuilder.setRefundApplicationFee(refundApplicationFee);
       if (metadata != null) refundBuilder.setMetadata(metadata);
       refundParameters = refundBuilder.build();
     } else if (paymentIntentId != null && clientSecret != null) {
-      RefundParameters.ByPaymentIntentId refundBuilder =
-        new RefundParameters.ByPaymentIntentId(
+      ProcessRefundParameters.ByPaymentIntentId refundBuilder =
+        new ProcessRefundParameters.ByPaymentIntentId(
           paymentIntentId,
           clientSecret,
           amount,
@@ -1302,38 +1319,13 @@ public class StripeTerminal
       );
     }
 
-    pendingCollectRefundPaymentMethod =
-      Terminal.getInstance().collectRefundPaymentMethod(
-        refundParameters,
-        configBuilder.build(),
-        new Callback() {
-          @Override
-          public void onSuccess() {
-            pendingCollectRefundPaymentMethod = null;
-            call.resolve();
-          }
-
-          @Override
-          public void onFailure(@NonNull TerminalException e) {
-            pendingCollectRefundPaymentMethod = null;
-            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
-          }
-        }
-      );
-  }
-
-  @PluginMethod
-  public void cancelCollectRefundPaymentMethod(final PluginCall call) {
-    cancelPending(pendingCollectRefundPaymentMethod, call);
-    pendingCollectRefundPaymentMethod = null;
-  }
-
-  @PluginMethod
-  public void confirmRefund(final PluginCall call) {
-    Terminal.getInstance().confirmRefund(
+    pendingProcessRefund = Terminal.getInstance().processRefund(
+      refundParameters,
+      configBuilder.build(),
       new RefundCallback() {
         @Override
         public void onSuccess(@NonNull Refund refund) {
+          pendingProcessRefund = null;
           JSObject ret = new JSObject();
           ret.put("refund", TerminalUtils.serializeRefund(refund));
           call.resolve(ret);
@@ -1341,10 +1333,17 @@ public class StripeTerminal
 
         @Override
         public void onFailure(@NonNull TerminalException e) {
+          pendingProcessRefund = null;
           call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
         }
       }
     );
+  }
+
+  @PluginMethod
+  public void cancelProcessRefund(final PluginCall call) {
+    cancelPending(pendingProcessRefund, call);
+    pendingProcessRefund = null;
   }
 
   @PluginMethod
@@ -1738,7 +1737,10 @@ public class StripeTerminal
   public void getSimulatorConfiguration(@NonNull final PluginCall call) {
     SimulatorConfiguration config =
       Terminal.getInstance().getSimulatorConfiguration();
-    JSObject serialized = TerminalUtils.serializeSimulatorConfiguration(config);
+    JSObject serialized = TerminalUtils.serializeSimulatorConfiguration(
+      config,
+      simulatedReaderUpdateName
+    );
 
     call.resolve(serialized);
   }
@@ -1753,19 +1755,21 @@ public class StripeTerminal
     SimulatorConfiguration currentConfig =
       Terminal.getInstance().getSimulatorConfiguration();
 
-    SimulateReaderUpdate availableReaderUpdate = currentConfig.getUpdate();
     SimulatedCard simulatedCard = currentConfig.getSimulatedCard();
 
     if (availableReaderUpdateString != null) {
-      availableReaderUpdate = TerminalUtils.translateJSSimulateReaderUpdate(
-        availableReaderUpdateString
-      );
-      if (availableReaderUpdate == null) {
+      if (!TerminalUtils.isValidReaderUpdate(availableReaderUpdateString)) {
         call.reject(
           "Invalid availableReaderUpdate: " + availableReaderUpdateString
         );
         return;
       }
+      // In SDK v6 reader update simulation is applied through the connection
+      // configuration, so it takes effect the next time a reader is connected.
+      simulatedReaderUpdate = TerminalUtils.translateJSTestReaderUpdate(
+        availableReaderUpdateString
+      );
+      simulatedReaderUpdateName = availableReaderUpdateString;
     }
 
     if (simulatedCardString != null) {
@@ -1782,7 +1786,6 @@ public class StripeTerminal
     }
 
     SimulatorConfiguration newConfig = new SimulatorConfiguration(
-      availableReaderUpdate,
       simulatedCard,
       currentConfig.getSimulatedTipAmount(),
       call.getBoolean("offlineEnabled", currentConfig.getOfflineEnabled()),
@@ -1907,7 +1910,27 @@ public class StripeTerminal
   }
 
   @Override
-  public void onPaymentMethodSelectionRequired(
+  public void onInteractionRequired(@NonNull PaymentInteraction interaction) {
+    if (interaction instanceof PaymentInteraction.PaymentMethodSelection) {
+      PaymentInteraction.PaymentMethodSelection selection =
+        (PaymentInteraction.PaymentMethodSelection) interaction;
+      handlePaymentMethodSelection(
+        selection.getPaymentIntent(),
+        selection.getAvailableOptions(),
+        selection.getCallback()
+      );
+    } else if (interaction instanceof PaymentInteraction.QrCodeDisplay) {
+      PaymentInteraction.QrCodeDisplay qr =
+        (PaymentInteraction.QrCodeDisplay) interaction;
+      handleQrCodeDisplay(
+        qr.getPaymentIntent(),
+        qr.getQrData(),
+        qr.getCallback()
+      );
+    }
+  }
+
+  private void handlePaymentMethodSelection(
     @NonNull PaymentIntent paymentIntent,
     @NonNull List<? extends PaymentOption> options,
     @NonNull PaymentMethodSelectionCallback callback
@@ -1950,8 +1973,7 @@ public class StripeTerminal
     notifyListeners("onPaymentMethodSelectionRequired", ret);
   }
 
-  @Override
-  public void onQrCodeDisplayRequired(
+  private void handleQrCodeDisplay(
     @NonNull PaymentIntent paymentIntent,
     @NonNull QrCodeDisplayData qrData,
     @NonNull QrCodeDisplayCallback callback
