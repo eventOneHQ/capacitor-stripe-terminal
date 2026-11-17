@@ -1,0 +1,63 @@
+/*
+ * Theme overrides.
+ *
+ * Ionic is themed with CSS custom properties (`--ion-color-*`). Overriding the
+ * `primary` color family re-colors buttons, tab highlights, toggles, etc.
+ * everywhere. We use Stripe's brand purple.
+ *
+ * Each color needs the base value, its RGB triplet (for translucent variants),
+ * and contrast / shade / tint values. https://ionicframework.com/docs/theming/colors
+ */
+:root {
+  --ion-color-primary: #635bff;
+  --ion-color-primary-rgb: 99, 91, 255;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #574fe0;
+  --ion-color-primary-tint: #736cff;
+}
+
+/* A large, centered status panel used on the Charge tab. */
+.status-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.status-panel ion-icon {
+  font-size: 64px;
+}
+
+/* Monospace values (ids, serial numbers) read better when they line up. */
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+}
+
+/* The big amount shown on the Charge tab. */
+.amount-display {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Pretty-printed JSON results on the Tools tab. */
+.result-json {
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--ion-color-step-100, #f2f2f2);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

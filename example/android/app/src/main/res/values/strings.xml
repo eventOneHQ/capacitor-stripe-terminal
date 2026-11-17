@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Terminal Example</string>
+    <string name="title_activity_main">Terminal Example</string>
+    <string name="package_name">io.event1.terminalexample</string>
+    <string name="custom_url_scheme">io.event1.terminalexample</string>
+</resources>
