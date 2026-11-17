@@ -1,8 +1,14 @@
 package io.event1.capacitorstripeterminal;
 
 import android.Manifest;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.net.Uri;
 import android.bluetooth.BluetoothAdapter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
+import android.util.Base64;
 import androidx.annotation.NonNull;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -23,9 +29,14 @@ import com.stripe.stripeterminal.external.callable.CollectedDataCallback;
 import com.stripe.stripeterminal.external.callable.ConnectionTokenCallback;
 import com.stripe.stripeterminal.external.callable.ConnectionTokenProvider;
 import com.stripe.stripeterminal.external.callable.DiscoveryListener;
+import com.stripe.stripeterminal.external.callable.InternetReaderListener;
 import com.stripe.stripeterminal.external.callable.LocationListCallback;
 import com.stripe.stripeterminal.external.callable.MobileReaderListener;
+import com.stripe.stripeterminal.external.callable.OfflineListener;
 import com.stripe.stripeterminal.external.callable.PaymentIntentCallback;
+import com.stripe.stripeterminal.external.callable.PaymentMethodSelectionCallback;
+import com.stripe.stripeterminal.external.callable.QrCodeDisplayCallback;
+import com.stripe.stripeterminal.external.callable.ReaderPaymentInteractionListener;
 import com.stripe.stripeterminal.external.callable.ReaderCallback;
 import com.stripe.stripeterminal.external.callable.ReaderSettingsCallback;
 import com.stripe.stripeterminal.external.callable.RefundCallback;
@@ -50,14 +61,20 @@ import com.stripe.stripeterminal.external.models.ConnectionConfiguration.TapToPa
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.UsbConnectionConfiguration;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.ConnectionTokenException;
+import com.stripe.stripeterminal.external.models.CreateConfiguration;
 import com.stripe.stripeterminal.external.models.DeviceType;
 import com.stripe.stripeterminal.external.models.DisconnectReason;
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
 import com.stripe.stripeterminal.external.models.ListLocationsParameters;
 import com.stripe.stripeterminal.external.models.Location;
+import com.stripe.stripeterminal.external.models.OfflineBehavior;
+import com.stripe.stripeterminal.external.models.OfflineStatus;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentParameters;
+import com.stripe.stripeterminal.external.models.PaymentOption;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
+import com.stripe.stripeterminal.external.models.PrintContent;
+import com.stripe.stripeterminal.external.models.QrCodeDisplayData;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
 import com.stripe.stripeterminal.external.models.ReaderEvent;
@@ -67,15 +84,16 @@ import com.stripe.stripeterminal.external.models.ReaderSettingsParameters;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
 import com.stripe.stripeterminal.external.models.ReaderSupportResult;
 import com.stripe.stripeterminal.external.models.Refund;
-import com.stripe.stripeterminal.external.models.RefundParameters;
+import com.stripe.stripeterminal.external.models.ProcessRefundParameters;
 import com.stripe.stripeterminal.external.models.SetupIntent;
 import com.stripe.stripeterminal.external.models.SetupIntentCancellationParameters;
 import com.stripe.stripeterminal.external.models.SetupIntentParameters;
-import com.stripe.stripeterminal.external.models.SimulateReaderUpdate;
+import com.stripe.stripeterminal.external.models.TestReaderUpdate;
+import com.stripe.stripeterminal.external.models.LocaleConfig;
+import com.stripe.stripeterminal.external.models.TapUseCase;
+import com.stripe.stripeterminal.external.models.PaymentInteraction;
 import com.stripe.stripeterminal.external.models.SimulatedCard;
 import com.stripe.stripeterminal.external.models.SimulatedCardType;
-import com.stripe.stripeterminal.external.models.SimulatedCollectInputsResult;
-import com.stripe.stripeterminal.external.models.SimulatedCollectInputsSkipBehavior;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.TerminalException;
 import com.stripe.stripeterminal.log.LogLevel;
@@ -106,17 +124,22 @@ public class StripeTerminal
   implements
     ConnectionTokenProvider,
     TerminalListener,
+    OfflineListener,
     DiscoveryListener,
     MobileReaderListener,
     TapToPayReaderListener,
-    AppsOnDevicesListener
+    InternetReaderListener,
+    AppsOnDevicesListener,
+    ReaderPaymentInteractionListener
 {
 
   Cancelable pendingDiscoverReaders = null;
   Cancelable pendingCollectPaymentMethod = null;
   Cancelable pendingCollectData = null;
   Cancelable pendingCollectSetupIntentPaymentMethod = null;
-  Cancelable pendingCollectRefundPaymentMethod = null;
+  Cancelable pendingProcessRefund = null;
+  TestReaderUpdate simulatedReaderUpdate = null;
+  String simulatedReaderUpdateName = "none";
   Cancelable pendingCollectInputs = null;
   ConnectionTokenCallback pendingConnectionTokenCallback = null;
   String lastCurrency = null;
@@ -133,17 +156,9 @@ public class StripeTerminal
   List<? extends Reader> discoveredReadersList = null;
   Cancelable pendingInstallUpdate = null;
   Cancelable pendingReaderAutoReconnect = null;
-
-  @PluginMethod
-  public void getPermissions(PluginCall call) {
-    if (getPermissionState("location") != PermissionState.GRANTED) {
-      requestPermissions(call);
-    } else {
-      JSObject result = new JSObject();
-      result.put("location", "granted");
-      call.resolve(result);
-    }
-  }
+  PaymentMethodSelectionCallback pendingPaymentMethodSelection = null;
+  List<? extends PaymentOption> availablePaymentOptions = null;
+  QrCodeDisplayCallback pendingQrCodeDisplay = null;
 
   @PluginMethod
   public void initialize(PluginCall call) {
@@ -202,19 +217,24 @@ public class StripeTerminal
     cancelInstallUpdate();
 
     LogLevel logLevel = TerminalUtils.translateJSLogLevel(
-      call.getInt("logLevel")
+      call.getString("logLevel")
     );
     ConnectionTokenProvider tokenProvider = this;
     TerminalListener terminalListener = this;
 
     String err = "";
     try {
+      String locale = call.getString("locale");
+      LocaleConfig localeConfig = locale != null
+        ? new LocaleConfig.HardcodedLocale.Builder(locale).build()
+        : LocaleConfig.CardLanguagePreferenceIfAvailable.INSTANCE;
       Terminal.init(
         this.bridge.getContext(),
         logLevel,
         tokenProvider,
         terminalListener,
-        null
+        this,
+        localeConfig
       );
       lastReaderEvent = ReaderEvent.CARD_REMOVED;
       isInitialized = true;
@@ -267,7 +287,7 @@ public class StripeTerminal
       String locationId = call.getString("locationId", null);
       DiscoveryConfiguration discoveryConfiguration =
         TerminalUtils.translateDiscoveryMethod(
-          call.getInt("discoveryMethod", 0),
+          call.getString("discoveryMethod", "bluetoothScan"),
           simulated,
           locationId
         );
@@ -402,11 +422,9 @@ public class StripeTerminal
     }
 
     Boolean failIfInUse = call.getBoolean("failIfInUse", false);
-    // TODO: Add below when supported
-    // Boolean allowCustomerCancel = call.getBoolean("allowCustomerCancel", false);
 
     InternetConnectionConfiguration connectionConfig =
-      new InternetConnectionConfiguration(null, failIfInUse);
+      new InternetConnectionConfiguration(this, failIfInUse);
 
     Terminal.getInstance().connectReader(
       reader,
@@ -439,7 +457,9 @@ public class StripeTerminal
       new BluetoothConnectionConfiguration(
         locationId,
         autoReconnectOnUnexpectedDisconnect,
-        this
+        this,
+        this,
+        simulatedReaderUpdate
       );
 
     Terminal.getInstance().connectReader(
@@ -470,7 +490,9 @@ public class StripeTerminal
         Boolean.TRUE.equals(
           call.getBoolean("autoReconnectOnUnexpectedDisconnect", false)
         ),
-        this
+        this,
+        this,
+        simulatedReaderUpdate
       );
 
     Terminal.getInstance().connectReader(
@@ -489,13 +511,72 @@ public class StripeTerminal
     }
 
     AppsOnDevicesConnectionConfiguration connectionConfig =
-      new AppsOnDevicesConnectionConfiguration(this);
+      new AppsOnDevicesConnectionConfiguration(
+        this,
+        TerminalUtils.translateAppTransitionAnimation(
+          call.getObject("appTransitionAnimation")
+        )
+      );
 
     Terminal.getInstance().connectReader(
       reader,
       connectionConfig,
       this.createReaderCallback(call)
     );
+  }
+
+  @PluginMethod
+  public void openDeviceSettings(final PluginCall call) {
+    String screen = call.getString("screen", "all");
+    String path;
+    boolean bypassable = false;
+    switch (screen) {
+      case "all":
+        path = "";
+        break;
+      case "network":
+        path = "network/";
+        break;
+      case "advanced":
+        path = "advanced/";
+        break;
+      case "registrationCode":
+        path = "registration_code/";
+        break;
+      case "appearance":
+        path = "appearance/";
+        bypassable = true;
+        break;
+      case "language":
+        path = "language/";
+        bypassable = true;
+        break;
+      case "bugReport":
+        path = "bug_report/";
+        bypassable = true;
+        break;
+      default:
+        call.reject("Unknown device settings screen: " + screen);
+        return;
+    }
+
+    Intent intent = new Intent(
+      Intent.ACTION_VIEW,
+      Uri.parse("stripe://settings/" + path)
+    );
+    if (bypassable && Boolean.TRUE.equals(call.getBoolean("bypassAdminPasscode", false))) {
+      intent.putExtra("bypass_admin_menu_passcode", true);
+    }
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+    try {
+      getContext().startActivity(intent);
+      call.resolve();
+    } catch (ActivityNotFoundException e) {
+      call.reject(
+        "Device settings are only available when running on a Stripe Reader device."
+      );
+    }
   }
 
   @PluginMethod
@@ -515,7 +596,7 @@ public class StripeTerminal
 
     TapToPayConnectionConfiguration connectionConfig =
       new TapToPayConnectionConfiguration(
-        locationId,
+        new TapUseCase.Pay(locationId),
         Boolean.TRUE.equals(
           call.getBoolean("autoReconnectOnUnexpectedDisconnect", false)
         ),
@@ -665,11 +746,7 @@ public class StripeTerminal
     ConnectionStatus status = Terminal.getInstance().getConnectionStatus();
 
     JSObject ret = new JSObject();
-    ret.put(
-      "status",
-      TerminalUtils.translateConnectionStatusToJS(status.ordinal())
-    );
-    ret.put("isAndroid", true);
+    ret.put("status", TerminalUtils.serializeConnectionStatus(status));
     call.resolve(ret);
   }
 
@@ -678,10 +755,7 @@ public class StripeTerminal
     PaymentStatus status = Terminal.getInstance().getPaymentStatus();
 
     JSObject ret = new JSObject();
-    ret.put(
-      "status",
-      TerminalUtils.translatePaymentStatusToJS(status.ordinal())
-    );
+    ret.put("status", TerminalUtils.serializePaymentStatus(status));
     call.resolve(ret);
   }
 
@@ -756,6 +830,7 @@ public class StripeTerminal
 
   @PluginMethod
   public void cancelCollectPaymentMethod(final PluginCall call) {
+    clearPendingPaymentCallbacks();
     if (
       pendingCollectPaymentMethod != null &&
       !pendingCollectPaymentMethod.isCompleted()
@@ -858,7 +933,9 @@ public class StripeTerminal
         builder.setCaptureMethod(
           "manual".equals(captureMethod)
             ? CaptureMethod.Manual
-            : CaptureMethod.Automatic
+            : "automatic".equals(captureMethod)
+              ? CaptureMethod.Automatic
+              : CaptureMethod.AutomaticAsync
         );
       }
 
@@ -903,6 +980,22 @@ public class StripeTerminal
         call.getObject("metadata")
       );
       if (metadata != null) builder.setMetadata(metadata);
+
+      String offlineBehaviorString = call.getString("offlineBehavior");
+      if (offlineBehaviorString != null) {
+        OfflineBehavior offlineBehavior =
+          TerminalUtils.translateJSOfflineBehavior(offlineBehaviorString);
+        if (offlineBehavior == null) {
+          call.reject("Invalid offlineBehavior: " + offlineBehaviorString);
+          return;
+        }
+        Terminal.getInstance().createPaymentIntent(
+          builder.build(),
+          createPaymentIntentCallback(call),
+          new CreateConfiguration(offlineBehavior)
+        );
+        return;
+      }
 
       Terminal.getInstance().createPaymentIntent(
         builder.build(),
@@ -1036,7 +1129,11 @@ public class StripeTerminal
     }
 
     CollectSetupIntentConfiguration.Builder configBuilder =
-      new CollectSetupIntentConfiguration.Builder();
+      new CollectSetupIntentConfiguration.Builder(
+        TerminalUtils.translateJSAllowRedisplay(
+          call.getString("allowRedisplay")
+        )
+      );
 
     String customerCancellation = call.getString("customerCancellation");
     if (customerCancellation != null) {
@@ -1059,9 +1156,6 @@ public class StripeTerminal
     pendingCollectSetupIntentPaymentMethod =
       Terminal.getInstance().collectSetupIntentPaymentMethod(
         currentSetupIntent,
-        TerminalUtils.translateJSAllowRedisplay(
-          call.getString("allowRedisplay")
-        ),
         configBuilder.build(),
         new SetupIntentCallback() {
           @Override
@@ -1153,7 +1247,7 @@ public class StripeTerminal
   }
 
   @PluginMethod
-  public void collectRefundPaymentMethod(final PluginCall call) {
+  public void processRefund(final PluginCall call) {
     Integer amount = call.getInt("amount");
     String currency = call.getString("currency");
 
@@ -1178,17 +1272,17 @@ public class StripeTerminal
 
     // The fluent setters on RefundParameters.Builder are ambiguous with the property
     // setters, so configure the concrete builder types directly.
-    RefundParameters refundParameters;
+    ProcessRefundParameters refundParameters;
     if (chargeId != null) {
-      RefundParameters.ByChargeId refundBuilder =
-        new RefundParameters.ByChargeId(chargeId, amount, currency);
+      ProcessRefundParameters.ByChargeId refundBuilder =
+        new ProcessRefundParameters.ByChargeId(chargeId, amount, currency);
       refundBuilder.setReverseTransfer(reverseTransfer);
       refundBuilder.setRefundApplicationFee(refundApplicationFee);
       if (metadata != null) refundBuilder.setMetadata(metadata);
       refundParameters = refundBuilder.build();
     } else if (paymentIntentId != null && clientSecret != null) {
-      RefundParameters.ByPaymentIntentId refundBuilder =
-        new RefundParameters.ByPaymentIntentId(
+      ProcessRefundParameters.ByPaymentIntentId refundBuilder =
+        new ProcessRefundParameters.ByPaymentIntentId(
           paymentIntentId,
           clientSecret,
           amount,
@@ -1214,38 +1308,13 @@ public class StripeTerminal
       );
     }
 
-    pendingCollectRefundPaymentMethod =
-      Terminal.getInstance().collectRefundPaymentMethod(
-        refundParameters,
-        configBuilder.build(),
-        new Callback() {
-          @Override
-          public void onSuccess() {
-            pendingCollectRefundPaymentMethod = null;
-            call.resolve();
-          }
-
-          @Override
-          public void onFailure(@NonNull TerminalException e) {
-            pendingCollectRefundPaymentMethod = null;
-            call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
-          }
-        }
-      );
-  }
-
-  @PluginMethod
-  public void cancelCollectRefundPaymentMethod(final PluginCall call) {
-    cancelPending(pendingCollectRefundPaymentMethod, call);
-    pendingCollectRefundPaymentMethod = null;
-  }
-
-  @PluginMethod
-  public void confirmRefund(final PluginCall call) {
-    Terminal.getInstance().confirmRefund(
+    pendingProcessRefund = Terminal.getInstance().processRefund(
+      refundParameters,
+      configBuilder.build(),
       new RefundCallback() {
         @Override
         public void onSuccess(@NonNull Refund refund) {
+          pendingProcessRefund = null;
           JSObject ret = new JSObject();
           ret.put("refund", TerminalUtils.serializeRefund(refund));
           call.resolve(ret);
@@ -1253,10 +1322,17 @@ public class StripeTerminal
 
         @Override
         public void onFailure(@NonNull TerminalException e) {
+          pendingProcessRefund = null;
           call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
         }
       }
     );
+  }
+
+  @PluginMethod
+  public void cancelProcessRefund(final PluginCall call) {
+    cancelPending(pendingProcessRefund, call);
+    pendingProcessRefund = null;
   }
 
   @PluginMethod
@@ -1329,6 +1405,165 @@ public class StripeTerminal
   @PluginMethod
   public void clearCachedCredentials(@NonNull PluginCall call) {
     Terminal.getInstance().clearCachedCredentials();
+    call.resolve();
+  }
+
+  private void clearPendingPaymentCallbacks() {
+    pendingPaymentMethodSelection = null;
+    availablePaymentOptions = null;
+    pendingQrCodeDisplay = null;
+  }
+
+  @PluginMethod
+  public void getOfflineStatus(@NonNull PluginCall call) {
+    call.resolve(
+      TerminalUtils.serializeOfflineStatus(
+        Terminal.getInstance().getOfflineStatus()
+      )
+    );
+  }
+
+  @PluginMethod
+  public void print(@NonNull final PluginCall call) {
+    String content = call.getString("content");
+    if (content == null) {
+      call.reject("Must provide content");
+      return;
+    }
+    if (content.startsWith("data:") && content.contains(",")) {
+      content = content.substring(content.indexOf(',') + 1);
+    }
+
+    Bitmap bitmap = null;
+    try {
+      // Accept both standard and URL-safe base64.
+      byte[] bytes = Base64.decode(
+        content.replace('-', '+').replace('_', '/'),
+        Base64.DEFAULT
+      );
+      BitmapFactory.Options bounds = new BitmapFactory.Options();
+      bounds.inJustDecodeBounds = true;
+      BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+      // Downsample so large images don't exhaust memory; printers are narrow.
+      int maxDimension = 2048;
+      int sampleSize = 1;
+      while (
+        bounds.outWidth / sampleSize > maxDimension ||
+        bounds.outHeight / sampleSize > maxDimension
+      ) {
+        sampleSize *= 2;
+      }
+      BitmapFactory.Options options = new BitmapFactory.Options();
+      options.inSampleSize = sampleSize;
+      bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+    } catch (IllegalArgumentException ignored) {}
+    if (bitmap == null) {
+      call.reject("Content must be a base64-encoded JPEG or PNG image");
+      return;
+    }
+
+    final Bitmap printBitmap = bitmap;
+    Terminal.getInstance().print(
+      new PrintContent.Bitmap(printBitmap),
+      new Callback() {
+        @Override
+        public void onSuccess() {
+          printBitmap.recycle();
+          call.resolve();
+        }
+
+        @Override
+        public void onFailure(@NonNull TerminalException e) {
+          printBitmap.recycle();
+          call.reject(e.getErrorMessage(), e.getErrorCode().toString(), e);
+        }
+      }
+    );
+  }
+
+  @PluginMethod
+  public void selectPaymentOption(@NonNull PluginCall call) {
+    PaymentMethodSelectionCallback callback = pendingPaymentMethodSelection;
+    List<? extends PaymentOption> options = availablePaymentOptions;
+    if (callback == null || options == null) {
+      call.reject("There is no pending payment method selection");
+      return;
+    }
+
+    String paymentOptionType = call.getString("paymentOptionType");
+    if (paymentOptionType == null) {
+      call.reject("Must provide paymentOptionType");
+      return;
+    }
+    PaymentOption selected = null;
+    for (PaymentOption option : options) {
+      boolean matches = "card".equals(paymentOptionType)
+        ? option instanceof PaymentOption.CardPayment
+        : option instanceof PaymentOption.NonCardPayment &&
+          paymentOptionType.equals(
+            TerminalUtils.serializePaymentMethodType(
+              ((PaymentOption.NonCardPayment) option).getType()
+            )
+          );
+      if (matches) {
+        selected = option;
+        break;
+      }
+    }
+    if (selected == null) {
+      call.reject("Payment option is not available: " + paymentOptionType);
+      return;
+    }
+
+    pendingPaymentMethodSelection = null;
+    availablePaymentOptions = null;
+    callback.onSuccess(selected);
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void failPaymentMethodSelection(@NonNull PluginCall call) {
+    PaymentMethodSelectionCallback callback = pendingPaymentMethodSelection;
+    if (callback == null) {
+      call.reject("There is no pending payment method selection");
+      return;
+    }
+
+    pendingPaymentMethodSelection = null;
+    availablePaymentOptions = null;
+    callback.onFailure(
+      new Exception(
+        call.getString("errorMessage", "Payment method selection failed")
+      )
+    );
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void confirmQrCodeDisplayed(@NonNull PluginCall call) {
+    QrCodeDisplayCallback callback = pendingQrCodeDisplay;
+    if (callback == null) {
+      call.reject("There is no pending QR code display");
+      return;
+    }
+
+    pendingQrCodeDisplay = null;
+    callback.onSuccess();
+    call.resolve();
+  }
+
+  @PluginMethod
+  public void failQrCodeDisplay(@NonNull PluginCall call) {
+    QrCodeDisplayCallback callback = pendingQrCodeDisplay;
+    if (callback == null) {
+      call.reject("There is no pending QR code display");
+      return;
+    }
+
+    pendingQrCodeDisplay = null;
+    callback.onFailure(
+      new Exception(call.getString("errorMessage", "QR code display failed"))
+    );
     call.resolve();
   }
 
@@ -1491,40 +1726,59 @@ public class StripeTerminal
   public void getSimulatorConfiguration(@NonNull final PluginCall call) {
     SimulatorConfiguration config =
       Terminal.getInstance().getSimulatorConfiguration();
-    JSObject serialized = TerminalUtils.serializeSimulatorConfiguration(config);
+    JSObject serialized = TerminalUtils.serializeSimulatorConfiguration(
+      config,
+      simulatedReaderUpdateName
+    );
 
     call.resolve(serialized);
   }
 
   @PluginMethod
   public void setSimulatorConfiguration(@NonNull final PluginCall call) {
-    Integer availableReaderUpdateInt = call.getInt("availableReaderUpdate");
-    Integer simulatedCardInt = call.getInt("simulatedCard");
+    String availableReaderUpdateString = call.getString(
+      "availableReaderUpdate"
+    );
+    String simulatedCardString = call.getString("simulatedCard");
 
     SimulatorConfiguration currentConfig =
       Terminal.getInstance().getSimulatorConfiguration();
 
-    SimulateReaderUpdate availableReaderUpdate = currentConfig.getUpdate();
     SimulatedCard simulatedCard = currentConfig.getSimulatedCard();
 
-    if (availableReaderUpdateInt != null) {
-      availableReaderUpdate =
-        SimulateReaderUpdate.values()[availableReaderUpdateInt];
+    if (availableReaderUpdateString != null) {
+      if (!TerminalUtils.isValidReaderUpdate(availableReaderUpdateString)) {
+        call.reject(
+          "Invalid availableReaderUpdate: " + availableReaderUpdateString
+        );
+        return;
+      }
+      // In SDK v6 reader update simulation is applied through the connection
+      // configuration, so it takes effect the next time a reader is connected.
+      simulatedReaderUpdate = TerminalUtils.translateJSTestReaderUpdate(
+        availableReaderUpdateString
+      );
+      simulatedReaderUpdateName = availableReaderUpdateString;
     }
 
-    if (simulatedCardInt != null) {
-      SimulatedCardType type = SimulatedCardType.values()[simulatedCardInt];
+    if (simulatedCardString != null) {
+      SimulatedCardType type = TerminalUtils.translateJSSimulatedCardType(
+        simulatedCardString
+      );
+      if (type == null) {
+        call.reject(
+          "Unsupported simulatedCard on Android: " + simulatedCardString
+        );
+        return;
+      }
       simulatedCard = new SimulatedCard(type);
     }
 
     SimulatorConfiguration newConfig = new SimulatorConfiguration(
-      availableReaderUpdate,
       simulatedCard,
-      null,
-      false,
-      new SimulatedCollectInputsResult.SimulatedCollectInputsResultSucceeded(
-        SimulatedCollectInputsSkipBehavior.NONE
-      )
+      currentConfig.getSimulatedTipAmount(),
+      call.getBoolean("offlineEnabled", currentConfig.getOfflineEnabled()),
+      currentConfig.getSimulatedCollectInputsResult()
     );
 
     Terminal.getInstance().setSimulatorConfiguration(newConfig);
@@ -1559,11 +1813,14 @@ public class StripeTerminal
 
   @PluginMethod
   public void supportsReadersOfType(final PluginCall call) {
-    Integer deviceTypeInt = call.getInt("deviceType");
-    Integer discoveryMethodInt = call.getInt("discoveryMethod", 0);
+    String deviceTypeString = call.getString("deviceType");
+    String discoveryMethodString = call.getString(
+      "discoveryMethod",
+      "bluetoothScan"
+    );
     Boolean simulated = call.getBoolean("simulated", false);
 
-    if (deviceTypeInt == null) {
+    if (deviceTypeString == null) {
       JSObject result = new JSObject();
       result.put("isSupported", false);
       result.put("error", "Must provide a device type");
@@ -1571,18 +1828,20 @@ public class StripeTerminal
       return;
     }
 
-    DeviceType deviceType = TerminalUtils.translateJSDeviceType(deviceTypeInt);
+    DeviceType deviceType = TerminalUtils.translateJSDeviceType(
+      deviceTypeString
+    );
     if (deviceType == null) {
       JSObject result = new JSObject();
       result.put("isSupported", false);
-      result.put("error", "Invalid device type: " + deviceTypeInt);
+      result.put("error", "Invalid device type: " + deviceTypeString);
       call.resolve(result);
       return;
     }
 
     DiscoveryConfiguration discoveryConfiguration =
       TerminalUtils.translateDiscoveryMethod(
-        discoveryMethodInt,
+        discoveryMethodString,
         simulated != null ? simulated : false,
         null
       );
@@ -1619,39 +1878,172 @@ public class StripeTerminal
     JSObject ret = new JSObject();
     ret.put(
       "status",
-      TerminalUtils.translateConnectionStatusToJS(connectionStatus.ordinal())
+      TerminalUtils.serializeConnectionStatus(connectionStatus)
     );
-    ret.put("isAndroid", true);
     notifyListeners("didChangeConnectionStatus", ret);
   }
 
   @Override
   public void onPaymentStatusChange(@NonNull PaymentStatus paymentStatus) {
     JSObject ret = new JSObject();
-    ret.put("status", paymentStatus.ordinal());
+    ret.put("status", TerminalUtils.serializePaymentStatus(paymentStatus));
 
     notifyListeners("didChangePaymentStatus", ret);
   }
 
   @Override
   public void onReportLowBatteryWarning() {
-    notifyListeners("didReportLowBatteryWarning", new JSObject());
+    JSObject ret = new JSObject();
+    ret.put("result", "LOW BATTERY");
+    notifyListeners("didReportLowBatteryWarning", ret);
+  }
+
+  @Override
+  public void onInteractionRequired(@NonNull PaymentInteraction interaction) {
+    if (interaction instanceof PaymentInteraction.PaymentMethodSelection) {
+      PaymentInteraction.PaymentMethodSelection selection =
+        (PaymentInteraction.PaymentMethodSelection) interaction;
+      handlePaymentMethodSelection(
+        selection.getPaymentIntent(),
+        selection.getAvailableOptions(),
+        selection.getCallback()
+      );
+    } else if (interaction instanceof PaymentInteraction.QrCodeDisplay) {
+      PaymentInteraction.QrCodeDisplay qr =
+        (PaymentInteraction.QrCodeDisplay) interaction;
+      handleQrCodeDisplay(
+        qr.getPaymentIntent(),
+        qr.getQrData(),
+        qr.getCallback()
+      );
+    }
+  }
+
+  private void handlePaymentMethodSelection(
+    @NonNull PaymentIntent paymentIntent,
+    @NonNull List<? extends PaymentOption> options,
+    @NonNull PaymentMethodSelectionCallback callback
+  ) {
+    if (!hasListeners("onPaymentMethodSelectionRequired")) {
+      // Without a handler, fall back to card so payments aren't blocked.
+      PaymentOption fallback = options.isEmpty() ? null : options.get(0);
+      for (PaymentOption option : options) {
+        if (option instanceof PaymentOption.CardPayment) {
+          fallback = option;
+          break;
+        }
+      }
+      if (fallback != null) {
+        callback.onSuccess(fallback);
+      } else {
+        callback.onFailure(new Exception("No payment options are available"));
+      }
+      return;
+    }
+
+    if (pendingPaymentMethodSelection != null) {
+      pendingPaymentMethodSelection.onFailure(
+        new Exception("Superseded by a new payment method selection request")
+      );
+    }
+    pendingPaymentMethodSelection = callback;
+    availablePaymentOptions = options;
+
+    JSArray optionsJson = new JSArray();
+    for (PaymentOption option : options) {
+      optionsJson.put(TerminalUtils.serializePaymentOption(option));
+    }
+    JSObject ret = new JSObject();
+    ret.put(
+      "paymentIntent",
+      TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+    );
+    ret.put("availablePaymentOptions", optionsJson);
+    notifyListeners("onPaymentMethodSelectionRequired", ret);
+  }
+
+  private void handleQrCodeDisplay(
+    @NonNull PaymentIntent paymentIntent,
+    @NonNull QrCodeDisplayData qrData,
+    @NonNull QrCodeDisplayCallback callback
+  ) {
+    if (!hasListeners("onQrCodeDisplayRequired")) {
+      callback.onFailure(
+        new Exception(
+          "QR code payments require an onQrCodeDisplayRequired handler"
+        )
+      );
+      return;
+    }
+
+    if (pendingQrCodeDisplay != null) {
+      pendingQrCodeDisplay.onFailure(
+        new Exception("Superseded by a new QR code display request")
+      );
+    }
+    pendingQrCodeDisplay = callback;
+
+    JSObject ret = new JSObject();
+    ret.put(
+      "paymentIntent",
+      TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+    );
+    ret.put("qrData", TerminalUtils.serializeQrCodeDisplayData(qrData));
+    notifyListeners("onQrCodeDisplayRequired", ret);
+  }
+
+  @Override
+  public void onOfflineStatusChange(@NonNull OfflineStatus offlineStatus) {
+    JSObject ret = new JSObject();
+    ret.put("result", TerminalUtils.serializeOfflineStatus(offlineStatus));
+    notifyListeners("didChangeOfflineStatus", ret);
+  }
+
+  @Override
+  public void onPaymentIntentForwarded(
+    @NonNull PaymentIntent paymentIntent,
+    TerminalException e
+  ) {
+    JSObject ret = new JSObject();
+    ret.put(
+      "result",
+      TerminalUtils.serializePaymentIntent(paymentIntent, lastCurrency)
+    );
+    if (e != null) {
+      ret.put("error", e.getErrorMessage());
+    }
+    notifyListeners("didForwardPaymentIntent", ret);
+  }
+
+  @Override
+  public void onForwardingFailure(@NonNull TerminalException e) {
+    JSObject ret = new JSObject();
+    ret.put("error", e.getErrorMessage());
+    notifyListeners("didReportForwardingError", ret);
   }
 
   @Override
   public void onReportReaderEvent(@NonNull ReaderEvent readerEvent) {
     lastReaderEvent = readerEvent;
     JSObject ret = new JSObject();
-    ret.put("event", readerEvent.ordinal());
+    ret.put("result", TerminalUtils.serializeReaderEvent(readerEvent));
     notifyListeners("didReportReaderEvent", ret);
   }
 
   @Override
   public void onDisconnect(@NonNull DisconnectReason reason) {
+    clearPendingPaymentCallbacks();
     lastBatteryLevel = null;
     lastBatteryStatus = null;
     lastIsCharging = null;
-    notifyListeners("didReportUnexpectedReaderDisconnect", new JSObject());
+
+    JSObject ret = new JSObject();
+    ret.put("reason", TerminalUtils.serializeDisconnectReason(reason));
+    notifyListeners("didDisconnect", ret);
+
+    if (!TerminalUtils.isRequestedDisconnect(reason)) {
+      notifyListeners("didReportUnexpectedReaderDisconnect", ret);
+    }
   }
 
   @Override
@@ -1678,12 +2070,9 @@ public class StripeTerminal
   ) {
     JSObject ret = new JSObject();
     ret.put(
-      "value",
-      TerminalUtils.translateReaderDisplayMessageToJS(
-        readerDisplayMessage.ordinal()
-      )
+      "result",
+      TerminalUtils.serializeReaderDisplayMessage(readerDisplayMessage)
     );
-    ret.put("text", readerDisplayMessage.toString());
 
     notifyListeners("didRequestReaderDisplayMessage", ret);
   }
@@ -1693,8 +2082,10 @@ public class StripeTerminal
     @NonNull ReaderInputOptions readerInputOptions
   ) {
     JSObject ret = new JSObject();
-    ret.put("value", readerInputOptions.toString());
-    ret.put("isAndroid", true);
+    ret.put(
+      "result",
+      TerminalUtils.serializeReaderInputOptions(readerInputOptions)
+    );
 
     notifyListeners("didRequestReaderInput", ret);
   }
@@ -1747,11 +2138,13 @@ public class StripeTerminal
 
     JSObject ret = new JSObject();
     ret.put("batteryLevel", batteryLevel);
-    ret.put("batteryStatus", batteryStatus.ordinal());
+    ret.put(
+      "batteryStatus",
+      TerminalUtils.serializeBatteryStatus(batteryStatus)
+    );
     ret.put("isCharging", isCharging);
 
     notifyListeners("didUpdateBatteryLevel", ret);
-    notifyListeners("didReportBatteryLevel", ret);
   }
 
   @Override

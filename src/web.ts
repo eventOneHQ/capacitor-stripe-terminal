@@ -1,6 +1,8 @@
 import { WebPlugin } from '@capacitor/core'
 import {
+  AppTransitionAnimation,
   DiscoveryConfiguration,
+  OpenDeviceSettingsOptions,
   Reader,
   ConnectionStatus,
   PaymentIntent,
@@ -8,8 +10,6 @@ import {
   PaymentStatus,
   DeviceType,
   ReaderNetworkStatus,
-  BatteryStatus,
-  LocationStatus,
   ListLocationsParameters,
   Location,
   SimulatedCardType,
@@ -30,10 +30,18 @@ import {
   CreateSetupIntentParams,
   CollectSetupIntentPaymentMethodParams,
   SetupIntent,
+  SetupIntentStatus,
+  SetupIntentUsage,
+  SetupAttempt,
+  SetupAttemptCardPresentDetails,
   RefundParams,
   Refund,
+  RefundStatus,
   ICollectInputsParameters,
   ICollectInputsResult,
+  DiscoveryMethod,
+  OfflineStatus,
+  PrintContent,
 } from './definitions'
 import {
   loadStripeTerminal,
@@ -47,8 +55,15 @@ import {
   IPaymentIntent,
   ISetReaderDisplayRequest,
   ICollectConfig,
+  IReaderSettings,
+  ICollectInputsParameters as SdkCollectInputsParameters,
 } from '@stripe/terminal-js'
 import { Stripe } from 'stripe'
+
+/**
+ * @ignore
+ */
+type SdkSetupIntent = Parameters<Terminal['confirmSetupIntent']>[0]
 
 /**
  * @ignore
@@ -83,68 +98,67 @@ interface ConfirmPaymentIntentResult {
  * @ignore
  */
 const deviceTypes: { [type: string]: DeviceType } = {
-  ['chipper_2X']: DeviceType.Chipper2X,
-  ['bbpos_wisepos_e']: DeviceType.WisePosE,
-  ['stripe_s700']: DeviceType.StripeS700,
-  ['stripe_s700_devkit']: DeviceType.StripeS700DevKit,
-  ['stripe_s710']: DeviceType.StripeS710,
-  ['stripe_s710_devkit']: DeviceType.StripeS710DevKit,
+  ['chipper_2X']: 'chipper2X',
+  ['bbpos_wisepos_e']: 'wisePosE',
+  ['simulated_wisepos_e']: 'wisePosE',
+  ['stripe_s700']: 'stripeS700',
+  ['stripe_s700_devkit']: 'stripeS700Devkit',
+  ['stripe_s710']: 'stripeS710',
+  ['stripe_s710_devkit']: 'stripeS710Devkit',
 }
 
 /**
  * @ignore
  */
 const readerStatuses: { [status: string]: ReaderNetworkStatus } = {
-  online: ReaderNetworkStatus.Online,
-  offline: ReaderNetworkStatus.Offline,
+  online: 'online',
+  offline: 'offline',
 }
 
 /**
  * @ignore
  */
 const connectionStatus: { [status: string]: ConnectionStatus } = {
-  connecting: ConnectionStatus.Connecting,
-  connected: ConnectionStatus.Connected,
-  not_connected: ConnectionStatus.NotConnected,
-  reconnecting: ConnectionStatus.Reconnecting,
+  connecting: 'connecting',
+  connected: 'connected',
+  not_connected: 'notConnected',
+  reconnecting: 'reconnecting',
 }
 
 /**
  * @ignore
  */
 const testPaymentMethodMap: { [method: string]: SimulatedCardType } = {
-  visa: SimulatedCardType.Visa,
-  visa_debit: SimulatedCardType.VisaDebit,
-  mastercard: SimulatedCardType.Mastercard,
-  mastercard_debit: SimulatedCardType.MasterDebit,
-  mastercard_prepaid: SimulatedCardType.MastercardPrepaid,
-  amex: SimulatedCardType.Amex,
-  amex2: SimulatedCardType.Amex2,
-  discover: SimulatedCardType.Discover,
-  discover2: SimulatedCardType.Discover2,
-  diners: SimulatedCardType.Diners,
-  diners_14digits: SimulatedCardType.Diners14Digit,
-  jcb: SimulatedCardType.Jcb,
-  unionpay: SimulatedCardType.UnionPay,
-  interac: SimulatedCardType.Interac,
-  charge_declined: SimulatedCardType.ChargeDeclined,
-  charge_declined_insufficient_funds:
-    SimulatedCardType.ChargeDeclinedInsufficientFunds,
-  charge_declined_lost_card: SimulatedCardType.ChargeDeclinedLostCard,
-  charge_declined_stolen_card: SimulatedCardType.ChargeDeclinedStolenCard,
-  charge_declined_expired_card: SimulatedCardType.ChargeDeclinedExpiredCard,
-  charge_declined_processing_error:
-    SimulatedCardType.ChargeDeclinedProcessingError,
-  refund_fail: SimulatedCardType.RefundFailed,
+  visa: 'visa',
+  visa_debit: 'visaDebit',
+  mastercard: 'mastercard',
+  mastercard_debit: 'masterDebit',
+  mastercard_prepaid: 'mastercardPrepaid',
+  amex: 'amex',
+  amex2: 'amex2',
+  discover: 'discover',
+  discover2: 'discover2',
+  diners: 'diners',
+  diners_14digits: 'diners14Digit',
+  jcb: 'jcb',
+  unionpay: 'unionPay',
+  interac: 'interac',
+  charge_declined: 'chargeDeclined',
+  charge_declined_insufficient_funds: 'chargeDeclinedInsufficientFunds',
+  charge_declined_lost_card: 'chargeDeclinedLostCard',
+  charge_declined_stolen_card: 'chargeDeclinedStolenCard',
+  charge_declined_expired_card: 'chargeDeclinedExpiredCard',
+  charge_declined_processing_error: 'chargeDeclinedProcessingError',
+  refund_fail: 'refundFailed',
 }
 
 /**
  * @ignore
  */
 const chargeStatus: { [status: string]: ChargeStatus } = {
-  succeeded: ChargeStatus.Succeeded,
-  pending: ChargeStatus.Pending,
-  failed: ChargeStatus.Failed,
+  succeeded: 'succeeded',
+  pending: 'pending',
+  failed: 'failed',
 }
 
 /**
@@ -153,10 +167,9 @@ const chargeStatus: { [status: string]: ChargeStatus } = {
 function serializeCharge(c: Stripe.Charge): Charge {
   return {
     id: c.id,
-    stripeId: c.id,
     amount: c.amount,
     currency: c.currency,
-    status: chargeStatus[c.status] ?? ChargeStatus.Failed,
+    status: chargeStatus[c.status] ?? 'failed',
     metadata: c.metadata ?? {},
     stripeDescription: c.description ?? null,
     statementDescriptorSuffix: c.statement_descriptor_suffix ?? null,
@@ -205,6 +218,9 @@ const paymentMethodType: { [type: string]: PaymentMethodType } = {
   card: 'card',
   wechat_pay: 'wechatPay',
   affirm: 'affirm',
+  paynow: 'paynow',
+  paypay: 'paypay',
+  klarna: 'klarna',
 }
 
 /**
@@ -285,22 +301,166 @@ function serializeCardPresentDetails(details: any): CardPresentDetails | null {
  * @ignore
  */
 const paymentIntentStatus: { [status: string]: PaymentIntentStatus } = {
-  requires_payment_method: PaymentIntentStatus.RequiresPaymentMethod,
-  requires_confirmation: PaymentIntentStatus.RequiresConfirmation,
-  requires_capture: PaymentIntentStatus.RequiresCapture,
-  processing: PaymentIntentStatus.Processing,
-  canceled: PaymentIntentStatus.Canceled,
-  succeeded: PaymentIntentStatus.Succeeded,
+  requires_payment_method: 'requiresPaymentMethod',
+  requires_confirmation: 'requiresConfirmation',
+  requires_capture: 'requiresCapture',
+  requires_action: 'requiresAction',
+  processing: 'processing',
+  canceled: 'canceled',
+  succeeded: 'succeeded',
 }
 
 /**
  * @ignore
  */
 const paymentStatus: { [status: string]: PaymentStatus } = {
-  not_ready: PaymentStatus.NotReady,
-  ready: PaymentStatus.Ready,
-  waiting_for_input: PaymentStatus.WaitingForInput,
-  processing: PaymentStatus.Processing,
+  not_ready: 'notReady',
+  ready: 'ready',
+  waiting_for_input: 'waitingForInput',
+  processing: 'processing',
+}
+
+/**
+ * @ignore
+ */
+const setupIntentStatus: { [status: string]: SetupIntentStatus } = {
+  requires_payment_method: 'requiresPaymentMethod',
+  requires_confirmation: 'requiresConfirmation',
+  requires_action: 'requiresAction',
+  processing: 'processing',
+  succeeded: 'succeeded',
+  canceled: 'canceled',
+}
+
+/**
+ * @ignore
+ */
+const setupIntentUsage: { [usage: string]: SetupIntentUsage } = {
+  on_session: 'onSession',
+  off_session: 'offSession',
+}
+
+/**
+ * @ignore
+ */
+const refundStatus: { [status: string]: RefundStatus } = {
+  succeeded: 'succeeded',
+  failed: 'failed',
+  pending: 'pending',
+}
+
+/**
+ * @ignore
+ */
+function idOf(value: any): string | null {
+  if (!value) return null
+  return typeof value === 'string' ? value : (value.id ?? null)
+}
+
+/**
+ * @ignore
+ */
+function serializeSetupAttemptCardPresent(
+  details: any,
+): SetupAttemptCardPresentDetails | null {
+  if (!details) return null
+
+  return {
+    emvAuthData: details.emv_auth_data ?? null,
+    generatedCard: details.generated_card ?? null,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeSetupAttempt(attempt: any): SetupAttempt {
+  const details = attempt.payment_method_details
+
+  return {
+    id: attempt.id,
+    applicationId: idOf(attempt.application),
+    created: attempt.created ?? null,
+    customer: idOf(attempt.customer),
+    livemode: !!attempt.livemode,
+    onBehalfOfId: idOf(attempt.on_behalf_of),
+    paymentMethodId: idOf(attempt.payment_method),
+    setupIntentId: idOf(attempt.setup_intent),
+    status: attempt.status ?? null,
+    usage: setupIntentUsage[attempt.usage] ?? null,
+    paymentMethodDetails: details
+      ? {
+          type: paymentMethodType[details.type] ?? null,
+          cardPresent: serializeSetupAttemptCardPresent(details.card_present),
+          interacPresent: serializeSetupAttemptCardPresent(
+            details.interac_present,
+          ),
+        }
+      : null,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeSetupIntent(intent: any): SetupIntent {
+  const latestAttempt =
+    intent.latest_attempt && typeof intent.latest_attempt === 'object'
+      ? serializeSetupAttempt(intent.latest_attempt)
+      : null
+
+  return {
+    id: intent.id,
+    created: intent.created ?? null,
+    customer: idOf(intent.customer),
+    description: intent.description ?? null,
+    livemode: !!intent.livemode,
+    metadata: intent.metadata ?? null,
+    onBehalfOf: idOf(intent.on_behalf_of),
+    paymentMethodId: idOf(intent.payment_method),
+    paymentMethodTypes: (intent.payment_method_types ?? [])
+      .map((type: string) => paymentMethodType[type])
+      .filter(Boolean),
+    status: setupIntentStatus[intent.status] ?? 'unknown',
+    usage: setupIntentUsage[intent.usage] ?? null,
+    latestAttempt,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeRefund(refund: any): Refund {
+  return {
+    id: refund.id,
+    amount: refund.amount ?? null,
+    chargeId: idOf(refund.charge),
+    created: refund.created ?? null,
+    currency: refund.currency ?? null,
+    metadata: refund.metadata ?? null,
+    reason: refund.reason ?? null,
+    status: refundStatus[refund.status] ?? 'unknown',
+    failureReason: refund.failure_reason ?? null,
+  }
+}
+
+/**
+ * @ignore
+ */
+function serializeReaderSettings(settings: IReaderSettings): ReaderSettings {
+  const accessibility = settings.accessibilitySettings
+
+  if ('textToSpeechStatus' in accessibility) {
+    return {
+      accessibility: { textToSpeechStatus: accessibility.textToSpeechStatus },
+    }
+  }
+
+  return {
+    accessibility: {
+      error: accessibility.message ?? 'Unable to read accessibility settings',
+    },
+  }
 }
 
 /**
@@ -313,6 +473,8 @@ export class StripeTerminalWeb extends WebPlugin {
   private simulated: boolean = false
   private currentClientSecret: string | null = null
   private currentPaymentIntent: ISdkManagedPaymentIntent | null = null
+  private currentSetupIntentClientSecret: string | null = null
+  private currentSetupIntent: SdkSetupIntent | null = null
   private currentConnectionToken: string | null = null
 
   private connectionTokenCallbacks: Array<(response: TokenResponse) => void> =
@@ -332,8 +494,13 @@ export class StripeTerminalWeb extends WebPlugin {
     return this.instance
   }
 
-  async getPermissions(): Promise<PermissionStatus> {
-    return this.requestPermissions()
+  private unwrap<T>(result: T | ErrorResponse): T {
+    const error = (result as ErrorResponse)?.error
+    if (error) {
+      throw error
+    }
+
+    return result as T
   }
 
   async checkPermissions(): Promise<PermissionStatus> {
@@ -385,9 +552,10 @@ export class StripeTerminalWeb extends WebPlugin {
         })
       },
       onUnexpectedReaderDisconnect: async () => {
-        this.notifyListeners('didReportUnexpectedReaderDisconnect', {
-          reader: null,
-        })
+        // The JS SDK doesn't report a reason.
+        const data = { reason: 'unknown' }
+        this.notifyListeners('didDisconnect', data)
+        this.notifyListeners('didReportUnexpectedReaderDisconnect', data)
       },
       onConnectionStatusChange: async (event) => {
         this.notifyListeners('didChangeConnectionStatus', {
@@ -396,7 +564,7 @@ export class StripeTerminalWeb extends WebPlugin {
       },
       onPaymentStatusChange: async (event) => {
         this.notifyListeners('didChangePaymentStatus', {
-          status: event.status,
+          status: paymentStatus[event.status],
         })
       },
     })
@@ -409,11 +577,8 @@ export class StripeTerminalWeb extends WebPlugin {
   private translateReader(sdkReader: DiscoverReader): Reader {
     return {
       id: sdkReader.id,
-      stripeId: sdkReader.id,
-      deviceType: deviceTypes[sdkReader.device_type],
-      status: sdkReader.status
-        ? readerStatuses[sdkReader.status]
-        : ReaderNetworkStatus.Offline,
+      deviceType: deviceTypes[sdkReader.device_type] ?? 'unknown',
+      status: sdkReader.status ? readerStatuses[sdkReader.status] : 'offline',
       serialNumber: sdkReader.serial_number,
       ipAddress: sdkReader.ip_address,
       locationId: this.isInstanceOfLocation(sdkReader.location)
@@ -422,17 +587,16 @@ export class StripeTerminalWeb extends WebPlugin {
       location: this.isInstanceOfLocation(sdkReader.location)
         ? {
             id: sdkReader.location.id,
-            stripeId: sdkReader.location.id,
             displayName: sdkReader.location.display_name,
             livemode: sdkReader.livemode,
           }
         : null,
       label: sdkReader.label,
       deviceSoftwareVersion: sdkReader.device_sw_version,
-      batteryStatus: BatteryStatus.Unknown,
+      batteryStatus: 'unknown',
       batteryLevel: null,
       isCharging: null,
-      locationStatus: LocationStatus.Unknown,
+      locationStatus: 'unknown',
       livemode: sdkReader.livemode,
       simulated: this.simulated,
     }
@@ -471,13 +635,11 @@ export class StripeTerminalWeb extends WebPlugin {
     serialNumber: string
     ipAddress?: string
     id?: string
-    stripeId?: string
     failIfInUse?: boolean
-    allowCustomerCancel?: boolean
   }): Promise<{ reader: Reader }> {
     const sdk = this.ensureInitialized()
 
-    const readerId = options.id ?? options.stripeId
+    const readerId = options.id
 
     if (!readerId) {
       throw new Error('Reader ID missing')
@@ -523,8 +685,13 @@ export class StripeTerminalWeb extends WebPlugin {
     console.warn('connectUsbReader is only available on Android.')
     return { reader: null }
   }
+  async openDeviceSettings(_options: OpenDeviceSettingsOptions): Promise<void> {
+    // no equivalent
+    console.warn('openDeviceSettings is only available on Android.')
+  }
   async connectAppsOnDevicesReader(_config: {
     serialNumber: string
+    appTransitionAnimation?: AppTransitionAnimation
   }): Promise<{ reader: Reader | null }> {
     // no equivalent
     console.warn('connectAppsOnDevicesReader is only available on Android.')
@@ -543,12 +710,22 @@ export class StripeTerminalWeb extends WebPlugin {
     console.warn('rebootReader is only available on iOS and Android.')
   }
   async getReaderSettings(): Promise<ReaderSettings> {
-    throw new Error('getReaderSettings is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    return serializeReaderSettings(this.unwrap(await sdk.getReaderSettings()))
   }
   async setReaderSettings(
-    _options: ReaderSettingsParameters,
+    options: ReaderSettingsParameters,
   ): Promise<ReaderSettings> {
-    throw new Error('setReaderSettings is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    const result = await sdk.setReaderSettings({
+      accessibility_parameters: {
+        enableTextToSpeechSpeakers: options.textToSpeechViaSpeakers,
+      },
+    })
+
+    return serializeReaderSettings(this.unwrap(result))
   }
   async collectData(
     _options: CollectDataConfig,
@@ -568,52 +745,164 @@ export class StripeTerminalWeb extends WebPlugin {
   ): Promise<{ intent: SetupIntent | null }> {
     throw new Error('createSetupIntent is only available on iOS and Android.')
   }
-  async retrieveSetupIntent(_options: {
+  async retrieveSetupIntent(options: {
     clientSecret: string
   }): Promise<{ intent: SetupIntent | null }> {
-    throw new Error('retrieveSetupIntent is only available on iOS and Android.')
+    this.currentSetupIntentClientSecret = options.clientSecret
+    this.currentSetupIntent = null
+
+    // make sure fetch is supported
+    const isFetchSupported = 'fetch' in window
+    if (!isFetchSupported) {
+      return {
+        intent: null,
+      }
+    }
+
+    const setupIntentId = options.clientSecret.split('_secret')[0]
+
+    const stripeUrl = new URL(
+      `/v1/setup_intents/${setupIntentId}`,
+      this.STRIPE_API_BASE,
+    )
+    stripeUrl.searchParams.append('client_secret', options.clientSecret)
+
+    const response = await fetch(stripeUrl.href, {
+      headers: {
+        Authorization: `Bearer ${this.currentConnectionToken}`,
+      },
+    })
+
+    const json = await response.json()
+
+    if (!response.ok) {
+      throw new Error(json?.error?.message ?? json)
+    }
+
+    return { intent: serializeSetupIntent(json) }
   }
   async collectSetupIntentPaymentMethod(
-    _params?: CollectSetupIntentPaymentMethodParams,
+    params?: CollectSetupIntentPaymentMethodParams,
   ): Promise<{ intent: SetupIntent | null }> {
-    throw new Error(
-      'collectSetupIntentPaymentMethod is only available on iOS and Android.',
+    const sdk = this.ensureInitialized()
+
+    if (!this.currentSetupIntentClientSecret) {
+      throw new Error(
+        'No `clientSecret` was found. Make sure to run `retrieveSetupIntent` before running this method.',
+      )
+    }
+    if (params?.collectionReason === 'verify') {
+      throw new Error(
+        "collectionReason: 'verify' is only supported on iOS and Android.",
+      )
+    }
+
+    const result = this.unwrap(
+      await sdk.collectSetupIntentPaymentMethod(
+        this.currentSetupIntentClientSecret,
+        (params?.allowRedisplay ?? 'unspecified') as NonNullable<
+          ICollectConfig['allow_redisplay']
+        >,
+        {
+          enable_customer_cancellation:
+            params?.customerCancellation === 'enableIfAvailable'
+              ? true
+              : params?.customerCancellation === 'disableIfAvailable'
+                ? false
+                : undefined,
+        },
+      ),
     )
+
+    this.currentSetupIntent = result.setupIntent
+
+    return { intent: serializeSetupIntent(result.setupIntent) }
   }
   async cancelCollectSetupIntentPaymentMethod(): Promise<void> {
-    // no equivalent
-    console.warn(
-      'cancelCollectSetupIntentPaymentMethod is only available on iOS and Android.',
-    )
+    const sdk = this.ensureInitialized()
+
+    this.unwrap(await sdk.cancelCollectSetupIntentPaymentMethod())
   }
   async confirmSetupIntent(): Promise<{ intent: SetupIntent | null }> {
-    throw new Error('confirmSetupIntent is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    if (!this.currentSetupIntent) {
+      throw new Error(
+        'No `setupIntent` was found. Make sure to run `collectSetupIntentPaymentMethod` before running this method.',
+      )
+    }
+
+    const result = this.unwrap(
+      await sdk.confirmSetupIntent(this.currentSetupIntent),
+    )
+
+    this.currentSetupIntent = result.setupIntent
+
+    return { intent: serializeSetupIntent(result.setupIntent) }
   }
   async cancelSetupIntent(): Promise<{ intent: SetupIntent | null }> {
     throw new Error('cancelSetupIntent is only available on iOS and Android.')
   }
-  async collectRefundPaymentMethod(_params: RefundParams): Promise<void> {
-    throw new Error(
-      'collectRefundPaymentMethod is only available on iOS and Android.',
+  async processRefund(
+    params: RefundParams,
+  ): Promise<{ refund: Refund | null }> {
+    const sdk = this.ensureInitialized()
+
+    if (!('chargeId' in params)) {
+      throw new Error(
+        'Refunding by paymentIntentId is only supported on iOS and Android. Pass chargeId instead.',
+      )
+    }
+    // The JS SDK has no refund options for customer cancellation or metadata.
+    if (params.customerCancellation === 'disableIfAvailable') {
+      throw new Error(
+        "customerCancellation: 'disableIfAvailable' is only supported on iOS and Android.",
+      )
+    }
+    if (params.metadata) {
+      throw new Error('Refund metadata is only supported on iOS and Android.')
+    }
+
+    // The JS SDK still exposes the collect + process steps separately.
+    this.unwrap(
+      await sdk.collectRefundPaymentMethod(
+        params.chargeId,
+        params.amount,
+        params.currency,
+        {
+          refund_application_fee: params.refundApplicationFee,
+          reverse_transfer: params.reverseTransfer,
+        },
+      ),
     )
+
+    const result = this.unwrap(await sdk.processRefund())
+
+    return { refund: serializeRefund(result.refund) }
   }
-  async cancelCollectRefundPaymentMethod(): Promise<void> {
-    // no equivalent
-    console.warn(
-      'cancelCollectRefundPaymentMethod is only available on iOS and Android.',
-    )
-  }
-  async confirmRefund(): Promise<{ refund: Refund | null }> {
-    throw new Error('confirmRefund is only available on iOS and Android.')
+  async cancelProcessRefund(): Promise<void> {
+    const sdk = this.ensureInitialized()
+
+    this.unwrap(await sdk.cancelCollectRefundPaymentMethod())
   }
   async collectInputs(
-    _params: ICollectInputsParameters,
+    params: ICollectInputsParameters,
   ): Promise<{ collectInputResults: ICollectInputsResult[] }> {
-    throw new Error('collectInputs is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    // The plugin's input and result shapes match the JS SDK's field for field.
+    const results = this.unwrap(
+      await sdk.collectInputs(params as unknown as SdkCollectInputsParameters),
+    )
+
+    return {
+      collectInputResults: results as unknown as ICollectInputsResult[],
+    }
   }
   async cancelCollectInputs(): Promise<void> {
-    // no equivalent
-    console.warn('cancelCollectInputs is only available on iOS and Android.')
+    const sdk = this.ensureInitialized()
+
+    this.unwrap(await sdk.cancelCollectInputs())
   }
   async getConnectedReader(): Promise<{ reader: Reader | null }> {
     const sdk = this.ensureInitialized()
@@ -652,6 +941,8 @@ export class StripeTerminalWeb extends WebPlugin {
     const sdk = this.ensureInitialized()
 
     await sdk.disconnectReader()
+
+    this.notifyListeners('didDisconnect', { reason: 'disconnectRequested' })
   }
 
   async installAvailableUpdate(): Promise<void> {
@@ -705,7 +996,6 @@ export class StripeTerminalWeb extends WebPlugin {
     return {
       intent: {
         id: paymentIntent.id,
-        stripeId: paymentIntent.id,
         created: paymentIntent.created,
         status: paymentIntentStatus[paymentIntent.status],
         amount: paymentIntent.amount,
@@ -761,7 +1051,6 @@ export class StripeTerminalWeb extends WebPlugin {
       return {
         intent: {
           id: this.currentPaymentIntent.id,
-          stripeId: this.currentPaymentIntent.id,
           created: this.currentPaymentIntent.created,
           status: paymentIntentStatus[this.currentPaymentIntent.status],
           amount: this.currentPaymentIntent.amount,
@@ -804,7 +1093,6 @@ export class StripeTerminalWeb extends WebPlugin {
       return {
         intent: {
           id: res.paymentIntent.id,
-          stripeId: res.paymentIntent.id,
           created: res.paymentIntent.created,
           status: paymentIntentStatus[res.paymentIntent.status],
           amount: res.paymentIntent.amount,
@@ -826,6 +1114,60 @@ export class StripeTerminalWeb extends WebPlugin {
     const sdk = this.ensureInitialized()
 
     await sdk.clearCachedCredentials()
+  }
+
+  private nativeOnly(method: string): never {
+    throw new Error(`${method} is only available on iOS and Android.`)
+  }
+
+  async getOfflineStatus(): Promise<OfflineStatus> {
+    return this.nativeOnly('getOfflineStatus')
+  }
+
+  async print(options: { content: PrintContent }): Promise<void> {
+    const sdk = this.ensureInitialized()
+
+    let src = options.content
+    if (!src.startsWith('data:')) {
+      // Raw base64: detect the format from its magic bytes (PNG vs JPEG).
+      const mime = src.startsWith('/9j/') ? 'image/jpeg' : 'image/png'
+      src = `data:${mime};base64,${src}`
+    }
+
+    const image = new Image()
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () =>
+        reject(new Error('The print content is not a valid image.'))
+      image.src = src
+    })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = image.naturalWidth
+    canvas.height = image.naturalHeight
+    canvas.getContext('2d')?.drawImage(image, 0, 0)
+
+    this.unwrap(await sdk.print(canvas))
+  }
+
+  async selectPaymentOption(_options: {
+    paymentOptionType: string
+  }): Promise<void> {
+    return this.nativeOnly('selectPaymentOption')
+  }
+
+  async failPaymentMethodSelection(_options: {
+    errorMessage?: string
+  }): Promise<void> {
+    return this.nativeOnly('failPaymentMethodSelection')
+  }
+
+  async confirmQrCodeDisplayed(): Promise<void> {
+    return this.nativeOnly('confirmQrCodeDisplayed')
+  }
+
+  async failQrCodeDisplay(_options: { errorMessage?: string }): Promise<void> {
+    return this.nativeOnly('failQrCodeDisplay')
   }
 
   async setReaderDisplay(cart: Cart): Promise<void> {
@@ -889,7 +1231,6 @@ export class StripeTerminalWeb extends WebPlugin {
 
     const locations: Location[] = json.data.map((l: any): Location => ({
       id: l.id,
-      stripeId: l.id,
       displayName: l.display_name,
       livemode: l.livemode,
       address: {
@@ -952,9 +1293,9 @@ export class StripeTerminalWeb extends WebPlugin {
   }
 
   async supportsReadersOfType(_options: {
-    deviceType: number
-    discoveryMethod: number
-    simulated: boolean
+    deviceType: DeviceType
+    discoveryMethod: DiscoveryMethod
+    simulated?: boolean
   }): Promise<{ isSupported: boolean }> {
     // not supported on web
     return { isSupported: false }

@@ -1,0 +1,159 @@
+{
+  "title": "Capacitor Stripe Terminal",
+  "url": "https://eventonehq.github.io/capacitor-stripe-terminal/",
+  "src": "docs",
+  "out": "site",
+  "engine": "js",
+  "layout": {
+    "spa": true,
+    "header": {
+      "enabled": true
+    },
+    "sidebar": {
+      "collapsible": true,
+      "defaultCollapsed": false
+    },
+    "optionsMenu": {
+      "position": "sidebar-top",
+      "components": {
+        "search": true,
+        "themeSwitch": true
+      }
+    },
+    "footer": {
+      "style": "minimal",
+      "content": "Unofficial Capacitor plugin for Stripe Terminal. Built by [eventOne](https://event1.io/?utm_medium=opensource&utm_source=capacitor-stripe-terminal). MIT licensed.",
+      "branding": false
+    }
+  },
+  "theme": {
+    "name": "default",
+    "appearance": "system",
+    "codeHighlight": true
+  },
+  "minify": true,
+  "autoTitleFromH1": true,
+  "copyCode": true,
+  "pageNavigation": true,
+  "navigation": [
+    {
+      "title": "Overview",
+      "path": "/",
+      "icon": "house"
+    },
+    {
+      "title": "Getting started",
+      "icon": "rocket",
+      "collapsible": false,
+      "children": [
+        {
+          "title": "Installation",
+          "path": "/getting-started/installation",
+          "icon": "download"
+        },
+        {
+          "title": "Quickstart",
+          "path": "/getting-started/quickstart",
+          "icon": "zap"
+        },
+        {
+          "title": "Example app",
+          "path": "/getting-started/example-app",
+          "icon": "app-window"
+        }
+      ]
+    },
+    {
+      "title": "Guides",
+      "icon": "book-open",
+      "collapsible": false,
+      "children": [
+        {
+          "title": "Differences from Stripe's SDKs",
+          "path": "/guides/differences-from-stripe",
+          "icon": "arrow-left-right"
+        },
+        {
+          "title": "Readers and discovery",
+          "path": "/guides/readers",
+          "icon": "radio"
+        },
+        {
+          "title": "Events and listeners",
+          "path": "/guides/events",
+          "icon": "bell"
+        },
+        {
+          "title": "Payments",
+          "path": "/guides/payments",
+          "icon": "credit-card"
+        },
+        {
+          "title": "Data and errors",
+          "path": "/guides/data-and-errors",
+          "icon": "triangle-alert"
+        },
+        {
+          "title": "Apps on Devices",
+          "path": "/guides/apps-on-devices",
+          "icon": "smartphone"
+        },
+        {
+          "title": "Platform support",
+          "path": "/guides/platform-support",
+          "icon": "layout-grid"
+        }
+      ]
+    },
+    {
+      "title": "Migration",
+      "icon": "git-branch",
+      "collapsible": false,
+      "children": [
+        {
+          "title": "Overview",
+          "path": "/migration/",
+          "icon": "map"
+        },
+        {
+          "title": "v5 to v6",
+          "path": "/migration/v6",
+          "icon": "arrow-up"
+        },
+        {
+          "title": "v3 to v5",
+          "path": "/migration/v5",
+          "icon": "arrow-up"
+        }
+      ]
+    },
+    {
+      "title": "API reference",
+      "path": "/api-reference",
+      "icon": "code"
+    },
+    {
+      "title": "GitHub",
+      "path": "https://github.com/eventOneHQ/capacitor-stripe-terminal",
+      "icon": "github",
+      "external": true
+    },
+    {
+      "title": "Stripe Terminal docs",
+      "path": "https://docs.stripe.com/terminal",
+      "icon": "external-link",
+      "external": true
+    }
+  ],
+  "plugins": {
+    "ai": {
+      "assistant": false
+    },
+    "git": {
+      "commitHistory": false
+    },
+    "seo": {
+      "defaultDescription": "Unofficial Capacitor plugin for Stripe Terminal: what's different from Stripe's SDKs, plus migration guides."
+    }
+  }
+}

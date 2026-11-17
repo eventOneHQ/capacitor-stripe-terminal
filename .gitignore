@@ -2,6 +2,9 @@
 dist/
 node_modules/
 
+# docs site output
+site/
+
 # iOS files
 Pods
 Build

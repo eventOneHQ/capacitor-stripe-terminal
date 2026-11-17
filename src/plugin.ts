@@ -10,12 +10,15 @@ import {
   BluetoothConnectionConfiguration,
   UsbConnectionConfiguration,
   AppsOnDevicesConnectionConfiguration,
+  OpenDeviceSettingsOptions,
   TapToPayConnectionConfiguration,
   Reader,
   ConnectionStatus,
   PaymentStatus,
   ReaderDisplayMessage,
   ReaderInputOptions,
+  DisconnectReason,
+  ReaderEvent,
   PaymentIntent,
   Cart,
   ListLocationsParameters,
@@ -40,6 +43,10 @@ import {
   PermissionStatus,
   ReaderSoftwareUpdate,
   CollectConfig,
+  OfflineStatus,
+  PrintContent,
+  PaymentOption,
+  QrCodeDisplayData,
 } from './definitions'
 
 import { StripeTerminal } from './plugin-registration'
@@ -64,18 +71,21 @@ export class StripeTerminalPlugin {
 
   private _fetchConnectionToken: () => Promise<string> = () =>
     Promise.reject('You must initialize StripeTerminalPlugin first.')
-  private _onUnexpectedReaderDisconnect: () => void = () => {
-    // reset the sdk type
-    this.selectedSdkType = 'native'
+  private _onUnexpectedReaderDisconnect: (reason?: DisconnectReason) => void =
+    () => {
+      // reset the sdk type
+      this.selectedSdkType = 'native'
 
-    return Promise.reject('You must initialize StripeTerminalPlugin first.')
-  }
+      return Promise.reject('You must initialize StripeTerminalPlugin first.')
+    }
 
   private isDiscovering = false
   private isCollectingPaymentMethod = false
   private listeners: { [key: string]: PluginListenerHandle } = {}
 
   private _logLevel?: LogLevel
+
+  private _locale?: string
 
   private simulatedCardType: SimulatedCardType | null = null
 
@@ -116,6 +126,7 @@ export class StripeTerminalPlugin {
     this._fetchConnectionToken = options.fetchConnectionToken
     this._onUnexpectedReaderDisconnect = options.onUnexpectedReaderDisconnect
     this._logLevel = options.logLevel
+    this._locale = options.locale
   }
 
   private isNative(): boolean {
@@ -163,8 +174,8 @@ export class StripeTerminalPlugin {
     this.listeners['unexpectedReaderDisconnectListenerNative'] =
       await StripeTerminal.addListener(
         'didReportUnexpectedReaderDisconnect',
-        () => {
-          this._onUnexpectedReaderDisconnect()
+        (data) => {
+          this._onUnexpectedReaderDisconnect(data?.reason)
         },
       )
 
@@ -177,39 +188,21 @@ export class StripeTerminalPlugin {
       this.listeners['unexpectedReaderDisconnectListenerJs'] =
         await this.stripeTerminalWeb.addListener(
           'didReportUnexpectedReaderDisconnect',
-          () => {
-            this._onUnexpectedReaderDisconnect()
+          (data: { reason?: DisconnectReason }) => {
+            this._onUnexpectedReaderDisconnect(data?.reason)
           },
         )
     }
 
     await Promise.all([
-      StripeTerminal.initialize({ logLevel: this._logLevel }),
+      StripeTerminal.initialize({
+        logLevel: this._logLevel,
+        locale: this._locale,
+      }),
       this.stripeTerminalWeb?.initialize(),
     ])
 
     this.isInitialized = true
-  }
-
-  private translateAndroidReaderInput(data: {
-    value: string
-    isAndroid?: boolean
-  }): ReaderInputOptions {
-    if (data.isAndroid) {
-      const map: Record<string, ReaderInputOptions> = {
-        Swipe: ReaderInputOptions.SwipeCard,
-        Tap: ReaderInputOptions.TapCard,
-        Insert: ReaderInputOptions.InsertCard,
-      }
-      return data.value
-        .split('/')
-        .reduce(
-          (acc, s) => acc | (map[s.trim()] ?? ReaderInputOptions.None),
-          ReaderInputOptions.None,
-        )
-    }
-
-    return parseFloat(data.value) as ReaderInputOptions
   }
 
   private async _addListener<T>(
@@ -223,7 +216,14 @@ export class StripeTerminalPlugin {
       | 'didUpdateBatteryLevel'
       | 'didStartReaderReconnect'
       | 'didSucceedReaderReconnect'
-      | 'didFailReaderReconnect',
+      | 'didFailReaderReconnect'
+      | 'didDisconnect'
+      | 'didReportReaderEvent'
+      | 'didReportLowBatteryWarning'
+      | 'didAcceptTermsOfService'
+      | 'didChangeOfflineStatus'
+      | 'didForwardPaymentIntent'
+      | 'didReportForwardingError',
     callback: (data: T) => void,
     transformFunc?: (data: any) => T,
   ): Promise<PluginListenerHandle> {
@@ -378,7 +378,7 @@ export class StripeTerminalPlugin {
     // reset the sdk type
     this.selectedSdkType = 'native'
 
-    if (options.discoveryMethod === DiscoveryMethod.Internet) {
+    if (options.discoveryMethod === 'internet') {
       this.selectedSdkType = 'js'
     }
 
@@ -400,12 +400,12 @@ export class StripeTerminalPlugin {
     const nativeOptions: DiscoveryConfiguration = {
       ...options,
       discoveryMethod:
-        options.discoveryMethod === DiscoveryMethod.Both
-          ? DiscoveryMethod.BluetoothScan
+        options.discoveryMethod === 'both'
+          ? 'bluetoothScan'
           : options.discoveryMethod,
     }
 
-    if (nativeOptions.discoveryMethod !== DiscoveryMethod.Internet) {
+    if (nativeOptions.discoveryMethod !== 'internet') {
       // remove locationId if the native discovery method is not internet
       nativeOptions.locationId = undefined
     }
@@ -423,10 +423,7 @@ export class StripeTerminalPlugin {
       })
 
     // if using the both method, search with the js sdk as well
-    if (
-      options.discoveryMethod === DiscoveryMethod.Both &&
-      this.stripeTerminalWeb
-    ) {
+    if (options.discoveryMethod === 'both' && this.stripeTerminalWeb) {
       this.listeners['readersDiscoveredJs'] =
         await this.stripeTerminalWeb.addListener(
           'readersDiscovered',
@@ -441,7 +438,7 @@ export class StripeTerminalPlugin {
 
       const jsOptions: DiscoveryConfiguration = {
         ...options,
-        discoveryMethod: DiscoveryMethod.Internet, // discovery method is always going to be internet for the js sdk, although, it really doesn't matter because it will be ignored anyway
+        discoveryMethod: 'internet', // discovery method is always going to be internet for the js sdk, although, it really doesn't matter because it will be ignored anyway
       }
 
       // TODO: figure out what to do with errors and completion on this method. maybe just ignore them?
@@ -510,7 +507,7 @@ export class StripeTerminalPlugin {
    */
   public async connectAppsOnDevicesReader(
     reader: Reader,
-    _config?: AppsOnDevicesConnectionConfiguration,
+    config?: AppsOnDevicesConnectionConfiguration,
   ): Promise<Reader | null> {
     this.ensureInitialized()
 
@@ -519,6 +516,7 @@ export class StripeTerminalPlugin {
 
     const data = await this.sdk.connectAppsOnDevicesReader({
       serialNumber: reader.serialNumber,
+      appTransitionAnimation: config?.appTransitionAnimation,
     })
 
     return this.objectExists(data?.reader)
@@ -563,7 +561,7 @@ export class StripeTerminalPlugin {
     const data = await this.sdk.connectInternetReader({
       serialNumber: reader.serialNumber,
       ipAddress: reader.ipAddress ?? undefined,
-      id: reader.id ?? reader.stripeId ?? undefined,
+      id: reader.id ?? undefined,
       ...config,
     })
 
@@ -598,6 +596,18 @@ export class StripeTerminalPlugin {
     this.ensureInitialized()
 
     return await this.sdk.disconnectReader()
+  }
+
+  /**
+   * Opens a screen of the Stripe Reader's device settings (Apps on Devices only).
+   *
+   * Most screens require the device admin PIN. `appearance`, `language` and
+   * `bugReport` can skip it with `bypassAdminPasscode`.
+   */
+  public async openDeviceSettings(
+    options: OpenDeviceSettingsOptions = {},
+  ): Promise<void> {
+    return await this.sdk.openDeviceSettings(options)
   }
 
   /**
@@ -708,10 +718,12 @@ export class StripeTerminalPlugin {
   }
 
   public async didRequestReaderInput(
-    callback: (options: ReaderInputOptions) => void,
+    callback: (options: ReaderInputOptions[]) => void,
   ): Promise<PluginListenerHandle> {
-    return this._addListener('didRequestReaderInput', callback, (data: any) =>
-      this.translateAndroidReaderInput(data),
+    return this._addListener(
+      'didRequestReaderInput',
+      callback,
+      (data: { result?: ReaderInputOptions[] }) => data?.result ?? [],
     )
   }
 
@@ -721,7 +733,7 @@ export class StripeTerminalPlugin {
     return this._addListener(
       'didRequestReaderDisplayMessage',
       callback,
-      (data: any) => parseFloat(data.value),
+      (data: { result: ReaderDisplayMessage }) => data?.result,
     )
   }
 
@@ -734,6 +746,188 @@ export class StripeTerminalPlugin {
     callback: (batteryLevel: BatteryLevel) => void,
   ): Promise<PluginListenerHandle> {
     return this._addListener('didUpdateBatteryLevel', callback)
+  }
+
+  /**
+   * The reader's battery is low.
+   *
+   * Bluetooth and USB readers only.
+   */
+  public async didReportLowBatteryWarning(
+    callback: () => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener('didReportLowBatteryWarning', () => callback())
+  }
+
+  /**
+   * A card was inserted into or removed from the reader.
+   *
+   * Bluetooth and USB readers only.
+   */
+  public async didReportReaderEvent(
+    callback: (event: ReaderEvent) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didReportReaderEvent',
+      callback,
+      (data: { result: ReaderEvent }) => data?.result,
+    )
+  }
+
+  /**
+   * The connected reader disconnected, for any reason, including disconnects your app requested.
+   */
+  public async didDisconnect(
+    callback: (reason: DisconnectReason) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didDisconnect',
+      callback,
+      (data: { reason?: DisconnectReason }) => data?.reason ?? 'unknown',
+    )
+  }
+
+  /**
+   * The merchant accepted the Tap to Pay terms of service during connection.
+   *
+   * iOS only.
+   */
+  public async didAcceptTermsOfService(
+    callback: () => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener('didAcceptTermsOfService', () => callback())
+  }
+
+  /**
+   * Returns the offline status of this device and of the connected smart reader.
+   *
+   * iOS and Android only.
+   *
+   * @see https://stripe.com/docs/terminal/features/operate-offline/overview
+   */
+  public async getOfflineStatus(): Promise<OfflineStatus> {
+    this.ensureInitialized()
+
+    return await StripeTerminal.getOfflineStatus()
+  }
+
+  /**
+   * The offline status of this device or the connected smart reader changed.
+   *
+   * iOS and Android only.
+   */
+  public async didChangeOfflineStatus(
+    callback: (status: OfflineStatus) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didChangeOfflineStatus',
+      callback,
+      (data: { result: OfflineStatus }) => data?.result,
+    )
+  }
+
+  /**
+   * A PaymentIntent stored while offline was forwarded to Stripe. `error` is set if forwarding failed.
+   *
+   * iOS and Android only.
+   */
+  public async didForwardPaymentIntent(
+    callback: (paymentIntent: PaymentIntent, error?: string) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didForwardPaymentIntent',
+      (data: { result: PaymentIntent; error?: string }) =>
+        callback(data.result, data.error),
+    )
+  }
+
+  /**
+   * Forwarding offline payments failed for a reason not tied to a single PaymentIntent, such as failing to fetch a connection token.
+   *
+   * iOS and Android only.
+   */
+  public async didReportForwardingError(
+    callback: (error: string) => void,
+  ): Promise<PluginListenerHandle> {
+    return this._addListener(
+      'didReportForwardingError',
+      callback,
+      (data: { error: string }) => data?.error,
+    )
+  }
+
+  /**
+   * Prints an image on the connected reader's printer, if it has one.
+   *
+   * @param content A base64-encoded JPEG or PNG, or a `data:` URI.
+   */
+  public async print(content: PrintContent): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.print({ content })
+  }
+
+  /**
+   * Called when a mobile reader supports more than one payment option (for example card or a QR code payment) and the customer needs to choose.
+   *
+   * Call `selectPaymentOption` with `'card'` or the chosen option's `paymentMethodType`, or `failPaymentMethodSelection` to abort. If no handler is registered, card is selected automatically.
+   *
+   * Bluetooth and USB readers, and Tap to Pay on iOS.
+   */
+  public async onPaymentMethodSelectionRequired(
+    handler: (
+      paymentIntent: PaymentIntent,
+      availablePaymentOptions: PaymentOption[],
+      callback: {
+        selectPaymentOption: (paymentOptionType: string) => Promise<void>
+        failPaymentMethodSelection: (errorMessage?: string) => Promise<void>
+      },
+    ) => void,
+  ): Promise<PluginListenerHandle> {
+    this.ensureInitialized()
+
+    return await StripeTerminal.addListener(
+      'onPaymentMethodSelectionRequired',
+      (data) => {
+        handler(data.paymentIntent, data.availablePaymentOptions, {
+          selectPaymentOption: (paymentOptionType) =>
+            StripeTerminal.selectPaymentOption({ paymentOptionType }),
+          failPaymentMethodSelection: (errorMessage) =>
+            StripeTerminal.failPaymentMethodSelection({ errorMessage }),
+        })
+      },
+    )
+  }
+
+  /**
+   * Called when the customer chose a QR code payment and your app must display the QR code.
+   *
+   * Call `confirmQrCodeDisplayed` once it is shown, or `failQrCodeDisplay` if it can't be. If no handler is registered, QR code payments fail.
+   *
+   * Bluetooth and USB readers, and Tap to Pay on iOS.
+   */
+  public async onQrCodeDisplayRequired(
+    handler: (
+      paymentIntent: PaymentIntent,
+      qrData: QrCodeDisplayData,
+      callback: {
+        confirmQrCodeDisplayed: () => Promise<void>
+        failQrCodeDisplay: (errorMessage?: string) => Promise<void>
+      },
+    ) => void,
+  ): Promise<PluginListenerHandle> {
+    this.ensureInitialized()
+
+    return await StripeTerminal.addListener(
+      'onQrCodeDisplayRequired',
+      (data) => {
+        handler(data.paymentIntent, data.qrData, {
+          confirmQrCodeDisplayed: () => StripeTerminal.confirmQrCodeDisplayed(),
+          failQrCodeDisplay: (errorMessage) =>
+            StripeTerminal.failQrCodeDisplay({ errorMessage }),
+        })
+      },
+    )
   }
 
   public async didReportAvailableUpdate(
@@ -894,36 +1088,28 @@ export class StripeTerminalPlugin {
   }
 
   /**
-   * Collects a payment method for an in-person refund.
+   * Collects a payment method and processes an in-person refund in a single step.
    *
-   * Follow this with `confirmRefund` to complete the refund. Interac refunds must be processed in person.
+   * Replaces the removed `collectRefundPaymentMethod` / `confirmRefund` two-step flow (Stripe Terminal SDK 6.0).
+   * Interac refunds must be processed in person.
    *
    * @see https://stripe.com/docs/terminal/features/refunds
    */
-  public async collectRefundPaymentMethod(params: RefundParams): Promise<void> {
+  public async processRefund(params: RefundParams): Promise<Refund | null> {
     this.ensureInitialized()
 
-    return await this.sdk.collectRefundPaymentMethod(params)
-  }
-
-  /**
-   * Cancels an in-progress `collectRefundPaymentMethod`.
-   */
-  public async cancelCollectRefundPaymentMethod(): Promise<void> {
-    this.ensureInitialized()
-
-    return await this.sdk.cancelCollectRefundPaymentMethod()
-  }
-
-  /**
-   * Confirms the refund for the payment method collected by `collectRefundPaymentMethod`.
-   */
-  public async confirmRefund(): Promise<Refund | null> {
-    this.ensureInitialized()
-
-    const data = await this.sdk.confirmRefund()
+    const data = await this.sdk.processRefund(params)
 
     return this.objectExists(data?.refund)
+  }
+
+  /**
+   * Cancels an in-progress `processRefund`.
+   */
+  public async cancelProcessRefund(): Promise<void> {
+    this.ensureInitialized()
+
+    return await this.sdk.cancelProcessRefund()
   }
 
   /**
@@ -1041,26 +1227,14 @@ export class StripeTerminalPlugin {
     return data
   }
 
-  private simulatedCardTypeStringToEnum(cardType: any): SimulatedCardType {
-    // the simulated card type comes back as a string of the enum name so that needs to be converted back to an enum
-    const enumSimulatedCard: any = SimulatedCardType[cardType]
-
-    return enumSimulatedCard as SimulatedCardType
-  }
-
   public async getSimulatorConfiguration() {
     this.ensureInitialized()
     const config = await this.sdk.getSimulatorConfiguration()
 
-    if (config?.simulatedCard !== null && config?.simulatedCard !== undefined) {
-      // the simulated card type comes back as a string of the enum name so that needs to be converted back to an enum
-      config.simulatedCard = this.simulatedCardTypeStringToEnum(
-        config.simulatedCard,
-      )
-
+    if (config?.simulatedCard) {
       this.simulatedCardType = config.simulatedCard
     } else if (this.simulatedCardType) {
-      // use the stored simulated card type if it doesn't exist, probably because we are on android where you can't get it
+      // the native SDKs can't report the simulated card, so use the last one that was set
       config.simulatedCard = this.simulatedCardType
     }
 
@@ -1073,20 +1247,11 @@ export class StripeTerminalPlugin {
     const newConfig = await this.sdk.setSimulatorConfiguration(config)
 
     if (config?.simulatedCard) {
-      // store the simulated card type because we can't get it from android
       this.simulatedCardType = config.simulatedCard
     }
 
-    if (
-      newConfig?.simulatedCard !== null &&
-      newConfig?.simulatedCard !== undefined
-    ) {
-      // the simulated card type comes back as a string of the enum name so that needs to be converted back to an enum
-      newConfig.simulatedCard = this.simulatedCardTypeStringToEnum(
-        newConfig.simulatedCard,
-      )
-    } else if (this.objectExists(newConfig)) {
-      newConfig.simulatedCard = config.simulatedCard
+    if (!newConfig?.simulatedCard && this.objectExists(newConfig)) {
+      newConfig.simulatedCard = this.simulatedCardType ?? undefined
     }
 
     return this.objectExists(newConfig)
@@ -1155,18 +1320,18 @@ export class StripeTerminalPlugin {
   ): Promise<boolean> {
     this.ensureInitialized()
 
-    if (discoveryMethod === DiscoveryMethod.Both) {
+    if (discoveryMethod === 'both') {
       // Both is a plugin-level concept combining BluetoothScan + Internet.
       // Check each underlying method and return true if either is supported.
       const [bluetoothResult, internetResult] = await Promise.all([
         StripeTerminal.supportsReadersOfType({
           deviceType,
-          discoveryMethod: DiscoveryMethod.BluetoothScan,
+          discoveryMethod: 'bluetoothScan',
           simulated,
         }),
         StripeTerminal.supportsReadersOfType({
           deviceType,
-          discoveryMethod: DiscoveryMethod.Internet,
+          discoveryMethod: 'internet',
           simulated,
         }),
       ])
@@ -1189,26 +1354,18 @@ export class StripeTerminalPlugin {
   }
 
   public static getDeviceStyleFromDeviceType(type: DeviceType): DeviceStyle {
-    if (
-      type === DeviceType.Chipper2X ||
-      type === DeviceType.StripeM2 ||
-      type === DeviceType.WisePad3
-    ) {
-      return DeviceStyle.Bluetooth
-    } else if (type === DeviceType.TapToPay) {
-      return DeviceStyle.Local
-    } else if (
-      type === DeviceType.WisePosE ||
-      type === DeviceType.WisePosEDevKit ||
-      type === DeviceType.StripeS700 ||
-      type === DeviceType.StripeS700DevKit ||
-      type === DeviceType.StripeS710 ||
-      type === DeviceType.StripeS710DevKit
-    ) {
-      return DeviceStyle.Internet
+    switch (type) {
+      case 'chipper1X':
+      case 'chipper2X':
+      case 'stripeM2':
+      case 'wisePad3':
+      case 'wisePad3s':
+        return 'bluetooth'
+      case 'tapToPay':
+        return 'local'
+      default:
+        return 'internet'
     }
-
-    return DeviceStyle.Internet
   }
 
   public static async checkPermissions(): Promise<PermissionStatus> {
@@ -1217,14 +1374,5 @@ export class StripeTerminalPlugin {
 
   public static async requestPermissions(): Promise<PermissionStatus> {
     return await StripeTerminal.requestPermissions()
-  }
-
-  /**
-   * This should not be used directly. It will not behave correctly when using `Internet` and `Both` discovery methods
-   *
-   * @deprecated This should not be used directly. It will not behave correctly when using `Internet` and `Both` discovery methods
-   */
-  public async addListener(eventName: string, listenerFunc: Function) {
-    return await this.sdk.addListener(eventName, listenerFunc)
   }
 }

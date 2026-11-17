@@ -8,7 +8,6 @@ import com.stripe.stripeterminal.external.models.AllowRedisplay;
 import com.stripe.stripeterminal.external.models.AmountDetails;
 import com.stripe.stripeterminal.external.models.BatteryStatus;
 import com.stripe.stripeterminal.external.models.CardDetails;
-import com.stripe.stripeterminal.external.models.CardPresentDetails;
 import com.stripe.stripeterminal.external.models.Charge;
 import com.stripe.stripeterminal.external.models.CollectDataType;
 import com.stripe.stripeterminal.external.models.CollectInputsParameters;
@@ -18,24 +17,36 @@ import com.stripe.stripeterminal.external.models.CollectedData;
 import com.stripe.stripeterminal.external.models.ConnectionStatus;
 import com.stripe.stripeterminal.external.models.CustomerCancellation;
 import com.stripe.stripeterminal.external.models.DeviceType;
+import com.stripe.stripeterminal.external.models.DisconnectReason;
+import com.stripe.stripeterminal.external.models.AppTransitionAnimation;
+import com.stripe.stripeterminal.external.models.AppTransitionPreset;
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration;
 import com.stripe.stripeterminal.external.models.EmailInput;
 import com.stripe.stripeterminal.external.models.EmailResult;
 import com.stripe.stripeterminal.external.models.Input;
 import com.stripe.stripeterminal.external.models.Location;
+import com.stripe.stripeterminal.external.models.LocationStatus;
+import com.stripe.stripeterminal.external.models.NetworkStatus;
 import com.stripe.stripeterminal.external.models.NumericInput;
 import com.stripe.stripeterminal.external.models.NumericResult;
+import com.stripe.stripeterminal.external.models.OfflineBehavior;
+import com.stripe.stripeterminal.external.models.OfflineDetails;
+import com.stripe.stripeterminal.external.models.OfflineStatus;
+import com.stripe.stripeterminal.external.models.OfflineStatusDetails;
 import com.stripe.stripeterminal.external.models.PaymentIntent;
 import com.stripe.stripeterminal.external.models.PaymentIntentStatus;
 import com.stripe.stripeterminal.external.models.PaymentMethod;
 import com.stripe.stripeterminal.external.models.PaymentMethodDetails;
 import com.stripe.stripeterminal.external.models.PaymentMethodType;
+import com.stripe.stripeterminal.external.models.PaymentOption;
 import com.stripe.stripeterminal.external.models.PaymentStatus;
 import com.stripe.stripeterminal.external.models.PhoneInput;
 import com.stripe.stripeterminal.external.models.PhoneResult;
+import com.stripe.stripeterminal.external.models.QrCodeDisplayData;
 import com.stripe.stripeterminal.external.models.Reader;
 import com.stripe.stripeterminal.external.models.ReaderAccessibility;
 import com.stripe.stripeterminal.external.models.ReaderDisplayMessage;
+import com.stripe.stripeterminal.external.models.ReaderEvent;
 import com.stripe.stripeterminal.external.models.ReaderInputOptions;
 import com.stripe.stripeterminal.external.models.ReaderSettings;
 import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate;
@@ -48,12 +59,15 @@ import com.stripe.stripeterminal.external.models.SelectionInput;
 import com.stripe.stripeterminal.external.models.SelectionResult;
 import com.stripe.stripeterminal.external.models.SetupAttempt;
 import com.stripe.stripeterminal.external.models.SetupIntent;
-import com.stripe.stripeterminal.external.models.SetupIntentCardPresentDetails;
-import com.stripe.stripeterminal.external.models.SetupIntentPaymentMethodDetails;
+import com.stripe.stripeterminal.external.models.SetupAttemptCardPresentDetails;
+import com.stripe.stripeterminal.external.models.SetupAttemptPaymentMethodDetails;
 import com.stripe.stripeterminal.external.models.SetupIntentStatus;
 import com.stripe.stripeterminal.external.models.SetupIntentUsage;
 import com.stripe.stripeterminal.external.models.SignatureInput;
 import com.stripe.stripeterminal.external.models.SignatureResult;
+import com.stripe.stripeterminal.external.models.ReaderSoftwareUpdate.UpdateComponent;
+import com.stripe.stripeterminal.external.models.TestReaderUpdate;
+import com.stripe.stripeterminal.external.models.SimulatedCardType;
 import com.stripe.stripeterminal.external.models.SimulatorConfiguration;
 import com.stripe.stripeterminal.external.models.TextInput;
 import com.stripe.stripeterminal.external.models.TextResult;
@@ -77,19 +91,19 @@ import org.json.JSONObject;
 
 public class TerminalUtils {
 
-  public static LogLevel translateJSLogLevel(Integer level) {
+  public static LogLevel translateJSLogLevel(String level) {
     if (level == null) {
       return LogLevel.NONE;
     }
 
     switch (level) {
-      case 1:
+      case "error":
         return LogLevel.ERROR;
-      case 2:
+      case "warning":
         return LogLevel.WARNING;
-      case 3:
+      case "info":
         return LogLevel.INFO;
-      case 4:
+      case "verbose":
         return LogLevel.VERBOSE;
       default:
         return LogLevel.NONE;
@@ -189,7 +203,6 @@ public class TerminalUtils {
 
     if (data instanceof CollectedData.Magstripe) {
       object.put("id", ((CollectedData.Magstripe) data).getId());
-      object.put("stripeId", ((CollectedData.Magstripe) data).getId());
     } else if (data instanceof CollectedData.NfcUid) {
       object.put("uid", ((CollectedData.NfcUid) data).getUid());
     }
@@ -224,6 +237,12 @@ public class TerminalUtils {
       return PaymentMethodType.WECHAT_PAY;
     } else if ("affirm".equals(value)) {
       return PaymentMethodType.AFFIRM;
+    } else if ("paynow".equals(value)) {
+      return PaymentMethodType.PAYNOW;
+    } else if ("paypay".equals(value)) {
+      return PaymentMethodType.PAYPAY;
+    } else if ("klarna".equals(value)) {
+      return PaymentMethodType.KLARNA;
     }
 
     return PaymentMethodType.CARD_PRESENT;
@@ -264,9 +283,98 @@ public class TerminalUtils {
         return "wechatPay";
       case AFFIRM:
         return "affirm";
+      case PAYNOW:
+        return "paynow";
+      case PAYPAY:
+        return "paypay";
+      case KLARNA:
+        return "klarna";
       default:
         return "cardPresent";
     }
+  }
+
+  public static OfflineBehavior translateJSOfflineBehavior(String value) {
+    switch (value) {
+      case "prefer_online":
+        return OfflineBehavior.PREFER_ONLINE;
+      case "require_online":
+        return OfflineBehavior.REQUIRE_ONLINE;
+      case "force_offline":
+        return OfflineBehavior.FORCE_OFFLINE;
+      default:
+        return null;
+    }
+  }
+
+  public static String serializeOfflineNetworkStatus(NetworkStatus status) {
+    if (status == null) return "unknown";
+    switch (status) {
+      case ONLINE:
+        return "online";
+      case OFFLINE:
+        return "offline";
+      default:
+        return "unknown";
+    }
+  }
+
+  public static JSObject serializeOfflineStatusDetails(
+    OfflineStatusDetails details
+  ) {
+    JSObject object = new JSObject();
+    object.put(
+      "networkStatus",
+      serializeOfflineNetworkStatus(details.getNetworkStatus())
+    );
+    object.put("offlinePaymentsCount", details.getOfflinePaymentsCount());
+
+    JSObject amounts = new JSObject();
+    for (Map.Entry<String, Long> entry : details
+      .getOfflinePaymentAmountsByCurrency()
+      .entrySet()) {
+      amounts.put(entry.getKey(), entry.getValue());
+    }
+    object.put("offlinePaymentAmountsByCurrency", amounts);
+
+    return object;
+  }
+
+  public static JSObject serializeOfflineStatus(OfflineStatus status) {
+    JSObject object = new JSObject();
+    object.put("sdk", serializeOfflineStatusDetails(status.getSdk()));
+    if (status.getReader() != null) {
+      object.put("reader", serializeOfflineStatusDetails(status.getReader()));
+    }
+    return object;
+  }
+
+  public static JSObject serializePaymentOption(PaymentOption option) {
+    JSObject object = new JSObject();
+    if (option instanceof PaymentOption.NonCardPayment) {
+      object.put("type", "nonCard");
+      object.put(
+        "paymentMethodType",
+        serializePaymentMethodType(
+          ((PaymentOption.NonCardPayment) option).getType()
+        )
+      );
+    } else {
+      object.put("type", "card");
+    }
+    return object;
+  }
+
+  public static JSObject serializeQrCodeDisplayData(QrCodeDisplayData data) {
+    JSObject object = new JSObject();
+    object.put("imageUrlPng", data.getQrCodeImageUrlPng());
+    object.put("imageUrlSvg", data.getQrCodeImageUrlSvg());
+    object.put("expiresAtMs", data.getExpiresAtMs());
+    object.put(
+      "paymentMethodType",
+      serializePaymentMethodType(data.getPaymentMethodType())
+    );
+    return object;
   }
 
   private static PaymentMethodType translateApiPaymentMethodType(String value) {
@@ -278,6 +386,12 @@ public class TerminalUtils {
       return PaymentMethodType.WECHAT_PAY;
     } else if ("affirm".equals(value)) {
       return PaymentMethodType.AFFIRM;
+    } else if ("paynow".equals(value)) {
+      return PaymentMethodType.PAYNOW;
+    } else if ("paypay".equals(value)) {
+      return PaymentMethodType.PAYPAY;
+    } else if ("klarna".equals(value)) {
+      return PaymentMethodType.KLARNA;
     }
 
     return PaymentMethodType.CARD_PRESENT;
@@ -364,18 +478,14 @@ public class TerminalUtils {
     );
     object.put("usage", serializeSetupIntentUsage(attempt.getUsage()));
 
-    SetupIntentPaymentMethodDetails paymentMethodDetails =
+    SetupAttemptPaymentMethodDetails paymentMethodDetails =
       attempt.getPaymentMethodDetails();
     if (paymentMethodDetails != null) {
       JSObject details = new JSObject();
-      // The SDK's type getter is Kotlin-internal, so infer it from the populated details.
-      PaymentMethodType type = null;
-      if (paymentMethodDetails.getInteracPresentDetails() != null) {
-        type = PaymentMethodType.INTERAC_PRESENT;
-      } else if (paymentMethodDetails.getCardPresentDetails() != null) {
-        type = PaymentMethodType.CARD_PRESENT;
-      }
-      details.put("type", serializePaymentMethodType(type));
+      details.put(
+        "type",
+        serializePaymentMethodType(paymentMethodDetails.getType())
+      );
       details.put(
         "cardPresent",
         serializeSetupAttemptCardPresentDetails(
@@ -395,7 +505,7 @@ public class TerminalUtils {
   }
 
   private static JSObject serializeSetupAttemptCardPresentDetails(
-    SetupIntentCardPresentDetails details
+    SetupAttemptCardPresentDetails details
   ) {
     if (details == null) {
       return null;
@@ -706,17 +816,13 @@ public class TerminalUtils {
     JSObject object = new JSObject();
 
     // device type
-    object.put(
-      "deviceType",
-      translateDeviceTypeToJS(reader.getDeviceType().ordinal())
-    );
+    object.put("deviceType", serializeDeviceType(reader.getDeviceType()));
 
     // simulated
     object.put("simulated", reader.isSimulated());
 
     // stripe id
     object.put("id", reader.getId());
-    object.put("stripeId", reader.getId());
 
     // location id
     String locationId = null;
@@ -728,7 +834,10 @@ public class TerminalUtils {
     }
 
     // location status
-    object.put("locationStatus", reader.getLocationStatus().ordinal());
+    object.put(
+      "locationStatus",
+      serializeLocationStatus(reader.getLocationStatus())
+    );
 
     // serial number
     String serial = null;
@@ -765,7 +874,9 @@ public class TerminalUtils {
     // last value reported by MobileReaderListener.onBatteryLevelUpdate.
     object.put(
       "batteryStatus",
-      (batteryStatus != null ? batteryStatus : BatteryStatus.UNKNOWN).ordinal()
+      serializeBatteryStatus(
+        batteryStatus != null ? batteryStatus : BatteryStatus.UNKNOWN
+      )
     );
 
     // isCharging
@@ -782,11 +893,7 @@ public class TerminalUtils {
     object.put("ipAddress", reader.getIpAddress());
 
     // status
-    int status = Reader.NetworkStatus.OFFLINE.ordinal();
-    if (reader.getNetworkStatus() != null) status = reader
-      .getNetworkStatus()
-      .ordinal();
-    object.put("status", translateNetworkStatusToJS(status));
+    object.put("status", serializeNetworkStatus(reader.getNetworkStatus()));
 
     // label
     String label = null;
@@ -840,7 +947,7 @@ public class TerminalUtils {
   }
 
   private static JSObject serializeCardPresentDetails(
-    CardPresentDetails details
+    Charge.CardPresent details
   ) {
     if (details == null) {
       return null;
@@ -938,11 +1045,10 @@ public class TerminalUtils {
     JSObject object = new JSObject();
 
     object.put("id", paymentIntent.getId());
-    object.put("stripeId", paymentIntent.getId());
     object.put("created", paymentIntent.getCreated());
     object.put(
       "status",
-      translatePaymentIntentStatusToJS(paymentIntent.getStatus().ordinal())
+      serializePaymentIntentStatus(paymentIntent.getStatus())
     );
     object.put("amount", paymentIntent.getAmount());
     object.put("currency", currency);
@@ -994,11 +1100,24 @@ public class TerminalUtils {
       object.put("amountDetails", amountDetailsJson);
     }
 
+    OfflineDetails offlineDetails = paymentIntent.getOfflineDetails();
+    if (offlineDetails != null) {
+      JSObject offlineDetailsJson = new JSObject();
+      offlineDetailsJson.put("storedAtMs", offlineDetails.getStoredAtMs());
+      offlineDetailsJson.put(
+        "requiresUpload",
+        offlineDetails.getRequiresUpload()
+      );
+      object.put("offlineDetails", offlineDetailsJson);
+    }
+
     if (paymentMethod != null) {
       JSObject paymentMethodJson = new JSObject();
       paymentMethodJson.put("id", paymentMethod.getId());
-      paymentMethodJson.put("stripeId", paymentMethod.getId());
-      paymentMethodJson.put("type", paymentMethod.getType().ordinal());
+      paymentMethodJson.put(
+        "type",
+        serializePaymentMethodType(paymentMethod.getType())
+      );
       paymentMethodJson.put("customer", paymentMethod.getCustomer());
       JSObject pmMetadata = new JSObject();
       if (paymentMethod.getMetadata() != null) {
@@ -1016,14 +1135,15 @@ public class TerminalUtils {
     }
 
     JSArray charges = new JSArray();
-    if (paymentIntent.getCharges() != null) {
-      for (Charge charge : paymentIntent.getCharges()) {
+    // SDK v6 removed PaymentIntent.getCharges(); the latest charge is exposed instead.
+    Charge latestCharge = paymentIntent.getLatestCharge();
+    if (latestCharge != null) {
+      for (Charge charge : java.util.Collections.singletonList(latestCharge)) {
         JSObject chargeJson = new JSObject();
         chargeJson.put("id", charge.getId());
-        chargeJson.put("stripeId", charge.getId());
         chargeJson.put("amount", charge.getAmount());
         chargeJson.put("currency", charge.getCurrency());
-        chargeJson.put("status", translateChargeStatusToJS(charge.getStatus()));
+        chargeJson.put("status", serializeChargeStatus(charge.getStatus()));
         JSObject chargeMetadata = new JSObject();
         if (charge.getMetadata() != null) {
           for (String key : charge.getMetadata().keySet()) {
@@ -1140,7 +1260,6 @@ public class TerminalUtils {
     JSObject object = new JSObject();
 
     object.put("id", location.getId());
-    object.put("stripeId", location.getId());
     object.put("displayName", location.getDisplayName());
     object.put("livemode", location.getLivemode());
 
@@ -1177,191 +1296,485 @@ public class TerminalUtils {
   }
 
   public static JSObject serializeSimulatorConfiguration(
-    SimulatorConfiguration config
+    SimulatorConfiguration config,
+    String availableReaderUpdate
   ) {
     JSObject object = new JSObject();
 
-    object.put("availableReaderUpdate", config.getUpdate().ordinal());
-    //      object.put("simulatedCard", config.getSimulatedCard().getEmvBlob().toString());
+    object.put("availableReaderUpdate", availableReaderUpdate);
+    object.put("offlineEnabled", config.getOfflineEnabled());
 
     return object;
   }
 
-  // translate Android charge status string to JS ChargeStatus enum ordinal
-  // matches iOS SCPChargeStatus: 0=Succeeded, 1=Pending, 2=Failed
-  public static int translateChargeStatusToJS(String status) {
-    if (status == null) return 2; // Failed as safe default
-    switch (status) {
-      case "succeeded":
-        return 0;
-      case "pending":
-        return 1;
-      case "failed":
-        return 2;
+  public static String serializeChargeStatus(String status) {
+    if ("succeeded".equals(status) || "pending".equals(status)) return status;
+    return "failed";
+  }
+
+  public static AppTransitionAnimation translateAppTransitionAnimation(
+    JSObject animation
+  ) {
+    if (animation == null) {
+      return AppTransitionAnimation.SystemDefault.INSTANCE;
+    }
+    String type = animation.getString("type", "systemDefault");
+    switch (type) {
+      case "preset":
+        // `slideFromBottom` is currently the only preset.
+        return new AppTransitionAnimation.Preset(
+          AppTransitionPreset.SLIDE_FROM_BOTTOM
+        );
+      case "custom":
+        return new AppTransitionAnimation.Custom(
+          animation.getInteger("enterAnim", 0),
+          animation.getInteger("exitAnim", 0)
+        );
       default:
-        return 2;
+        return AppTransitionAnimation.SystemDefault.INSTANCE;
     }
   }
 
   public static DiscoveryConfiguration translateDiscoveryMethod(
-    Integer method,
+    String method,
     boolean simulated,
     String locationId
   ) {
-    if (method == 2) {
-      return new DiscoveryConfiguration.InternetDiscoveryConfiguration(
-        0,
-        locationId,
-        simulated,
-        null
-      );
-    } else if (method == 4) {
-      return new DiscoveryConfiguration.UsbDiscoveryConfiguration(0, simulated);
-    } else if (method == 5) {
-      return new DiscoveryConfiguration.AppsOnDevicesDiscoveryConfiguration();
-    } else if (method == 6) {
-      return new DiscoveryConfiguration.TapToPayDiscoveryConfiguration(
-        simulated
-      );
-    } else {
-      // Default: Bluetooth scan (methods 0, 1, and any others)
-      return new DiscoveryConfiguration.BluetoothDiscoveryConfiguration(
-        0,
-        simulated
-      );
+    switch (method != null ? method : "bluetoothScan") {
+      case "internet":
+        return new DiscoveryConfiguration.InternetDiscoveryConfiguration(
+          0,
+          locationId,
+          simulated,
+          null
+        );
+      case "usb":
+        return new DiscoveryConfiguration.UsbDiscoveryConfiguration(
+          0,
+          simulated
+        );
+      case "appsOnDevices":
+        return new DiscoveryConfiguration.AppsOnDevicesDiscoveryConfiguration();
+      case "tapToPay":
+        return new DiscoveryConfiguration.TapToPayDiscoveryConfiguration(
+          simulated
+        );
+      default:
+        // Android has no Bluetooth proximity discovery, so fall back to a scan.
+        return new DiscoveryConfiguration.BluetoothDiscoveryConfiguration(
+          0,
+          simulated
+        );
     }
   }
 
-  // translate the JS device type enum ordinal to the Android DeviceType enum
-  public static DeviceType translateJSDeviceType(int type) {
-    if (type == 0) {
-      return DeviceType.CHIPPER_2X;
-    } else if (type == 2) {
-      return DeviceType.WISEPAD_3;
-    } else if (type == 3) {
-      return DeviceType.STRIPE_M2;
-    } else if (type == 4) {
-      return DeviceType.WISEPOS_E;
-    } else if (type == 9) {
-      return DeviceType.STRIPE_S700;
-    } else if (type == 10) {
-      return DeviceType.STRIPE_S700_DEVKIT;
-    } else if (type == 11) {
-      return DeviceType.TAP_TO_PAY_DEVICE;
-    } else if (type == 12) {
-      return DeviceType.STRIPE_S710;
-    } else if (type == 13) {
-      return DeviceType.STRIPE_S710_DEVKIT;
-    } else {
-      return null;
+  public static DeviceType translateJSDeviceType(String type) {
+    if (type == null) return null;
+    switch (type) {
+      case "chipper1X":
+        return DeviceType.CHIPPER_1X;
+      case "chipper2X":
+        return DeviceType.CHIPPER_2X;
+      case "etna":
+        return DeviceType.ETNA;
+      case "stripeM2":
+        return DeviceType.STRIPE_M2;
+      case "stripeS700":
+        return DeviceType.STRIPE_S700;
+      case "stripeS700Devkit":
+        return DeviceType.STRIPE_S700_DEVKIT;
+      case "stripeS710":
+        return DeviceType.STRIPE_S710;
+      case "stripeS710Devkit":
+        return DeviceType.STRIPE_S710_DEVKIT;
+      case "stripeT600":
+        return DeviceType.STRIPE_T600;
+      case "stripeT600Devkit":
+        return DeviceType.STRIPE_T600_DEVKIT;
+      case "stripeT610":
+        return DeviceType.STRIPE_T610;
+      case "stripeT610Devkit":
+        return DeviceType.STRIPE_T610_DEVKIT;
+      case "stripeU200":
+        return DeviceType.STRIPE_U200;
+      case "tapToPay":
+        return DeviceType.TAP_TO_PAY_DEVICE;
+      case "verifoneM425":
+        return DeviceType.VERIFONE_M425;
+      case "verifoneM450":
+        return DeviceType.VERIFONE_M450;
+      case "verifoneP630":
+        return DeviceType.VERIFONE_P630;
+      case "verifoneUX700":
+        return DeviceType.VERIFONE_UX700;
+      case "verifoneUX700Devkit":
+        return DeviceType.VERIFONE_UX700_DEVKIT;
+      case "verifoneV660p":
+        return DeviceType.VERIFONE_V660P;
+      case "verifoneV660pA":
+        return DeviceType.VERIFONE_V660PA;
+      case "verifoneV660pDevkit":
+        return DeviceType.VERIFONE_V660P_DEVKIT;
+      case "verifoneVL110":
+        return DeviceType.VERIFONE_VL110;
+      case "verifoneVM100":
+        return DeviceType.VERIFONE_VM100;
+      case "verifoneVM110":
+        return DeviceType.VERIFONE_VM110;
+      case "verifoneVP100":
+        return DeviceType.VERIFONE_VP100;
+      case "verifoneVP110":
+        return DeviceType.VERIFONE_VP110;
+      case "wiseCube":
+        return DeviceType.WISECUBE;
+      case "wisePad3":
+        return DeviceType.WISEPAD_3;
+      case "wisePad3s":
+        return DeviceType.WISEPAD_3S;
+      case "wisePosE":
+        return DeviceType.WISEPOS_E;
+      case "wisePosEDevkit":
+        return DeviceType.WISEPOS_E_DEVKIT;
+      default:
+        return null;
     }
   }
 
-  // translate the android device type enum to the JS device type enum
-  public static Integer translateDeviceTypeToJS(int type) {
-    if (type == DeviceType.CHIPPER_2X.ordinal()) {
-      return 0;
-    } else if (type == DeviceType.STRIPE_M2.ordinal()) {
-      return 3;
-    } else if (type == DeviceType.WISEPAD_3.ordinal()) {
-      return 2;
-    } else if (type == DeviceType.WISEPOS_E.ordinal()) {
-      return 4;
-    } else if (type == DeviceType.STRIPE_S700.ordinal()) {
-      return 9;
-    } else if (type == DeviceType.STRIPE_S700_DEVKIT.ordinal()) {
-      return 10;
-    } else if (type == DeviceType.TAP_TO_PAY_DEVICE.ordinal()) {
-      return 11;
-    } else if (type == DeviceType.STRIPE_S710.ordinal()) {
-      return 12;
-    } else if (type == DeviceType.STRIPE_S710_DEVKIT.ordinal()) {
-      return 13;
-    } else {
-      return 6;
+  public static String serializeDeviceType(DeviceType type) {
+    if (type == null) return "unknown";
+    switch (type) {
+      case CHIPPER_1X:
+        return "chipper1X";
+      case CHIPPER_2X:
+        return "chipper2X";
+      case ETNA:
+        return "etna";
+      case STRIPE_M2:
+        return "stripeM2";
+      case STRIPE_S700:
+        return "stripeS700";
+      case STRIPE_S700_DEVKIT:
+        return "stripeS700Devkit";
+      case STRIPE_S710:
+        return "stripeS710";
+      case STRIPE_S710_DEVKIT:
+        return "stripeS710Devkit";
+      case STRIPE_T600:
+        return "stripeT600";
+      case STRIPE_T600_DEVKIT:
+        return "stripeT600Devkit";
+      case STRIPE_T610:
+        return "stripeT610";
+      case STRIPE_T610_DEVKIT:
+        return "stripeT610Devkit";
+      case STRIPE_U200:
+        return "stripeU200";
+      case TAP_TO_PAY_DEVICE:
+        return "tapToPay";
+      case VERIFONE_M425:
+        return "verifoneM425";
+      case VERIFONE_M450:
+        return "verifoneM450";
+      case VERIFONE_P630:
+        return "verifoneP630";
+      case VERIFONE_UX700:
+        return "verifoneUX700";
+      case VERIFONE_UX700_DEVKIT:
+        return "verifoneUX700Devkit";
+      case VERIFONE_V660P:
+        return "verifoneV660p";
+      case VERIFONE_V660PA:
+        return "verifoneV660pA";
+      case VERIFONE_V660P_DEVKIT:
+        return "verifoneV660pDevkit";
+      case VERIFONE_VL110:
+        return "verifoneVL110";
+      case VERIFONE_VM100:
+        return "verifoneVM100";
+      case VERIFONE_VM110:
+        return "verifoneVM110";
+      case VERIFONE_VP100:
+        return "verifoneVP100";
+      case VERIFONE_VP110:
+        return "verifoneVP110";
+      case WISECUBE:
+        return "wiseCube";
+      case WISEPAD_3:
+        return "wisePad3";
+      case WISEPAD_3S:
+        return "wisePad3s";
+      case WISEPOS_E:
+        return "wisePosE";
+      case WISEPOS_E_DEVKIT:
+        return "wisePosEDevkit";
+      default:
+        return "unknown";
     }
   }
 
-  // translate the android status enum to the JS status enum
-  public static Integer translatePaymentIntentStatusToJS(int status) {
-    if (status == PaymentIntentStatus.REQUIRES_PAYMENT_METHOD.ordinal()) {
-      return 0;
-    } else if (status == PaymentIntentStatus.REQUIRES_CONFIRMATION.ordinal()) {
-      return 1;
-    } else if (status == PaymentIntentStatus.REQUIRES_CAPTURE.ordinal()) {
-      return 2;
-    } else if (status == PaymentIntentStatus.PROCESSING.ordinal()) {
-      return 3;
-    } else if (status == PaymentIntentStatus.CANCELED.ordinal()) {
-      return 4;
-    } else if (status == PaymentIntentStatus.SUCCEEDED.ordinal()) {
-      return 5;
-    } else {
-      return 0;
+  public static String serializePaymentIntentStatus(
+    PaymentIntentStatus status
+  ) {
+    if (status == null) return "unknown";
+    switch (status) {
+      case REQUIRES_PAYMENT_METHOD:
+        return "requiresPaymentMethod";
+      case REQUIRES_CONFIRMATION:
+        return "requiresConfirmation";
+      case REQUIRES_CAPTURE:
+        return "requiresCapture";
+      case REQUIRES_ACTION:
+        return "requiresAction";
+      case REQUIRES_REAUTHORIZATION:
+        return "requiresReauthorization";
+      case PROCESSING:
+        return "processing";
+      case CANCELED:
+        return "canceled";
+      case SUCCEEDED:
+        return "succeeded";
+      default:
+        return "unknown";
     }
   }
 
-  // translate the android status enum to the JS status enum
-  public static Integer translatePaymentStatusToJS(int status) {
-    if (status == PaymentStatus.NOT_READY.ordinal()) {
-      return 0;
-    } else if (status == PaymentStatus.READY.ordinal()) {
-      return 1;
-    } else if (status == PaymentStatus.WAITING_FOR_INPUT.ordinal()) {
-      return 2;
-    } else if (status == PaymentStatus.PROCESSING.ordinal()) {
-      return 3;
-    } else {
-      return PaymentStatus.NOT_READY.ordinal();
+  public static String serializePaymentStatus(PaymentStatus status) {
+    switch (status) {
+      case READY:
+        return "ready";
+      case WAITING_FOR_INPUT:
+        return "waitingForInput";
+      case PROCESSING:
+        return "processing";
+      default:
+        return "notReady";
     }
   }
 
-  public static Integer translateNetworkStatusToJS(int status) {
-    if (status == Reader.NetworkStatus.ONLINE.ordinal()) {
-      return 1;
-    } else if (status == Reader.NetworkStatus.OFFLINE.ordinal()) {
-      return 0;
-    } else {
-      return 0;
+  public static String serializeNetworkStatus(Reader.NetworkStatus status) {
+    if (status == null) return "unknown";
+    switch (status) {
+      case ONLINE:
+        return "online";
+      case OFFLINE:
+        return "offline";
+      default:
+        return "unknown";
     }
   }
 
-  public static Integer translateConnectionStatusToJS(int status) {
-    if (status == ConnectionStatus.NOT_CONNECTED.ordinal()) {
-      return 0;
-    } else if (status == ConnectionStatus.CONNECTED.ordinal()) {
-      return 1;
-    } else if (status == ConnectionStatus.CONNECTING.ordinal()) {
-      return 2;
-    } else {
-      return 0;
+  public static String serializeConnectionStatus(ConnectionStatus status) {
+    switch (status) {
+      case DISCOVERING:
+        return "discovering";
+      case CONNECTING:
+        return "connecting";
+      case CONNECTED:
+        return "connected";
+      case RECONNECTING:
+        return "reconnecting";
+      default:
+        return "notConnected";
     }
   }
 
-  public static Integer translateReaderDisplayMessageToJS(int message) {
-    if (message == ReaderDisplayMessage.RETRY_CARD.ordinal()) {
-      return 0;
-    } else if (message == ReaderDisplayMessage.INSERT_CARD.ordinal()) {
-      return 1;
-    } else if (message == ReaderDisplayMessage.INSERT_OR_SWIPE_CARD.ordinal()) {
-      return 2;
-    } else if (message == ReaderDisplayMessage.SWIPE_CARD.ordinal()) {
-      return 3;
-    } else if (message == ReaderDisplayMessage.REMOVE_CARD.ordinal()) {
-      return 4;
-    } else if (
-      message ==
-      ReaderDisplayMessage.MULTIPLE_CONTACTLESS_CARDS_DETECTED.ordinal()
-    ) {
-      return 5;
-    } else if (
-      message == ReaderDisplayMessage.TRY_ANOTHER_READ_METHOD.ordinal()
-    ) {
-      return 6;
-    } else if (message == ReaderDisplayMessage.TRY_ANOTHER_CARD.ordinal()) {
-      return 7;
-    } else {
-      return 0;
+  public static String serializeLocationStatus(LocationStatus status) {
+    if (status == null) return "unknown";
+    switch (status) {
+      case SET:
+        return "set";
+      case NOT_SET:
+        return "notSet";
+      default:
+        return "unknown";
     }
+  }
+
+  public static String serializeBatteryStatus(BatteryStatus status) {
+    switch (status) {
+      case CRITICAL:
+        return "critical";
+      case LOW:
+        return "low";
+      case NOMINAL:
+        return "nominal";
+      default:
+        return "unknown";
+    }
+  }
+
+  public static String serializeReaderDisplayMessage(
+    ReaderDisplayMessage message
+  ) {
+    switch (message) {
+      case CHECK_MOBILE_DEVICE:
+        return "checkMobileDevice";
+      case RETRY_CARD:
+        return "retryCard";
+      case INSERT_CARD:
+        return "insertCard";
+      case INSERT_OR_SWIPE_CARD:
+        return "insertOrSwipeCard";
+      case SWIPE_CARD:
+        return "swipeCard";
+      case REMOVE_CARD:
+        return "removeCard";
+      case MULTIPLE_CONTACTLESS_CARDS_DETECTED:
+        return "multipleContactlessCardsDetected";
+      case TRY_ANOTHER_READ_METHOD:
+        return "tryAnotherReadMethod";
+      case TRY_ANOTHER_CARD:
+        return "tryAnotherCard";
+      case CARD_REMOVED_TOO_EARLY:
+        return "cardRemovedTooEarly";
+      default:
+        return "retryCard";
+    }
+  }
+
+  /**
+   * Translates a JS reader update name to a TestReaderUpdate. Returns null for "none"
+   * and for unknown values; use {@link #isValidReaderUpdate(String)} to tell them apart.
+   */
+  public static TestReaderUpdate translateJSTestReaderUpdate(String update) {
+    java.util.Set<UpdateComponent> incremental =
+      java.util.Collections.singleton(UpdateComponent.INCREMENTAL);
+    switch (update) {
+      case "available":
+        return TestReaderUpdate.available(incremental);
+      case "required":
+        return TestReaderUpdate.required(incremental);
+      case "lowBattery":
+        return TestReaderUpdate.lowBattery();
+      case "random":
+        return TestReaderUpdate.random();
+      default:
+        return null;
+    }
+  }
+
+  public static boolean isValidReaderUpdate(String update) {
+    switch (update) {
+      case "available":
+      case "none":
+      case "required":
+      case "lowBattery":
+      case "random":
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  public static SimulatedCardType translateJSSimulatedCardType(String type) {
+    switch (type) {
+      case "visa":
+        return SimulatedCardType.VISA;
+      case "visaDebit":
+        return SimulatedCardType.VISA_DEBIT;
+      case "mastercard":
+        return SimulatedCardType.MASTERCARD;
+      case "masterDebit":
+        return SimulatedCardType.MASTERCARD_DEBIT;
+      case "mastercardPrepaid":
+        return SimulatedCardType.MASTERCARD_PREPAID;
+      case "amex":
+        return SimulatedCardType.AMEX;
+      case "amex2":
+        return SimulatedCardType.AMEX_2;
+      case "discover":
+        return SimulatedCardType.DISCOVER;
+      case "discover2":
+        return SimulatedCardType.DISCOVER_2;
+      case "diners":
+        return SimulatedCardType.DINERS;
+      case "diners14Digit":
+        return SimulatedCardType.DINERS_14_DIGITS;
+      case "jcb":
+        return SimulatedCardType.JCB;
+      case "unionPay":
+        return SimulatedCardType.UNION_PAY;
+      case "interac":
+        return SimulatedCardType.INTERAC;
+      case "chargeDeclined":
+        return SimulatedCardType.CHARGE_DECLINED;
+      case "chargeDeclinedInsufficientFunds":
+        return SimulatedCardType.CHARGE_DECLINED_INSUFFICIENT_FUNDS;
+      case "chargeDeclinedLostCard":
+        return SimulatedCardType.CHARGE_DECLINED_LOST_CARD;
+      case "chargeDeclinedStolenCard":
+        return SimulatedCardType.CHARGE_DECLINED_STOLEN_CARD;
+      case "chargeDeclinedExpiredCard":
+        return SimulatedCardType.CHARGE_DECLINED_EXPIRED_CARD;
+      case "chargeDeclinedProcessingError":
+        return SimulatedCardType.CHARGE_DECLINED_PROCESSING_ERROR;
+      default:
+        return null;
+    }
+  }
+
+  public static String serializeDisconnectReason(DisconnectReason reason) {
+    switch (reason) {
+      case DISCONNECT_REQUESTED:
+        return "disconnectRequested";
+      case REBOOT_REQUESTED:
+        return "rebootRequested";
+      case SECURITY_REBOOT:
+        return "securityReboot";
+      case CRITICALLY_LOW_BATTERY:
+        return "criticallyLowBattery";
+      case POWERED_OFF:
+        return "poweredOff";
+      case BLUETOOTH_DISABLED:
+        return "bluetoothDisabled";
+      case USB_DISCONNECTED:
+        return "usbDisconnected";
+      case IDLE_POWER_DOWN:
+        return "idlePowerDown";
+      case BLUETOOTH_PEER_REMOVED_PAIRING_INFORMATION:
+        return "peerRemovedPairingInformation";
+      default:
+        return "unknown";
+    }
+  }
+
+  public static boolean isRequestedDisconnect(DisconnectReason reason) {
+    return (
+      reason == DisconnectReason.DISCONNECT_REQUESTED ||
+      reason == DisconnectReason.REBOOT_REQUESTED
+    );
+  }
+
+  public static String serializeReaderEvent(ReaderEvent event) {
+    switch (event) {
+      case CARD_INSERTED:
+        return "cardInserted";
+      case CARD_REMOVED:
+        return "cardRemoved";
+      default:
+        return "unknown";
+    }
+  }
+
+  public static JSArray serializeReaderInputOptions(
+    ReaderInputOptions options
+  ) {
+    JSArray result = new JSArray();
+    for (ReaderInputOptions.ReaderInputOption option : options.getOptions()) {
+      switch (option) {
+        case SWIPE:
+          result.put("swipeCard");
+          break;
+        case INSERT:
+          result.put("insertCard");
+          break;
+        case TAP:
+          result.put("tapCard");
+          break;
+        default:
+          break;
+      }
+    }
+    return result;
   }
 }
