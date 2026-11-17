@@ -15,7 +15,7 @@ npx cap sync
 Follow Stripe's [Configure your app](https://docs.stripe.com/terminal/payments/setup-integration?terminal-sdk-platform=ios#configure) instructions: add the Bluetooth, location and background-mode entries to `Info.plist`, and enable the Tap to Pay capability if you use it.
 
 ::: callout info "Swift Package Manager only"
-Stripe no longer publishes new Terminal releases to CocoaPods. The plugin resolves the SDK from [`stripe-terminal-ios-spm`](https://github.com/stripe/stripe-terminal-ios-spm), which is Capacitor 8's default package manager. The minimum deployment target is **iOS 16.0**.
+The plugin no longer ships a CocoaPods podspec, because Stripe no longer publishes Terminal releases to CocoaPods. It resolves the SDK from [`stripe-terminal-ios-spm`](https://github.com/stripe/stripe-terminal-ios-spm), which is Capacitor 8's default package manager. The minimum deployment target is **iOS 16.0**.
 :::
 
 ## Android
