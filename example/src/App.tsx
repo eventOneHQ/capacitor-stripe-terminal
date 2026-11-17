@@ -29,7 +29,7 @@ import {
   timeOutline,
   constructOutline,
 } from 'ionicons/icons'
-import { Redirect, Route } from 'react-router-dom'
+import { Navigate, Route } from 'react-router-dom'
 
 /* Core Ionic CSS: required for components to render correctly. */
 import '@ionic/react/css/core.css'
@@ -74,15 +74,13 @@ export default function App() {
         <IonReactRouter>
           <IonTabs>
             <IonRouterOutlet>
-              <Route exact path="/pos" component={PosPage} />
-              <Route exact path="/reader" component={ReaderPage} />
-              <Route exact path="/charge" component={ChargePage} />
-              <Route exact path="/activity" component={ActivityPage} />
-              <Route exact path="/tools" component={ToolsPage} />
-              <Route exact path="/settings" component={SettingsPage} />
-              <Route exact path="/">
-                <Redirect to="/pos" />
-              </Route>
+              <Route path="/pos" element={<PosPage />} />
+              <Route path="/reader" element={<ReaderPage />} />
+              <Route path="/charge" element={<ChargePage />} />
+              <Route path="/activity" element={<ActivityPage />} />
+              <Route path="/tools" element={<ToolsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/" element={<Navigate to="/pos" replace />} />
             </IonRouterOutlet>
 
             {/* The tab bar. Each button's `tab` must match a Route path. */}

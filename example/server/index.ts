@@ -92,7 +92,7 @@ app.post(
  * Returns `{ id, clientSecret }`. The app hands `clientSecret` to the SDK's
  * `retrievePaymentIntent`.
  *
- * `payment_method_types: ['card_present']` is what marks this intent as an
+ * `allowed_payment_method_types: ['card_present']` is what marks this intent as an
  * in-person payment.
  * https://docs.stripe.com/terminal/payments/collect-card-payment
  */
@@ -116,7 +116,7 @@ app.post(
     const intent = await stripe.paymentIntents.create({
       amount,
       currency,
-      payment_method_types: ['card_present'],
+      allowed_payment_method_types: ['card_present'],
       capture_method: captureMethod,
       // Optional order details (the POS tab sends these). Stripe emails a
       // receipt to `receipt_email` in live mode.
@@ -140,7 +140,7 @@ app.post(
   '/setup_intents',
   route(async (_req, res) => {
     const intent = await stripe.setupIntents.create({
-      payment_method_types: ['card_present'],
+      allowed_payment_method_types: ['card_present'],
     })
     res.json({ id: intent.id, clientSecret: intent.client_secret })
   }),
