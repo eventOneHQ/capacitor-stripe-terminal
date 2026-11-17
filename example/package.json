@@ -1,0 +1,50 @@
+{
+  "name": "capacitor-stripe-terminal-example",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Example Ionic React + Capacitor app for the capacitor-stripe-terminal plugin.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json",
+    "server": "tsx server/index.ts",
+    "server:watch": "tsx watch server/index.ts",
+    "sync": "npm run build && cap sync"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/device": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@ionic/react": "^8.7.0",
+    "@ionic/react-router": "^8.7.0",
+    "capacitor-stripe-terminal": "file:..",
+    "ionicons": "^8.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router": "^5.3.4",
+    "react-router-dom": "^5.3.4"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/ios": "^8.2.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/react-router": "^5.1.20",
+    "@types/react-router-dom": "^5.3.3",
+    "@vitejs/plugin-react": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.0",
+    "express": "^5.1.0",
+    "stripe": "^18.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.0",
+    "vite": "^7.0.0"
+  }
+}

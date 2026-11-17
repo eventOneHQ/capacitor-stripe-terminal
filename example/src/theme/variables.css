@@ -1,0 +1,192 @@
+/*
+ * Theme overrides.
+ *
+ * Ionic is themed with CSS custom properties (`--ion-color-*`). Overriding the
+ * `primary` color family re-colors buttons, tab highlights, toggles, etc.
+ * everywhere. We use Stripe's brand purple.
+ *
+ * Each color needs the base value, its RGB triplet (for translucent variants),
+ * and contrast / shade / tint values. https://ionicframework.com/docs/theming/colors
+ */
+:root {
+  --ion-color-primary: #635bff;
+  --ion-color-primary-rgb: 99, 91, 255;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #574fe0;
+  --ion-color-primary-tint: #736cff;
+}
+
+/* A large, centered status panel used on the Charge tab. */
+.status-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.status-panel ion-icon {
+  font-size: 64px;
+}
+
+/* Monospace values (ids, serial numbers) read better when they line up. */
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+}
+
+/* The big amount shown on the Charge tab. */
+.amount-display {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Pretty-printed JSON results on the Tools tab. */
+.result-json {
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--ion-color-step-100, #f2f2f2);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ------------------------------------------------------------------ */
+/* POS tab (src/pos). Phone first; the .pos-wide variant is the tablet */
+/* layout (catalog | order side by side).                              */
+/* ------------------------------------------------------------------ */
+.pos {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.pos-catalog {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 12px 88px; /* room for the phone's bottom bar */
+}
+.pos-wide {
+  flex-direction: row;
+}
+.pos-wide .pos-catalog {
+  padding-bottom: 12px;
+}
+.pos-cart {
+  width: 380px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--ion-color-step-150, #d8d8d8);
+}
+.pos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.pos-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 112px;
+  padding: 12px 8px;
+  border: 1px solid var(--ion-color-step-150, #d8d8d8);
+  border-radius: 14px;
+  background: var(--ion-item-background, #fff);
+  color: var(--ion-text-color);
+  font: inherit;
+  cursor: pointer;
+}
+.pos-tile:active {
+  background: var(--ion-color-step-100, #eee);
+}
+.pos-emoji {
+  font-size: 2rem;
+}
+.pos-name {
+  font-weight: 600;
+  text-align: center;
+}
+.pos-price {
+  color: var(--ion-color-medium);
+}
+.pos-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 11px;
+  background: var(--ion-color-primary);
+  color: #fff;
+  font-size: 0.8rem;
+  text-align: center;
+}
+.pos-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px 12px;
+  background: var(--ion-background-color);
+  border-top: 1px solid var(--ion-color-step-150, #d8d8d8);
+}
+.pos-bar ion-button {
+  margin: 0;
+}
+.pos-cart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px 0;
+}
+.pos-qty {
+  min-width: 20px;
+  text-align: center;
+}
+.pos-line-amount {
+  min-width: 64px;
+  text-align: right;
+}
+.pos-totals {
+  padding: 8px 16px;
+}
+.pos-totals > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+.pos-total {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--ion-color-step-150, #d8d8d8);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.pos-checkout,
+.pos-receipt {
+  max-width: 520px;
+  margin: 0 auto;
+}
+/* Full-screen modals (checkout, reader update) have no header: clear the notch. */
+.pos-checkout,
+.update-modal {
+  padding-top: env(safe-area-inset-top);
+}
+.pos-receipt-actions {
+  justify-content: center;
+  margin-top: 12px;
+}

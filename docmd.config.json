@@ -55,6 +55,11 @@
           "title": "Quickstart",
           "path": "/getting-started/quickstart",
           "icon": "zap"
+        },
+        {
+          "title": "Example app",
+          "path": "/getting-started/example-app",
+          "icon": "app-window"
         }
       ]
     },
