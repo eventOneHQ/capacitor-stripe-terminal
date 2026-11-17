@@ -55,6 +55,13 @@ export interface CreatedPaymentIntent {
   clientSecret: string
 }
 
+/** Optional order info attached to a PaymentIntent (used by the POS tab). */
+export interface OrderDetails {
+  description?: string
+  metadata?: Record<string, string>
+  receiptEmail?: string
+}
+
 /**
  * Create a card-present PaymentIntent for `amount` minor units.
  * 'manual' capture only authorizes; call `capturePaymentIntent` afterwards.
@@ -63,10 +70,11 @@ export function createPaymentIntent(
   amount: number,
   currency: string,
   captureMethod: 'automatic' | 'manual' = 'automatic',
+  details: OrderDetails = {},
 ): Promise<CreatedPaymentIntent> {
   return request('/payment_intents', {
     method: 'POST',
-    body: JSON.stringify({ amount, currency, captureMethod }),
+    body: JSON.stringify({ amount, currency, captureMethod, ...details }),
   })
 }
 
@@ -84,6 +92,14 @@ export function createSetupIntent(): Promise<{
 /** Capture a manually-captured PaymentIntent (not needed for auto-capture). */
 export function capturePaymentIntent(id: string): Promise<{ status: string }> {
   return request(`/payment_intents/${id}/capture`, { method: 'POST' })
+}
+
+/**
+ * Add tip options (10/15/20%) to your TEST-mode Terminal configurations.
+ * Needed once, otherwise readers never show a tip screen.
+ */
+export function enableTipping(): Promise<{ updated: string[] }> {
+  return request('/terminal/tipping', { method: 'POST', body: '{}' })
 }
 
 /** Used by the Settings tab's "Test connection" button. */

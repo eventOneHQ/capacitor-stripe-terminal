@@ -49,12 +49,13 @@ example/
 ├── vite.config.ts             Dev server + bundler config
 └── src/
     ├── main.tsx               React entry point
-    ├── App.tsx                Ionic shell, router and the 5 tabs
+    ├── App.tsx                Ionic shell, router and the 6 tabs
     ├── terminal/
     │   ├── TerminalProvider.tsx   ★ owns the plugin instance; ALL Stripe logic
     │   ├── useTerminal.ts         hook components use to read state/actions
     │   ├── backend.ts             calls to server/index.ts
     │   └── readers.ts             discovery methods per platform, reader names
+    ├── pos/                   the POS tab: catalog, cart, checkout, receipt
     ├── pages/
     │   ├── ReaderPage.tsx     discover + connect + update the reader
     │   ├── ChargePage.tsx     amount, payment options, prompts, result
@@ -65,6 +66,8 @@ example/
     ├── components/            small presentational pieces
     └── lib/                   settings store, money formatting, error helper
 ```
+
+The **POS** tab (`src/pos/`) is a small point of sale built on the same Terminal context. It mirrors the cart on the reader's screen (`setReaderDisplay`), can collect a receipt email on the reader (`collectInputs`), charges with on-reader tipping (smart readers only, and only once your Terminal configuration has tip options: press **Enable tipping** on the Settings tab), attaches the order to the PaymentIntent as metadata, and offers print and refund from the receipt. It is laid out side by side on tablets and as a bottom sheet on phones. Features a reader can't do (cart display, tipping, email forms and printing on a Stripe M2, for example) are checked in `src/terminal/capabilities.ts` and skipped or disabled instead of being called.
 
 Start with **`src/terminal/TerminalProvider.tsx`**. It follows the same four phases as every Terminal integration:
 

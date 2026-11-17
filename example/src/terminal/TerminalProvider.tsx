@@ -19,6 +19,7 @@
  * Each phase is a clearly marked section below.
  */
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
+import { Device } from '@capacitor/device'
 import {
   StripeTerminalError,
   StripeTerminalPlugin,
@@ -44,12 +45,14 @@ import {
   type ReactNode,
 } from 'react'
 
+import { getCapabilities, type Capabilities } from './capabilities'
 import { errorMessage } from '../lib/errors'
-import { getSettings, useSettings } from '../lib/settings'
+import { getSettings, updateSettings, useSettings } from '../lib/settings'
 import {
   capturePaymentIntent,
   createPaymentIntent,
   fetchConnectionToken,
+  type OrderDetails,
 } from './backend'
 import { isNativePlatform } from './readers'
 
@@ -124,6 +127,26 @@ export interface PaymentRecord {
  * Some readers can accept more than a card (QR wallets, etc). When the SDK
  * asks the app to pick, this describes the question. See `onPaymentMethodSelectionRequired`.
  */
+/** Optional per-charge settings (the POS tab uses these). */
+export interface ChargeExtras extends OrderDetails {
+  /** Override the on-reader tipping setting for this charge. */
+  tipping?: boolean
+  /** The part of the amount tips are calculated on (default: all of it). */
+  tipEligibleAmount?: number
+}
+
+/** What `charge()` resolves to when the payment succeeded. */
+export interface ChargeResult {
+  intentId: string
+  chargeId?: string
+  /** Final amount charged, INCLUDING any tip added on the reader. */
+  total: number
+  /** Tip added on the reader, in minor units (0 if none). */
+  tip: number
+  cardSummary?: string
+  offline: boolean
+}
+
 export interface PaymentChoice {
   options: PaymentOption[]
   select: (paymentOptionType: string) => Promise<void>
@@ -150,6 +173,10 @@ export interface UpdateState {
   installing: boolean
   /** 0..1 */
   progress: number
+  /** Why the last install failed, if it did. Cleared on the next attempt. */
+  error?: string
+  /** True after an install finished successfully. Cleared on the next one. */
+  done?: boolean
 }
 
 export interface TerminalContextValue {
@@ -165,6 +192,21 @@ export interface TerminalContextValue {
   discoveredReaders: Reader[]
   isDiscovering: boolean
   discoveryError?: string
+  /** True once a search has been started (so the UI can say "none found"). */
+  discoverySearched: boolean
+  /** Serial number of the reader we are connecting to, or null. */
+  connectingTo: string | null
+  /** Why the last connect attempt failed. Cleared on the next attempt. */
+  connectError?: string
+  /**
+   * Set when a connected reader was lost without us asking (walked out of
+   * range, battery died) or auto-reconnect gave up. Cleared on connect.
+   */
+  connectionLost?: string
+  /** The reader reported a low battery. Cleared when it is charged/reconnected. */
+  lowBattery: boolean
+  /** Dismiss the connect / lost-connection / update error messages. */
+  clearReaderAlerts: () => void
   battery: BatteryLevel | null
   /** Terminal Locations available to this Stripe account. */
   locations: Location[]
@@ -189,6 +231,14 @@ export interface TerminalContextValue {
    */
   nativeReader: boolean
 
+  /**
+   * What the connected reader can do (cart display, inputs, tipping, print...).
+   * Check these BEFORE calling the matching SDK method: a reader without a
+   * screen (Stripe M2, Tap to Pay) rejects display and input calls. See
+   * capabilities.ts.
+   */
+  capabilities: Capabilities
+
   /** Cancel Bluetooth auto-reconnect (while status is 'reconnecting'). */
   cancelReconnect: () => Promise<void>
 
@@ -200,7 +250,11 @@ export interface TerminalContextValue {
   /* ---- Payments ---- */
   payment: PaymentState
   payments: PaymentRecord[]
-  charge: (amount: number, currency: string) => Promise<void>
+  charge: (
+    amount: number,
+    currency: string,
+    extras?: ChargeExtras,
+  ) => Promise<ChargeResult | null>
   cancelCharge: () => Promise<void>
   resetPayment: () => void
   /** Non-card payment options / QR codes the SDK is waiting on us for. */
@@ -245,6 +299,11 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const [discoveredReaders, setDiscoveredReaders] = useState<Reader[]>([])
   const [isDiscovering, setIsDiscovering] = useState(false)
   const [discoveryError, setDiscoveryError] = useState<string>()
+  const [discoverySearched, setDiscoverySearched] = useState(false)
+  const [connectingTo, setConnectingTo] = useState<string | null>(null)
+  const [connectError, setConnectError] = useState<string>()
+  const [connectionLost, setConnectionLost] = useState<string>()
+  const [lowBattery, setLowBattery] = useState(false)
   const [battery, setBattery] = useState<BatteryLevel | null>(null)
   const [locations, setLocations] = useState<Location[]>([])
   const [readerMessage, setReaderMessage] =
@@ -277,6 +336,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const terminal = useRef<StripeTerminalPlugin | null>(null)
   const handles = useRef<PluginListenerHandle[]>([])
   const discoveryHandle = useRef<PluginListenerHandle | null>(null)
+  const capabilitiesRef = useRef<Capabilities>(getCapabilities(null, false))
   const lastDiscoveryMethod = useRef(settings.discoveryMethod)
   const cancelRequested = useRef(false)
   const initStarted = useRef(false)
@@ -367,19 +427,25 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           setReader(null)
           setBattery(null)
           setUpdate({ available: null, installing: false, progress: 0 })
+          setLowBattery(false)
           addLog('reader', `Disconnected (${reason})`)
         }),
       )
 
       await listen(
         'battery',
-        t.didUpdateBatteryLevel((level) => setBattery(level)),
+        t.didUpdateBatteryLevel((level) => {
+          setBattery(level)
+          // A charged reader clears a stale warning.
+          if (level.batteryLevel > 0.2) setLowBattery(false)
+        }),
       )
       await listen(
         'lowBattery',
-        t.didReportLowBatteryWarning(() =>
-          addLog('reader', 'Low battery warning', 'warn'),
-        ),
+        t.didReportLowBatteryWarning(() => {
+          setLowBattery(true)
+          addLog('reader', 'Low battery warning', 'warn')
+        }),
       )
       await listen(
         'readerEvent',
@@ -395,13 +461,20 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       )
       await listen(
         'reconnectSuccess',
-        t.didSucceedReaderReconnect(() => addLog('reader', 'Reconnected')),
+        t.didSucceedReaderReconnect(() => {
+          setConnectionLost(undefined)
+          addLog('reader', 'Reconnected')
+        }),
       )
       await listen(
         'reconnectFail',
-        t.didFailReaderReconnect(() =>
-          addLog('reader', 'Reconnect failed', 'error'),
-        ),
+        t.didFailReaderReconnect(() => {
+          setReader(null)
+          setConnectionLost(
+            'Lost the connection to the reader and could not get it back. Search for readers to connect again.',
+          )
+          addLog('reader', 'Reconnect failed', 'error')
+        }),
       )
 
       // Apple Tap to Pay: the merchant accepted Apple's Terms of Service.
@@ -447,7 +520,9 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         t.onPaymentMethodSelectionRequired((_intent, options, callbacks) => {
           addLog(
             'payment',
-            `Payment options: ${options.map((o) => o.paymentMethodType ?? o.type).join(', ')}`,
+            `Payment options: ${options
+              .map((o) => o.paymentMethodType ?? o.type)
+              .join(', ')}`,
           )
           const card = options.find((o) => o.type === 'card')
           if (options.length === 1 && card) {
@@ -503,7 +578,13 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       await listen(
         'updateStart',
         t.didStartInstallingUpdate(() => {
-          setUpdate((u) => ({ ...u, installing: true, progress: 0 }))
+          setUpdate((u) => ({
+            ...u,
+            installing: true,
+            progress: 0,
+            error: undefined,
+            done: false,
+          }))
           addLog('update', 'Installing update...')
         }),
       )
@@ -516,10 +597,22 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       await listen(
         'updateFinish',
         t.didFinishInstallingUpdate((result) => {
-          setUpdate({ available: null, installing: false, progress: 0 })
           if (result?.error) {
+            // Keep the update on offer so the user can try again.
+            setUpdate((u) => ({
+              ...u,
+              installing: false,
+              progress: 0,
+              error: String(result.error),
+            }))
             addLog('update', `Update failed: ${result.error}`, 'error')
           } else {
+            setUpdate({
+              available: null,
+              installing: false,
+              progress: 1,
+              done: true,
+            })
             addLog('update', 'Update installed')
           }
         }),
@@ -570,6 +663,11 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
          */
         onUnexpectedReaderDisconnect: (reason) => {
           setReader(null)
+          setConnectionLost(
+            `The reader disconnected unexpectedly${
+              reason ? ` (${reason})` : ''
+            }. Check that it is on, charged and in range, then search again.`,
+          )
           addLog('reader', `Reader lost unexpectedly (${reason})`, 'error')
         },
 
@@ -673,7 +771,9 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
 
     const { simulated, discoveryMethod, locationId } = getSettings()
     setDiscoveryError(undefined)
+    setConnectError(undefined)
     setDiscoveredReaders([])
+    setDiscoverySearched(true)
     lastDiscoveryMethod.current = discoveryMethod
 
     try {
@@ -750,11 +850,10 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       // (which is why leaving Settings blank works for the simulator).
       const locationId = getSettings().locationId || target.locationId || ''
       if (!locationId && lastDiscoveryMethod.current !== 'appsOnDevices') {
-        addLog(
-          'reader',
-          'No location. Pick one on the Reader tab (Bluetooth readers must be registered to a location).',
-          'error',
-        )
+        const message =
+          'No location selected. Pick one in the Location menu (Bluetooth readers must be registered to a Stripe location).'
+        setConnectError(message)
+        addLog('reader', message, 'error')
         return
       }
 
@@ -762,6 +861,9 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         'reader',
         `Connecting to ${target.label ?? target.serialNumber}...`,
       )
+      setConnectError(undefined)
+      setConnectionLost(undefined)
+      setConnectingTo(target.serialNumber)
       try {
         let connected: Reader | null
         const style = t.getDeviceStyleFromDeviceType(target.deviceType)
@@ -799,18 +901,30 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         }
 
         setReader(connected)
+        setLowBattery(false)
         addLog(
           'reader',
           `Connected: ${connected?.label ?? connected?.serialNumber}`,
         )
         await stopDiscovery()
       } catch (err) {
+        // Shown next to the reader list; the reader stays in the list so the
+        // user can simply tap Connect again.
+        setConnectError(errorMessage(err))
         addLog('reader', `Connect failed: ${errorMessage(err)}`, 'error')
-        setDiscoveryError(errorMessage(err))
+      } finally {
+        setConnectingTo(null)
       }
     },
     [addLog, stopDiscovery],
   )
+
+  const clearReaderAlerts = useCallback(() => {
+    setConnectError(undefined)
+    setConnectionLost(undefined)
+    setDiscoveryError(undefined)
+    setUpdate((u) => ({ ...u, error: undefined }))
+  }, [])
 
   const disconnect = useCallback(async () => {
     try {
@@ -823,8 +937,14 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
 
   const installUpdate = useCallback(async () => {
     try {
+      setUpdate((u) => ({ ...u, error: undefined }))
       await terminal.current?.installAvailableUpdate()
     } catch (err) {
+      setUpdate((u) => ({
+        ...u,
+        installing: false,
+        error: errorMessage(err),
+      }))
       addLog('update', `Install failed: ${errorMessage(err)}`, 'error')
     }
   }, [addLog])
@@ -845,6 +965,58 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       addLog('reader', `Cancel reconnect failed: ${errorMessage(err)}`, 'error')
     }
   }, [addLog])
+
+  /* ---- Auto-connect on Apps on Devices hardware ---- */
+
+  // Some Stripe readers (S700, T600...) are Android computers that RUN this app
+  // ("Apps on Devices"). On those, nobody should have to search and tap
+  // Connect: the reader is the device itself. We detect it by manufacturer
+  // (they report "BBPOS") and discover + connect to the on-device reader as
+  // soon as the SDK is ready.
+  //   'idle'      -> not checked yet
+  //   'searching' -> detected; waiting for discovery to report the reader
+  //   'done'      -> finished (connected, failed, or not an on-device reader)
+  const autoConnect = useRef<'idle' | 'searching' | 'done'>('idle')
+
+  useEffect(() => {
+    if (sdkState !== 'ready' || autoConnect.current !== 'idle') return
+    if (Capacitor.getPlatform() !== 'android') {
+      autoConnect.current = 'done'
+      return
+    }
+    autoConnect.current = 'searching'
+    void (async () => {
+      try {
+        const info = await Device.getInfo()
+        if (info.manufacturer?.toLowerCase() !== 'bbpos') {
+          autoConnect.current = 'done'
+          return
+        }
+        addLog('reader', 'Apps on Devices hardware found. Connecting...')
+        // Persist the choice so the Reader tab reflects what we're doing.
+        updateSettings({ discoveryMethod: 'appsOnDevices', simulated: false })
+        await discover()
+      } catch (err) {
+        autoConnect.current = 'done'
+        addLog('reader', `Auto-connect failed: ${errorMessage(err)}`, 'error')
+      }
+    })()
+  }, [sdkState, discover, addLog])
+
+  // When discovery reports the on-device reader, connect to it (once).
+  useEffect(() => {
+    if (autoConnect.current !== 'searching') return
+    if (discoveryError) {
+      autoConnect.current = 'done' // shown on the Reader tab; user can retry
+      return
+    }
+    if (discoveredReaders.length === 0) return
+    if (connectionStatus === 'connecting' || connectionStatus === 'connected') {
+      return
+    }
+    autoConnect.current = 'done'
+    void connect(discoveredReaders[0])
+  }, [discoveredReaders, discoveryError, connectionStatus, connect])
 
   /* ======================================================================== */
   /* PHASE 3: TAKE A PAYMENT                                                  */
@@ -884,9 +1056,14 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
    * Behavior is tuned by the "Payment options" on the Charge tab (settings).
    */
   const charge = useCallback(
-    async (amount: number, currency: string) => {
+    async (
+      amount: number,
+      currency: string,
+      extras: ChargeExtras = {},
+    ): Promise<ChargeResult | null> => {
       const t = terminal.current
-      if (!t) return
+      if (!t) return null
+      const { tipping, tipEligibleAmount, ...order } = extras
 
       const opts = getSettings()
       cancelRequested.current = false
@@ -905,6 +1082,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
             currency,
             captureMethod: opts.captureMethod,
             offlineBehavior: opts.offlineBehavior,
+            ...order,
           })
           intentId = created?.id
           addLog('payment', `Created on device ${intentId}`)
@@ -915,6 +1093,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
             amount,
             currency,
             opts.captureMethod,
+            order,
           )
           intentId = created.id
           addLog('payment', `Created ${created.id}`)
@@ -924,13 +1103,22 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         // 2. Wait for the customer to present a card. On a simulated reader
         //    this resolves almost immediately using the configured test card.
         setPayment({ step: 'collecting', amount, currency, intentId })
+        // Tipping screens only exist on readers with a screen. Other readers
+        // (Stripe M2, Tap to Pay) are not asked about tipping at all.
+        const canTip = capabilitiesRef.current.onReaderTipping
+        const wantsTip = tipping ?? opts.onReaderTipping
         await t.collectPaymentMethod({
           // Hide the tipping screen unless on-reader tipping was requested.
-          skipTipping: opts.skipTipping && !opts.onReaderTipping,
-          // Tip choices are calculated as a percentage of `eligibleAmount`.
-          tipping: opts.onReaderTipping
-            ? { eligibleAmount: amount }
+          skipTipping: canTip
+            ? tipping === undefined
+              ? opts.skipTipping && !opts.onReaderTipping
+              : !tipping
             : undefined,
+          // Tip choices are calculated as a percentage of `eligibleAmount`.
+          tipping:
+            canTip && wantsTip
+              ? { eligibleAmount: tipEligibleAmount ?? amount }
+              : undefined,
           // Consent to show this card to the customer again later.
           allowRedisplay: opts.allowRedisplay,
           // Whether the customer can cancel on the reader. NOTE: the JS SDK
@@ -963,24 +1151,30 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         // and will be forwarded to Stripe once the network returns.
         const offline = !!confirmed?.offlineDetails?.requiresUpload
 
-        setPayment({ step: 'succeeded', amount, currency, intentId })
-        record(
-          confirmed?.id ?? intentId ?? '-',
-          amount,
-          currency,
-          'succeeded',
-          {
-            chargeId: charge?.id,
-            cardSummary,
-            offline,
-          },
-        )
+        // A tip added on the reader is included in the confirmed amount.
+        const total = confirmed?.amount ?? amount
+        const tip = confirmed?.amountTip ?? 0
+
+        setPayment({ step: 'succeeded', amount: total, currency, intentId })
+        record(confirmed?.id ?? intentId ?? '-', total, currency, 'succeeded', {
+          chargeId: charge?.id,
+          cardSummary,
+          offline,
+        })
         addLog(
           'payment',
           offline
             ? `Payment ${intentId} stored offline`
             : `Payment ${intentId} succeeded`,
         )
+        return {
+          intentId: confirmed?.id ?? intentId ?? '-',
+          chargeId: charge?.id,
+          total,
+          tip,
+          cardSummary,
+          offline,
+        }
       } catch (err) {
         if (cancelRequested.current) {
           // The user pressed Cancel; not an error.
@@ -1005,7 +1199,9 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           })
           addLog(
             'payment',
-            `Payment failed: ${message}${declineCode ? ` (${declineCode})` : ''}`,
+            `Payment failed: ${message}${
+              declineCode ? ` (${declineCode})` : ''
+            }`,
             'error',
           )
         }
@@ -1013,6 +1209,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         // Release the SDK's active intent so the next attempt starts clean.
         // (Ignore errors: there may be nothing to cancel.)
         await t.cancelPaymentIntent().catch(() => undefined)
+        return null
       } finally {
         setReaderMessage(null)
         setReaderInput([])
@@ -1132,8 +1329,23 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const nativeReader =
     isNativePlatform() &&
     !!reader &&
-    StripeTerminalPlugin.getDeviceStyleFromDeviceType(reader.deviceType) !==
-      'internet'
+    (StripeTerminalPlugin.getDeviceStyleFromDeviceType(reader.deviceType) !==
+      'internet' ||
+      // An Apps on Devices reader is an 'internet' MODEL but is driven by the
+      // native SDK because the app runs on it.
+      lastDiscoveryMethod.current === 'appsOnDevices')
+
+  const capabilities = useMemo(
+    () =>
+      getCapabilities(
+        reader,
+        nativeReader,
+        lastDiscoveryMethod.current === 'appsOnDevices',
+      ),
+    [reader, nativeReader],
+  )
+  // charge() is created once; the ref lets it see the current reader's abilities.
+  capabilitiesRef.current = capabilities
 
   const value = useMemo<TerminalContextValue>(
     () => ({
@@ -1145,6 +1357,12 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       discoveredReaders,
       isDiscovering,
       discoveryError,
+      discoverySearched,
+      connectingTo,
+      connectError,
+      connectionLost,
+      lowBattery,
+      clearReaderAlerts,
       battery,
       locations,
       loadLocations,
@@ -1155,6 +1373,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       readerMessage,
       readerInput,
       nativeReader,
+      capabilities,
       cancelReconnect,
       update,
       installUpdate,
@@ -1183,6 +1402,12 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       discoveredReaders,
       isDiscovering,
       discoveryError,
+      discoverySearched,
+      connectingTo,
+      connectError,
+      connectionLost,
+      lowBattery,
+      clearReaderAlerts,
       battery,
       locations,
       loadLocations,
@@ -1193,6 +1418,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       readerMessage,
       readerInput,
       nativeReader,
+      capabilities,
       cancelReconnect,
       update,
       installUpdate,

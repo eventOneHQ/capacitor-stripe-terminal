@@ -25,6 +25,8 @@ interface Props {
   description: string
   /** Where it works, e.g. "iOS, Android". Shown as a badge. */
   platforms?: string
+  /** Shown (muted) when the connected reader can't do this, e.g. an M2. */
+  unsupported?: string
   busy?: boolean
   result?: unknown
   error?: string
@@ -43,6 +45,11 @@ export default function FeatureCard(props: Props) {
         {props.platforms && (
           <p>
             <IonBadge color="medium">{props.platforms}</IonBadge>
+          </p>
+        )}
+        {props.unsupported && (
+          <p>
+            <IonText color="warning">{props.unsupported}</IonText>
           </p>
         )}
         {props.children}

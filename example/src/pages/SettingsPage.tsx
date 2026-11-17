@@ -31,7 +31,7 @@ import { useTerminal } from '../terminal/useTerminal'
 
 import { errorMessage } from '../lib/errors'
 import { resetSettings, updateSettings, useSettings } from '../lib/settings'
-import { checkHealth } from '../terminal/backend'
+import { checkHealth, enableTipping } from '../terminal/backend'
 
 /**
  * Cards the simulated reader can "tap". The decline cards are the useful ones:
@@ -73,6 +73,7 @@ const CURRENCIES = ['usd', 'cad', 'gbp', 'eur', 'aud', 'jpy']
 export default function SettingsPage() {
   const settings = useSettings()
   const [health, setHealth] = useState<string>()
+  const [tipSetup, setTipSetup] = useState<string>()
   const { initialize } = useTerminal()
 
   /** Ping the backend so a wrong URL is caught before trying to connect. */
@@ -83,6 +84,17 @@ export default function SettingsPage() {
       setHealth(`Backend OK (${result.livemode ? 'LIVE mode' : 'test mode'})`)
     } catch (err) {
       setHealth(errorMessage(err))
+    }
+  }
+
+  /** One-time: give your Terminal configuration tip options. */
+  async function setupTipping() {
+    setTipSetup('Updating...')
+    try {
+      const { updated } = await enableTipping()
+      setTipSetup(`Tipping enabled on ${updated.length} configuration(s).`)
+    } catch (err) {
+      setTipSetup(errorMessage(err))
     }
   }
 
@@ -138,6 +150,25 @@ export default function SettingsPage() {
                 </IonSelectOption>
               ))}
             </IonSelect>
+          </IonItem>
+        </IonList>
+
+        {/* ---------------- Tipping ---------------- */}
+        <IonList inset>
+          <IonListHeader>On-reader tipping</IonListHeader>
+          <IonItem lines="none">
+            <IonNote className="ion-text-wrap">
+              Smart readers only show a tip screen if your Terminal
+              Configuration has tip options. This adds 10/15/20% to your
+              test-mode configurations (the same as Dashboard, Terminal,
+              Configurations, Tipping).
+            </IonNote>
+          </IonItem>
+          <IonItem lines="none">
+            <IonButton size="small" onClick={() => void setupTipping()}>
+              Enable tipping (test mode)
+            </IonButton>
+            {tipSetup && <IonNote slot="end">{tipSetup}</IonNote>}
           </IonItem>
         </IonList>
 

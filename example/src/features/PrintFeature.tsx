@@ -10,6 +10,7 @@ import { IonButton } from '@ionic/react'
 
 import { formatMoney } from '../lib/format'
 import { useSettings } from '../lib/settings'
+import { unsupportedNote } from '../terminal/capabilities'
 import { useTerminal } from '../terminal/useTerminal'
 import FeatureCard from './FeatureCard'
 import { useAction } from './useAction'
@@ -38,7 +39,7 @@ function renderReceipt(currency: string): string {
 }
 
 export default function PrintFeature() {
-  const { sdk, reader } = useTerminal()
+  const { sdk, reader, capabilities } = useTerminal()
   const { currency } = useSettings()
   const action = useAction<string>()
 
@@ -48,13 +49,18 @@ export default function PrintFeature() {
       methods="print"
       description="Draws a sample receipt on a canvas and prints it on the reader's printer."
       platforms="Readers with a printer (S710)"
+      unsupported={
+        reader && !capabilities.print
+          ? unsupportedNote(capabilities)
+          : undefined
+      }
       busy={action.busy}
       result={action.result}
       error={action.error}
     >
       <IonButton
         size="small"
-        disabled={!reader || action.busy}
+        disabled={!capabilities.print || action.busy}
         onClick={() =>
           void action.run(async () => {
             await sdk()!.print(renderReceipt(currency))

@@ -87,7 +87,8 @@ app.post(
 /**
  * POST /payment_intents
  * Body: { amount: number (minor units, e.g. cents), currency: string,
- *         captureMethod?: 'automatic' | 'manual' }
+ *         captureMethod?: 'automatic' | 'manual', description?: string,
+ *         metadata?: Record<string,string>, receiptEmail?: string }
  * Returns `{ id, clientSecret }`. The app hands `clientSecret` to the SDK's
  * `retrievePaymentIntent`.
  *
@@ -98,7 +99,14 @@ app.post(
 app.post(
   '/payment_intents',
   route(async (req, res) => {
-    const { amount, currency = 'usd', captureMethod = 'automatic' } = req.body
+    const {
+      amount,
+      currency = 'usd',
+      captureMethod = 'automatic',
+      description,
+      metadata,
+      receiptEmail,
+    } = req.body
 
     if (!Number.isInteger(amount) || amount < 50) {
       res.status(400).json({ error: 'amount must be an integer >= 50' })
@@ -110,6 +118,11 @@ app.post(
       currency,
       payment_method_types: ['card_present'],
       capture_method: captureMethod,
+      // Optional order details (the POS tab sends these). Stripe emails a
+      // receipt to `receipt_email` in live mode.
+      description,
+      metadata,
+      receipt_email: receiptEmail,
     })
 
     res.json({ id: intent.id, clientSecret: intent.client_secret })
@@ -143,6 +156,52 @@ app.post(
   route(async (req, res) => {
     const intent = await stripe.paymentIntents.capture(String(req.params.id))
     res.json({ id: intent.id, status: intent.status })
+  }),
+)
+
+/**
+ * POST /terminal/tipping
+ * Turns ON on-reader tipping by adding tip options to your Terminal
+ * Configuration(s). WITHOUT THIS THE READER NEVER SHOWS A TIP SCREEN, even if
+ * the app asks for one: tip choices come from the configuration, not from the
+ * app. (In your own account you would normally set this once in the Dashboard:
+ * Terminal -> Configurations -> Tipping.)
+ *
+ * Body (optional): { currencies?: string[] }
+ * Test mode only: it rewrites account settings, so it refuses live keys.
+ * https://docs.stripe.com/terminal/features/collecting-tips/on-reader
+ */
+app.post(
+  '/terminal/tipping',
+  route(async (req, res) => {
+    if (secretKey.startsWith('sk_live')) {
+      res
+        .status(400)
+        .json({ error: 'Refusing to change a live-mode configuration.' })
+      return
+    }
+    const currencies: string[] = req.body?.currencies ?? [
+      'usd',
+      'cad',
+      'gbp',
+      'eur',
+      'aud',
+      'jpy',
+    ]
+    // 10 / 15 / 20 percent. (Fixed amounts and a "smart tip" threshold are
+    // also available; see the docs above.)
+    const tipping = Object.fromEntries(
+      currencies.map((c) => [c, { percentages: [10, 15, 20] }]),
+    )
+
+    const updated: string[] = []
+    for await (const config of stripe.terminal.configurations.list({
+      limit: 100,
+    })) {
+      await stripe.terminal.configurations.update(config.id, { tipping })
+      updated.push(config.id)
+    }
+    res.json({ updated, currencies })
   }),
 )
 

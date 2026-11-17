@@ -25,6 +25,18 @@ Register it on `<application>` in your manifest:
 <application android:name=".MyApplication" ...>
 ```
 
+The app module also needs the Terminal SDK on its own compile classpath, because the plugin includes it privately. In `android/app/build.gradle`:
+
+```groovy
+implementation "com.stripe:stripeterminal-core:6.0.0"
+```
+
+On the Stripe T600, lock the activity to the reader's landscape orientation in your manifest:
+
+```xml
+<activity android:name=".MainActivity" android:screenOrientation="nosensor" ... />
+```
+
 ## 2. Discover and connect
 
 The discovery list contains only the device itself.

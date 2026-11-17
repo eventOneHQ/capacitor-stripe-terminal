@@ -9,12 +9,13 @@
 import { IonButton } from '@ionic/react'
 import type { ReaderSettings } from 'capacitor-stripe-terminal'
 
+import { unsupportedNote } from '../terminal/capabilities'
 import { useTerminal } from '../terminal/useTerminal'
 import FeatureCard from './FeatureCard'
 import { useAction } from './useAction'
 
 export default function ReaderSettingsFeature() {
-  const { sdk, reader } = useTerminal()
+  const { sdk, reader, capabilities } = useTerminal()
   const action = useAction<ReaderSettings>()
 
   return (
@@ -23,6 +24,11 @@ export default function ReaderSettingsFeature() {
       methods="getReaderSettings · setReaderSettings"
       description="Read or change text-to-speech output on the connected reader."
       platforms="Readers that support accessibility settings"
+      unsupported={
+        reader && !capabilities.readerSettings
+          ? unsupportedNote(capabilities)
+          : undefined
+      }
       busy={action.busy}
       result={action.result}
       error={action.error}
@@ -30,7 +36,7 @@ export default function ReaderSettingsFeature() {
       <div className="button-row">
         <IonButton
           size="small"
-          disabled={!reader || action.busy}
+          disabled={!capabilities.readerSettings || action.busy}
           onClick={() => void action.run(() => sdk()!.getReaderSettings())}
         >
           Get
@@ -38,7 +44,7 @@ export default function ReaderSettingsFeature() {
         <IonButton
           size="small"
           fill="outline"
-          disabled={!reader || action.busy}
+          disabled={!capabilities.readerSettings || action.busy}
           onClick={() =>
             void action.run(() =>
               sdk()!.setReaderSettings({ textToSpeechViaSpeakers: true }),
@@ -50,7 +56,7 @@ export default function ReaderSettingsFeature() {
         <IonButton
           size="small"
           fill="outline"
-          disabled={!reader || action.busy}
+          disabled={!capabilities.readerSettings || action.busy}
           onClick={() =>
             void action.run(() =>
               sdk()!.setReaderSettings({ textToSpeechViaSpeakers: false }),

@@ -18,6 +18,7 @@ import {
   IonContent,
   IonHeader,
   IonItem,
+  IonLabel,
   IonList,
   IonListHeader,
   IonNote,
@@ -32,6 +33,7 @@ import {
 } from '@ionic/react'
 
 import ConnectionBadge from '../components/ConnectionBadge'
+import ReaderAlerts from '../components/ReaderAlerts'
 import ReaderItem from '../components/ReaderItem'
 import { updateSettings, useSettings } from '../lib/settings'
 import {
@@ -87,19 +89,8 @@ export default function ReaderPage() {
           </IonCard>
         )}
 
-        {/* Bluetooth dropped; the SDK is trying to get the reader back. */}
-        {t.connectionStatus === 'reconnecting' && (
-          <IonItem color="warning" lines="none">
-            Reconnecting to the reader...
-            <IonButton
-              slot="end"
-              size="small"
-              onClick={() => void t.cancelReconnect()}
-            >
-              Give up
-            </IonButton>
-          </IonItem>
-        )}
+        {/* Reconnecting / lost reader / connect or update errors. */}
+        <ReaderAlerts />
 
         {/* ---- Connected reader ---- */}
         {connected && t.reader && (
@@ -124,14 +115,18 @@ export default function ReaderPage() {
               {t.update.available && !t.update.installing && (
                 <p>
                   <IonText color="warning">
-                    Update {t.update.available.deviceSoftwareVersion} available
-                    (~{t.update.available.estimatedUpdateTimeString}).
+                    {t.update.available.requiredAt
+                      ? 'Required update'
+                      : 'Update'}{' '}
+                    {t.update.available.deviceSoftwareVersion} available (~
+                    {t.update.available.estimatedUpdateTimeString}).
+                    {t.update.error ? ' The last attempt failed.' : ''}
                   </IonText>
                   <IonButton
                     size="small"
                     onClick={() => void t.installUpdate()}
                   >
-                    Install
+                    {t.update.error ? 'Retry' : 'Install'}
                   </IonButton>
                 </p>
               )}
@@ -231,11 +226,41 @@ export default function ReaderPage() {
               )}
             </div>
 
+            {/* Discovery failed (permissions, Bluetooth off, network...). */}
             {t.discoveryError && (
               <IonItem lines="none">
-                <IonText color="danger">{t.discoveryError}</IonText>
+                <IonLabel className="ion-text-wrap">
+                  <IonText color="danger">
+                    Search failed: {t.discoveryError}
+                  </IonText>
+                </IonLabel>
               </IonItem>
             )}
+
+            {/* Connecting can take a while (Bluetooth pairing, updates). */}
+            {t.connectionStatus === 'connecting' && (
+              <IonItem lines="none">
+                <IonSpinner slot="start" name="dots" />
+                <IonLabel className="ion-text-wrap">
+                  Connecting to the reader. Keep it close and powered on...
+                </IonLabel>
+              </IonItem>
+            )}
+
+            {/* Nothing found (yet). */}
+            {t.discoverySearched &&
+              !t.discoveryError &&
+              t.discoveredReaders.length === 0 && (
+                <IonItem lines="none">
+                  <IonNote className="ion-text-wrap">
+                    {t.isDiscovering
+                      ? settings.discoveryMethod === 'appsOnDevices'
+                        ? 'Searching... An Apps on Devices reader only appears once it is registered to your Stripe account and a location (Dashboard, Terminal, Readers).'
+                        : 'Searching... Make sure the reader is on and nearby.'
+                      : 'No readers found. Check that the reader is on, charged, and (for internet readers) registered to the selected location, then search again.'}
+                  </IonNote>
+                </IonItem>
+              )}
 
             {/* ---- Results ---- */}
             {t.discoveredReaders.length > 0 && (
@@ -252,7 +277,11 @@ export default function ReaderPage() {
                         disabled={t.connectionStatus === 'connecting'}
                         onClick={() => void t.connect(r)}
                       >
-                        Connect
+                        {t.connectingTo === r.serialNumber ? (
+                          <IonSpinner name="dots" />
+                        ) : (
+                          'Connect'
+                        )}
                       </IonButton>
                     }
                   />

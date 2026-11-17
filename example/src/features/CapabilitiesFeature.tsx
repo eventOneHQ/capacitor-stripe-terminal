@@ -40,7 +40,9 @@ export default function CapabilitiesFeature() {
     const t = sdk()!
     const out: Record<string, boolean | string> = {}
     for (const { deviceType, method } of CHECKS) {
-      const key = `${deviceType} via ${method} (${t.getDeviceStyleFromDeviceType(deviceType)})`
+      const key = `${deviceType} via ${method} (${t.getDeviceStyleFromDeviceType(
+        deviceType,
+      )})`
       try {
         // `simulated: false` asks about REAL hardware support.
         out[key] = await t.supportsReadersOfType(deviceType, method, false)

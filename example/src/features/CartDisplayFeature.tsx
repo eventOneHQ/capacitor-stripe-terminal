@@ -13,12 +13,13 @@ import { IonButton } from '@ionic/react'
 import type { Cart } from 'capacitor-stripe-terminal'
 
 import { useSettings } from '../lib/settings'
+import { unsupportedNote } from '../terminal/capabilities'
 import { useTerminal } from '../terminal/useTerminal'
 import FeatureCard from './FeatureCard'
 import { useAction } from './useAction'
 
 export default function CartDisplayFeature() {
-  const { sdk, reader } = useTerminal()
+  const { sdk, reader, capabilities } = useTerminal()
   const { currency } = useSettings()
   const action = useAction<string>()
 
@@ -38,6 +39,11 @@ export default function CartDisplayFeature() {
       methods="setReaderDisplay · clearReaderDisplay"
       description="Show line items and a total on the reader's screen."
       platforms="Internet smart readers"
+      unsupported={
+        reader && !capabilities.cartDisplay
+          ? unsupportedNote(capabilities)
+          : undefined
+      }
       busy={action.busy}
       result={action.result}
       error={action.error}
@@ -45,7 +51,7 @@ export default function CartDisplayFeature() {
       <div className="button-row">
         <IonButton
           size="small"
-          disabled={!reader || action.busy}
+          disabled={!capabilities.cartDisplay || action.busy}
           onClick={() =>
             void action.run(async () => {
               await sdk()!.setReaderDisplay(cart)
@@ -58,7 +64,7 @@ export default function CartDisplayFeature() {
         <IonButton
           size="small"
           fill="outline"
-          disabled={!reader || action.busy}
+          disabled={!capabilities.cartDisplay || action.busy}
           onClick={() =>
             void action.run(async () => {
               await sdk()!.clearReaderDisplay()

@@ -15,12 +15,13 @@ import {
   type ICollectInputsResult,
 } from 'capacitor-stripe-terminal'
 
+import { unsupportedNote } from '../terminal/capabilities'
 import { useTerminal } from '../terminal/useTerminal'
 import FeatureCard from './FeatureCard'
 import { useAction } from './useAction'
 
 export default function CollectInputsFeature() {
-  const { sdk, reader } = useTerminal()
+  const { sdk, reader, capabilities } = useTerminal()
   const action = useAction<ICollectInputsResult[]>()
 
   async function collect() {
@@ -63,6 +64,11 @@ export default function CollectInputsFeature() {
       methods="collectInputs · cancelCollectInputs"
       description="Show a survey, email, phone and signature form on the reader's screen."
       platforms="Internet smart readers (S700/S710, WisePOS E)"
+      unsupported={
+        reader && !capabilities.collectInputs
+          ? unsupportedNote(capabilities)
+          : undefined
+      }
       busy={action.busy}
       result={action.result}
       error={action.error}
@@ -70,7 +76,7 @@ export default function CollectInputsFeature() {
       <div className="button-row">
         <IonButton
           size="small"
-          disabled={!reader || action.busy}
+          disabled={!capabilities.collectInputs || action.busy}
           onClick={() => void action.run(collect)}
         >
           Show form

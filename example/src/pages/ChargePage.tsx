@@ -20,7 +20,6 @@ import {
   IonInput,
   IonItem,
   IonLabel,
-  IonModal,
   IonNote,
   IonPage,
   IonSelect,
@@ -41,33 +40,8 @@ import { useState } from 'react'
 import ConnectionBadge from '../components/ConnectionBadge'
 import { formatMoney, parseToMinorUnits } from '../lib/format'
 import { updateSettings, useSettings } from '../lib/settings'
+import { INPUT_TEXT, MESSAGE_TEXT } from '../terminal/messages'
 import { useTerminal } from '../terminal/useTerminal'
-
-/**
- * Plain-English text for the prompts a reader can request. The SDK gives us
- * an identifier ('retryCard'); showing it to the customer is our job.
- * See docs/guides/events.md.
- */
-const MESSAGE_TEXT: Record<string, string> = {
-  retryCard: 'Please try the card again.',
-  insertCard: 'Please insert the card.',
-  insertOrSwipeCard: 'Please insert or swipe the card.',
-  swipeCard: 'Please swipe the card.',
-  removeCard: 'Please remove the card.',
-  multipleContactlessCardsDetected:
-    'Multiple cards detected. Present just one.',
-  tryAnotherReadMethod: 'Please try another way of paying with this card.',
-  tryAnotherCard: 'Please try a different card.',
-  checkMobileDevice: 'Please check your phone.',
-  cardRemovedTooEarly: 'Card removed too early. Please try again.',
-}
-
-/** Readable labels for the input methods a reader may be accepting. */
-const INPUT_TEXT: Record<string, string> = {
-  tapCard: 'Tap',
-  insertCard: 'Insert',
-  swipeCard: 'Swipe',
-}
 
 export default function ChargePage() {
   const t = useTerminal()
@@ -148,6 +122,7 @@ export default function ChargePage() {
                   <IonItem>
                     <IonToggle
                       checked={settings.skipTipping}
+                      disabled={!t.capabilities.onReaderTipping}
                       onIonChange={(e) =>
                         updateSettings({ skipTipping: e.detail.checked })
                       }
@@ -158,6 +133,7 @@ export default function ChargePage() {
                   <IonItem>
                     <IonToggle
                       checked={settings.onReaderTipping}
+                      disabled={!t.capabilities.onReaderTipping}
                       onIonChange={(e) =>
                         updateSettings({ onReaderTipping: e.detail.checked })
                       }
@@ -332,63 +308,6 @@ export default function ChargePage() {
             <IonButton onClick={t.resetPayment}>Back</IonButton>
           </div>
         )}
-
-        {/*
-          Some readers accept non-card payments. The SDK asks us to pick;
-          a card-only reader never triggers this.
-        */}
-        <IonModal isOpen={!!t.paymentChoice} backdropDismiss={false}>
-          <div className="ion-padding">
-            <h2>How would the customer like to pay?</h2>
-            {t.paymentChoice?.options.map((o, i) => (
-              <IonButton
-                key={i}
-                expand="block"
-                onClick={() =>
-                  void t.paymentChoice?.select(o.paymentMethodType ?? 'card')
-                }
-              >
-                {o.type === 'card' ? 'Card' : (o.paymentMethodType ?? 'Other')}
-              </IonButton>
-            ))}
-            <IonButton
-              expand="block"
-              color="medium"
-              fill="outline"
-              onClick={() => void t.paymentChoice?.fail('Cancelled by cashier')}
-            >
-              Cancel
-            </IonButton>
-          </div>
-        </IonModal>
-
-        {/* QR payments: we render the code the SDK hands us, then confirm. */}
-        <IonModal isOpen={!!t.qrChoice} backdropDismiss={false}>
-          <div className="ion-padding ion-text-center">
-            <h2>Scan to pay</h2>
-            {t.qrChoice && (
-              <img
-                src={t.qrChoice.qr.imageUrlPng}
-                alt="Payment QR code"
-                width={260}
-              />
-            )}
-            <IonButton
-              expand="block"
-              onClick={() => void t.qrChoice?.confirmDisplayed()}
-            >
-              QR code is displayed
-            </IonButton>
-            <IonButton
-              expand="block"
-              color="medium"
-              fill="outline"
-              onClick={() => void t.qrChoice?.fail('QR code failed to display')}
-            >
-              Cancel
-            </IonButton>
-          </div>
-        </IonModal>
       </IonContent>
     </IonPage>
   )
