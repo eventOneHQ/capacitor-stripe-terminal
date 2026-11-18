@@ -4,6 +4,7 @@ on:
     branches:
       - next
       - beta
+      - v5-support
 jobs:
   release:
     name: Release
