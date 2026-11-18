@@ -1872,12 +1872,10 @@ export interface BatteryLevel {
  * @ignore
  */
 export interface StripeTerminalInterface {
-  setConnectionToken(
-    options: {
-      token?: string
-    } | null,
-    errorMessage?: string,
-  ): Promise<void>
+  setConnectionToken(options: {
+    token?: string
+    errorMessage?: string
+  }): Promise<void>
 
   initialize(options?: { logLevel?: LogLevel }): Promise<void>
 

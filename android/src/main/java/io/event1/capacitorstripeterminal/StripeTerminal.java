@@ -250,8 +250,15 @@ public class StripeTerminal
         pendingConnectionTokenCallback.onFailure(
           new ConnectionTokenException(errorMessage)
         );
-      } else if (token != null) {
+      } else if (token != null && !token.isEmpty()) {
         pendingConnectionTokenCallback.onSuccess(token);
+      } else {
+        // Never drop the SDK's request silently: fail it so the SDK can retry.
+        pendingConnectionTokenCallback.onFailure(
+          new ConnectionTokenException(
+            "Connection token was not provided to the plugin."
+          )
+        );
       }
 
       call.resolve();
