@@ -145,10 +145,13 @@ public class StripeTerminal: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvide
         let errorMessage = call.getString("errorMessage") ?? ""
 
         if let completion = pendingConnectionTokenCompletionBlock {
-            if !errorMessage.isEmpty {
+            if !errorMessage.isEmpty || token.isEmpty {
+                let message = errorMessage.isEmpty
+                    ? "Connection token was not provided to the plugin."
+                    : errorMessage
                 let error = NSError(domain: "io.event1.capacitor-stripe-terminal",
                                     code: 1,
-                                    userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                                    userInfo: [NSLocalizedDescriptionKey: message])
                 completion(nil, error)
             } else {
                 completion(token, nil)

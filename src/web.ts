@@ -513,20 +513,24 @@ export class StripeTerminalWeb extends WebPlugin {
     throw this.unimplemented('Permissions are not required on web.')
   }
 
-  async setConnectionToken(
-    options: {
-      token?: string
-    } | null,
-    errorMessage?: string,
-  ): Promise<void> {
+  async setConnectionToken(options: {
+    token?: string
+    errorMessage?: string
+  }): Promise<void> {
+    const callbacks = this.connectionTokenCallbacks.splice(0)
+
     if (!options?.token) {
+      // Fail the pending requests so the JS SDK can surface the error and
+      // retry instead of waiting forever.
+      for (const cb of callbacks) {
+        cb({ errorMessage: options?.errorMessage })
+      }
       return
     }
 
     this.currentConnectionToken = options.token
-    const callbacks = this.connectionTokenCallbacks.splice(0)
     for (const cb of callbacks) {
-      cb({ token: options.token, errorMessage })
+      cb({ token: options.token })
     }
   }
 

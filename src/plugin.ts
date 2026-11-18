@@ -153,10 +153,12 @@ export class StripeTerminalPlugin {
         }
       })
       .catch((err) => {
-        sdk.setConnectionToken(
-          null,
-          err.message || 'Error in user-supplied `fetchConnectionToken`.',
-        )
+        // Capacitor only forwards the first argument to native, so the error
+        // message must travel inside the options object.
+        sdk.setConnectionToken({
+          errorMessage:
+            err?.message || 'Error in user-supplied `fetchConnectionToken`.',
+        })
       })
   }
 
