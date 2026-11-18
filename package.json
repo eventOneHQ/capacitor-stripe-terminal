@@ -73,6 +73,11 @@
         "name": "beta",
         "channel": "beta",
         "prerelease": true
+      },
+      {
+        "name": "v5-support",
+        "range": "5.x",
+        "channel": "v5"
       }
     ]
   }
